@@ -28,7 +28,7 @@ public class BlockSelector : UdonSharpBehaviour
 
 	private void Update()
 	{
-		if (handUI.isOn || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))
+		if ((handUI != null && handUI.isOn) || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))
 		{
 			selectedCube.SetActive(false);
 			plus.SetActive(false);
@@ -151,7 +151,7 @@ public class BlockSelector : UdonSharpBehaviour
 	}
 	public override void InputGrab(bool value, UdonInputEventArgs args)
 	{
-		if (localPlayer.IsUserInVR() && (!value || selectedAir == Vector3Int.down || args.handType == HandType.LEFT || handUI.isOn || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))) return;
+		if (localPlayer.IsUserInVR() && (!value || selectedAir == Vector3Int.down || args.handType == HandType.LEFT || (handUI != null && handUI.isOn) || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))) return;
 		if (!localPlayer.IsUserInVR() && (!value || selectedAir == Vector3Int.down || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))) return;
 
 		networkManager.SetBlock(selectedBlock, 1);
