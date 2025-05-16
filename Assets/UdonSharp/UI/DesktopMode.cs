@@ -5,12 +5,10 @@ using VRC.SDKBase;
 public class DesktopMode : UdonSharpBehaviour
 {
 	[SerializeField] private GameObject[] vrUis;
-	[SerializeField] private GameObject BaseUi;
-	[SerializeField] private GameObject InteractionUi;
+	[SerializeField] private Collider box;
+	[SerializeField] private GameObject desktopUi;
 
 	private VRCPlayerApi player;
-
-	private Vector2 mousePos;
 
 	void Start()
 	{
@@ -26,23 +24,14 @@ public class DesktopMode : UdonSharpBehaviour
 		}
 		else
 		{
-			Destroy(BaseUi);
-			Destroy(InteractionUi);
+			Destroy(desktopUi);
 			Destroy(gameObject);
 		}
 	}
 
 	private void Update()
 	{
-		if (Input.GetKey(KeyCode.Tab))
-		{
-			BaseUi.SetActive(false);
-			InteractionUi.SetActive(true);
-		}
-		else
-		{
-			BaseUi.SetActive(true);
-			InteractionUi.SetActive(false);
-		}
+		desktopUi.SetActive(Input.GetKey(KeyCode.Tab));
+		box.enabled = Input.GetKey(KeyCode.Tab);
 	}
 }

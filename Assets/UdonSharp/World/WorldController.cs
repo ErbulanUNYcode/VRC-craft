@@ -23,11 +23,6 @@ public class WorldController : UdonSharpBehaviour
 
 	[SerializeField] private Vector3IntList setBlockPos;
 
-	#region blocksData
-	private BlockVisualType[] blocksVisualTypes;
-	private GameObject[] blocks;
-	#endregion
-
 	private VRCPlayerApi player;
 
 	#region menu world data
@@ -87,31 +82,6 @@ public class WorldController : UdonSharpBehaviour
 		}
 
 		player = Networking.LocalPlayer;
-
-		//init blocks data
-		var blockComponents = GetComponentsInChildren<Block>();
-
-		int n = blockComponents.Length;
-		for (int i = 0; i < n - 1; i++)
-		{
-			for (int j = 0; j < n - i - 1; j++)
-			{
-				if (blockComponents[j].GetIndex() > blockComponents[j + 1].GetIndex())
-				{
-					var temp = blockComponents[j];
-					blockComponents[j] = blockComponents[j + 1];
-					blockComponents[j + 1] = temp;
-				}
-			}
-		}
-
-		blocks = new GameObject[blockComponents.Length + 1];
-		blocksVisualTypes = new BlockVisualType[blockComponents.Length + 1];
-		for (int i = 0; i < blockComponents.Length; i++)
-		{
-			blocks[i + 1] = blockComponents[i].GetBlock();
-			blocksVisualTypes[i + 1] = blockComponents[i].GetVisualType();
-		}
 
 		UpdateRandom();
 
