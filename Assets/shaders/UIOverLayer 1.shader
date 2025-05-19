@@ -3,7 +3,6 @@ Shader "Unlit/UIBlockOverLayer"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
-        _BlockID ("Block ID", Range(1,68)) = 1
         _Side ("Side", Range(0,2)) = 0
     }
 
@@ -36,7 +35,6 @@ Shader "Unlit/UIBlockOverLayer"
             };
             
             sampler2D _MainTex;
-            float _BlockID;
             float _Side;
             float4 _MainTex_ST;
 
@@ -51,11 +49,11 @@ Shader "Unlit/UIBlockOverLayer"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                float id = _BlockID*2;
-                float2 uv = (i.uv + float2(id%32,floor(id/32)*3+_Side))/32;
-                
+                float id = round(i.color.a * 255.0) * 2.0;
+                float2 uv = (i.uv + float2(fmod(id, 32.0), floor(id / 32.0) * 3.0 + _Side)) / 32.0;
+
                 fixed4 texColor = tex2D(_MainTex, uv);
-                return texColor * i.color;
+                return texColor;
             }
             ENDCG
         }

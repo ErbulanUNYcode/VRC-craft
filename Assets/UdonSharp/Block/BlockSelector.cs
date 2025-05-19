@@ -28,10 +28,11 @@ public class BlockSelector : UdonSharpBehaviour
 
 	private void Update()
 	{
-		if ((handUI != null && handUI.isOn) || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))
+		if (Input.GetKey(KeyCode.Tab) || (handUI != null && handUI.isOn) || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))
 		{
 			selectedCube.SetActive(false);
-			plus.SetActive(false);
+			plus.SetActive(!Input.GetKey(KeyCode.Tab));
+			selectedBlock = Vector3Int.down;
 			return;
 		}
 
@@ -68,7 +69,7 @@ public class BlockSelector : UdonSharpBehaviour
 				selectedBlock = current;
 				selectedCube.SetActive(true);
 				selectedCube.transform.position = selectedBlock + Vector3.one * 0.5f;
-				if (plus != null)
+				if (handUI != null)
 				{
 					plus.SetActive(true);
 					plus.transform.position = point;
@@ -108,8 +109,7 @@ public class BlockSelector : UdonSharpBehaviour
 		selectedBlock = Vector3Int.down;
 		selectedAir = Vector3Int.down;
 		selectedCube.SetActive(false);
-		if (plus != null)
-			plus.SetActive(false);
+		plus.SetActive(!Input.GetKey(KeyCode.Tab));
 
 		if (localPlayer.IsUserInVR()) return;
 
