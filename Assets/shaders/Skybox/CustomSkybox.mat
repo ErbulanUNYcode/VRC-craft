@@ -33,6 +33,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _Clouds:
+        m_Texture: {fileID: 2800000, guid: 6fbe200c9def60a4182f59356f919cb1, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -69,6 +73,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _Moon:
+        m_Texture: {fileID: 2800000, guid: 56b36c8adc97e9547be203449beb92c9, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -81,6 +89,34 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _StarsXM:
+        m_Texture: {fileID: 2800000, guid: cbbbf58a136f97845a33621d2c7c16cf, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _StarsXP:
+        m_Texture: {fileID: 2800000, guid: 5970c25a673e61e458c01e178ff36869, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _StarsYM:
+        m_Texture: {fileID: 2800000, guid: a1b181b5906700b40be89be908e1d41b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _StarsYP:
+        m_Texture: {fileID: 2800000, guid: d7fcd5c0ff7375940b304225157dcc94, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _StarsZM:
+        m_Texture: {fileID: 2800000, guid: 9986228cfa3e9894f83571eb58802213, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _StarsZP:
+        m_Texture: {fileID: 2800000, guid: 5fae36d00e3f8754c99bb95a6a79690a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Sun:
+        m_Texture: {fileID: 2800000, guid: 5389e58e4b92da343919d82b90b39e30, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _Tex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -91,10 +127,12 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Angle: 17.5
+    - _Angle: 50
     - _AtmosphereThickness: 1
     - _BumpScale: 1
+    - _CloudTime: 0
     - _Cutoff: 0.5
+    - _Day: 7
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _Exposure: 1
@@ -116,7 +154,9 @@ Material:
     - _SunDisk: 2
     - _SunSize: 0.04
     - _SunSizeConvergence: 5
-    - _TimePower: 0.312
+    - _Test1: 0
+    - _Test2: 1
+    - _TimePower: 7.003936
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
@@ -125,10 +165,10 @@ Material:
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GroundColor: {r: 0.36899996, g: 0.34899998, b: 0.34099993, a: 1}
     - _HorizonCol: {r: 0.7877358, g: 0.99375695, b: 1, a: 1}
-    - _ReleCol: {r: 1, g: 0.72993183, b: 0.5019608, a: 1}
+    - _ReleCol: {r: 1, g: 0, b: 0, a: 1}
     - _SkyColor: {r: 0.19999996, g: 0.39999998, b: 0.6, a: 1}
     - _SkyTint: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-    - _SunLightCol: {r: 1, g: 0.9240403, b: 0.4764151, a: 1}
+    - _SunLightCol: {r: 1, g: 1, b: 0, a: 1}
     - _Tint: {r: 0.5, g: 0.5, b: 0.5, a: 0.5}
-    - _TopCol: {r: 0, g: 0.5, b: 1, a: 1}
+    - _TopCol: {r: 0, g: 0.50196075, b: 1, a: 1}
   m_BuildTextureStacks: []

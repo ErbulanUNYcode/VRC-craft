@@ -15,6 +15,11 @@ public class UItracker : UdonSharpBehaviour
 	[SerializeField] private AutoToggle inventoryOpened;
 	[SerializeField] private AutoToggle settingsOpened;
 	[SerializeField] private AutoToggle handUI;
+	[SerializeField] private Inventory inventory;
+
+	private CellController selectedCell = null;
+	[SerializeField] private CellController dragedCell;
+	private bool startDrag = false;
 
 
 
@@ -208,26 +213,76 @@ public class UItracker : UdonSharpBehaviour
 			coursor[3].transform.localPosition = center + new Vector2(9, -9) * offsetMultiplier;
 		}
 
-		//debugText.text = state.ToString();
+		if (coursorActive)
+		{
+			if (selectedCell != null)
+				dragedCell.transform.localPosition = (Vector2)transform.localPosition;
+		}
+		else
+		{
+			if (selectedCell != null)
+			{
+				dragedCell.Shuffle(selectedCell);
+				selectedCell = null;
+			}
+		}
 	}
 
 	public override void InputUse(bool value, UdonInputEventArgs args)
 	{
-		//value is true when pressed, false when released
+		if (args.handType == HandType.LEFT) return;
+		if (!value) return;
+		if (index == -1) return;
 
-		//args.handType is the hand that pressed the button
+		var index2 = index - trackedObjects.Length + 9;
 
+		if (index2 >= 0)
+		{
+			inventory.ChangeUsed(index2);
+			return;
+		}
+
+		var cell = trackedObjects[index].GetComponent<CellController>();
+
+		if (cell != null)
+		{
+			if (selectedCell == null)
+				cell._Click();
+			else
+				cell.TryOne(dragedCell);
+			return;
+		}
+
+		if (selectedCell != null) return;
+
+		var toggle = trackedObjects[index].GetComponent<AutoToggle>();
+
+		if (toggle != null)
+		{
+			toggle.Toggle();
+			player.Immobilize(inventoryOpened.State || settingsOpened.State);
+			return;
+		}
+	}
+
+	public override void InputGrab(bool value, UdonInputEventArgs args)
+	{
+		if (args.handType == HandType.LEFT) return;
+		if (index == -1) return;
 		if (value)
 		{
-			if (index != -1)
-			{
-				var toggle = trackedObjects[index].GetComponent<AutoToggle>();
-
-				if (toggle != null)
-				{
-					toggle.Toggle();
-				}
-			}
+			var cell = trackedObjects[index].GetComponent<CellController>();
+			if (cell == null) return;
+			inventory.Deselect();
+			selectedCell = cell;
+			cell.Shuffle(dragedCell);
+		}
+		else if (selectedCell != null)
+		{
+			dragedCell.Shuffle(selectedCell);
+			var cell = trackedObjects[index].GetComponent<CellController>();
+			if (cell != null) selectedCell.Shuffle(cell);
+			selectedCell = null;
 		}
 	}
 

@@ -16,12 +16,79 @@ public class CellController : UdonSharpBehaviour
 	[SerializeField] private Inventory inventory;
 	[SerializeField] private ItemDataManager itemData;
 	[SerializeField] private CellController syncCell;
+	[SerializeField] private CellController draggedCell;
+	[SerializeField] private NetworkManager networkManager;
 
 	private int count = 0;
 	private int id = 0;
+	private bool isVR = false;
+	private bool isDragging = false;
+
+	private void Start()
+	{
+		UpdateVisuals();
+	}
+
+	private void Update()
+	{
+
+		if (scrollRect == null) return;
+
+		if (!Input.GetKey(KeyCode.Tab))
+		{
+			if (isDragging)
+			{
+				TryGive(draggedCell.id, draggedCell.count);
+				draggedCell.count = 0;
+				draggedCell.UpdateVisuals();
+				isDragging = false;
+				selected.SetActive(false);
+
+				scrollRect.horizontalNormalizedPosition = 0.5f;
+				scrollRect.verticalNormalizedPosition = 0.5f;
+			}
+			return;
+		}
+
+		var pos = Vector3Int.RoundToInt(scrollRect.content.localPosition) - new Vector3(-18, 18, 0);
+		if (!isDragging && pos == Vector3.zero) return;
+		if (!isDragging && count != 0)
+		{
+			inventory.Deselect();
+
+			isDragging = true;
+			if (selected != null) selected.SetActive(false);
+			draggedCell.Sync(id, count);
+			count = 0;
+			UpdateVisuals();
+		}
+		pos += transform.localPosition;
+		draggedCell.transform.localPosition = pos;
+	}
+
+	public void TryOne(CellController cell)
+	{
+		if (cell.count == 0) return;
+
+		if (TryGive(cell.id, 1) == 1) return;
+
+		cell.count--;
+		cell.UpdateVisuals();
+	}
 
 	public void Shuffle(CellController cell)
 	{
+		if (selected != null) selected.SetActive(false);
+
+		if (cell == this) return;
+
+		if (cell.id == id)
+		{
+			count = cell.TryGive(id, count);
+			UpdateVisuals();
+			return;
+		}
+
 		var tempId = id;
 		var tempCount = count;
 
@@ -33,15 +100,18 @@ public class CellController : UdonSharpBehaviour
 
 		cell.UpdateVisuals();
 		UpdateVisuals();
-
-		selected.SetActive(false);
 	}
 
-	private void Sync(int id, int count)
+	public void Sync(int id, int count)
 	{
 		this.id = id;
 		this.count = count;
 		UpdateVisuals();
+	}
+
+	public void Sync(CellController cell)
+	{
+		Sync(cell.id, cell.count);
 	}
 
 	public int TryGive(int id, int count)
@@ -52,21 +122,30 @@ public class CellController : UdonSharpBehaviour
 
 		return count2;
 	}
+
+
+	public void TryGive(CellController cell)
+	{
+		cell.count = _TryGive(cell.id, cell.count);
+		cell.UpdateVisuals();
+		UpdateVisuals();
+	}
+
 	public int _TryGive(int id, int count)
 	{
 		if (this.count == 0)
 		{
 			this.id = id;
-			this.count = Mathf.Min(count, itemData.Item(id).maxCount);
+			this.count = Mathf.Min(count, itemData[id].maxCount);
 			return Mathf.Max(0, count - this.count);
 		}
 
 		if (this.id != id) return count;
 
-		if (this.count + count > itemData.Item(id).maxCount)
+		if (this.count + count > itemData[id].maxCount)
 		{
-			count = this.count + count - itemData.Item(id).maxCount;
-			this.count = itemData.Item(id).maxCount;
+			count = this.count + count - itemData[id].maxCount;
+			this.count = itemData[id].maxCount;
 		}
 		else
 		{
@@ -74,13 +153,13 @@ public class CellController : UdonSharpBehaviour
 			count = 0;
 		}
 
-		return 0;
+		return count;
 	}
 
 	private void OnEnable()
 	{
+		if (selected == null) return;
 		selected.SetActive(false);
-		UpdateVisuals();
 	}
 
 	private void UpdateVisuals()
@@ -95,16 +174,16 @@ public class CellController : UdonSharpBehaviour
 			return;
 		}
 
-		if (itemData.Item(id).isBlockItem)
+		if (itemData[id].isBlockItem)
 		{
 			blockItem.SetActive(true);
 			for (int i = 0; i < blockItemSides.Length; i++)
 			{
-				blockItemSides[i].color = new Color(1f, 1f, 1f, ((float)itemData.Item(id).blockItemId) / 255f);
+				blockItemSides[i].color = new Color(1f, 1f, 1f, ((float)itemData[id].iconId) / 255f);
 			}
 			countText.gameObject.SetActive(true);
 			countText.text = count.ToString();
-			if (count == 1) countText.gameObject.SetActive(false);
+			countText.gameObject.SetActive(count != 1);
 			simpleItem.gameObject.SetActive(false);
 		}
 		else
@@ -112,53 +191,136 @@ public class CellController : UdonSharpBehaviour
 			blockItem.SetActive(false);
 			countText.gameObject.SetActive(true);
 			countText.text = count.ToString();
-			if (count == 1) countText.gameObject.SetActive(false);
+			countText.gameObject.SetActive(count != 1);
 			simpleItem.gameObject.SetActive(true);
-			simpleItem.sprite = itemData.Item(id).icon;
+			simpleItem.sprite = itemData.Icon(id);
 		}
 	}
 
 	public void _Click()
 	{
-		var pos = Vector3Int.RoundToInt(scrollRect.content.localPosition) - new Vector3(-18, 18, 0);
-		if (pos == Vector3.zero) selected.SetActive(inventory.Click(this));
+		if (scrollRect != null)
+		{
+			var pos = Vector3Int.RoundToInt(scrollRect.content.localPosition) - new Vector3(-18, 18, 0);
+			if (pos != Vector3.zero) return;
+		}
+		if (count == 0) inventory.TryClick(this);
+		else selected.SetActive(inventory.Click(this));
 	}
 
 	public override void InputUse(bool value, UdonInputEventArgs args)
 	{
-		if (scrollRect == null) return;
-		if (value) return;
-		if (!Input.GetKey(KeyCode.Tab)) return;
-		var pos = Vector3Int.RoundToInt(scrollRect.content.localPosition) - new Vector3(-18, 18, 0);
-		if (pos != Vector3.zero)
-		{
-			pos += transform.localPosition;
-			selected.SetActive(false);
+		Vector3 pos = Vector3.zero;
 
-			inventory.TryShuffle(pos, this);
+		if (scrollRect != null)
+		{
+			pos = Vector3Int.RoundToInt(scrollRect.content.localPosition) - new Vector3(-18, 18, 0);
 
 			scrollRect.horizontalNormalizedPosition = 0.5f;
 			scrollRect.verticalNormalizedPosition = 0.5f;
 		}
+		else return;
+		if (value) return;
+		if (!Input.GetKey(KeyCode.Tab)) return;
+		if (!isDragging) return;
+		isDragging = false;
+
+		pos += transform.localPosition;
+		if (count == 0)
+			inventory.TryShuffle(pos, draggedCell);
+		else
+		{
+			inventory.TryGive(pos, draggedCell);
+			if (draggedCell.count != 0) TryGive(draggedCell);
+
+			if (draggedCell.count != 0) inventory.TryGive(draggedCell.id, draggedCell.count);
+			draggedCell.count = 0;
+			draggedCell.UpdateVisuals();
+		}
+
+		TryGive(draggedCell.id, draggedCell.count);
+
+		draggedCell.count = 0;
+		draggedCell.UpdateVisuals();
 	}
 
 	public override void InputDrop(bool value, UdonInputEventArgs args)
 	{
-		if (count == 0) return;
 		if (scrollRect == null) return;
 		if (!value) return;
 		if (!Input.GetKey(KeyCode.Tab)) return;
-		var pos = Vector3Int.RoundToInt(scrollRect.content.localPosition) - new Vector3(-18, 18, 0);
-		if (pos != Vector3.zero)
-		{
-			pos += transform.localPosition;
-			selected.SetActive(false);
+		if (!isDragging) return;
+		if (draggedCell.count == 0) return;
+		var pos = Vector3Int.RoundToInt(scrollRect.content.localPosition) - new Vector3(-18, 18, 0) + transform.localPosition;
 
-			if (inventory.TryOne(pos, id))
+		if (inventory.TryOne(pos, draggedCell.id))
+		{
+			draggedCell.count--;
+			draggedCell.UpdateVisuals();
+		}
+	}
+
+	internal void ClickBlock(Vector3Int selected, Vector3Int air, bool value)
+	{
+		if (!value)
+		{
+			networkManager.SetBlock(selected, 1);
+		}
+		else
+		{
+			if (count == 0) return;
+
+			var setType = itemData[id].setType;
+
+			if (setType == SetType.none) return;
+
+			if (itemData[id].setType == SetType.symple)
+				networkManager.SetBlock(air, itemData[id].sets[0] + 1);
+			else if (setType == SetType.side)
 			{
-				count--;
-				UpdateVisuals();
+				if (selected.x > air.x)
+					networkManager.SetBlock(air, itemData[id].sets[0] + 1);
+				else if (selected.x < air.x)
+					networkManager.SetBlock(air, itemData[id].sets[3] + 1);
+				else if (selected.y > air.y)
+					networkManager.SetBlock(air, itemData[id].sets[1] + 1);
+				else if (selected.y < air.y)
+					networkManager.SetBlock(air, itemData[id].sets[4] + 1);
+				else if (selected.z > air.z)
+					networkManager.SetBlock(air, itemData[id].sets[2] + 1);
+				else if (selected.z < air.z)
+					networkManager.SetBlock(air, itemData[id].sets[5] + 1);
 			}
+			else if (setType == SetType.front)
+			{
+				var offset = inventory.OrderOffset;
+
+				var fronts = new float[]
+				{
+					Mathf.Max(0, offset.x),
+					Mathf.Max(0, offset.y),
+					Mathf.Max(0, offset.z),
+					Mathf.Max(0, -offset.x),
+					Mathf.Max(0, -offset.y),
+					Mathf.Max(0, -offset.z)
+				};
+
+				var best = -1;
+				var bestValue = 0f;
+				for (int i = 0; i < fronts.Length; i++)
+				{
+					if (itemData[id].sets[i] == 0) continue;
+					if (fronts[i] > bestValue)
+					{
+						bestValue = fronts[i];
+						best = i;
+					}
+				}
+
+				networkManager.SetBlock(air, itemData[id].sets[best] + 1);
+			}
+			count--;
+			UpdateVisuals();
 		}
 	}
 }

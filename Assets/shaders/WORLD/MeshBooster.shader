@@ -127,7 +127,7 @@ Shader "Unlit/MeshBooster"
 					}
 				}
 
-				return ids.x!=ids.y;
+				return ids.x!=ids.y; 
 			}
 
             fixed4 frag (v2f i) : SV_Target

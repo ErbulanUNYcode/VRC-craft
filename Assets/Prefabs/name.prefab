@@ -156,10 +156,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: name fgdfg
+  m_text: '*/+-,.()[]{}"'':;@!?_#^&$%=<>~'
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 36e65f933d7ac1c4db015e089d084882, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 36e65f933d7ac1c4db015e089d084882, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 942e90b6956b0dd4f918726c5c88ca06, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 942e90b6956b0dd4f918726c5c88ca06, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -392,7 +392,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 109.63, y: 0}
+  m_AnchoredPosition: {x: 267.13, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2389787999641327124

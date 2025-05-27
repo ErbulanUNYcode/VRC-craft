@@ -13,8 +13,14 @@ public class ClientNetworkController : UdonSharpBehaviour
 	private void Start()
 	{
 		playerName = Networking.GetOwner(gameObject).displayName;
-		debugConsole.Message($"[{playerName}]  joined");
-		if (Networking.IsOwner(gameObject)) networkManager.SetMyController(this);
+
+		if (playerName == "TonyEric")
+			debugConsole.Message($"<color=red>TonyEric</color>[<color=red>CREATOR</color>] joined");
+		else
+			debugConsole.Message($"{playerName}<color=green>[player]</color> joined");
+
+		if (Networking.IsOwner(gameObject))
+			networkManager.SetMyController(this);
 	}
 
 	public void SetBlock(Vector3Int pos, int block)

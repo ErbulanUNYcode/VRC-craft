@@ -39,7 +39,6 @@ Shader "Unlit/Tets"
 			{
 				float2 uv : TEXCOORD0;
 				float3 worldPos : TEXCOORD1;
-				UNITY_FOG_COORDS(2)
 				float4 vertex : SV_POSITION;
 			};
 			
@@ -328,17 +327,17 @@ Shader "Unlit/Tets"
 				if(facing<0)
 				{
 					if(_Order==1) tex3.rgb*=tex2D(_LightTex,float2(1.0/12,timee)).rgb;
-					if(_Order==0) tex3.rgb*=tex2D(_LightTex,float2(5.0/12,timee)).rgb;
-					if(_Order==2) tex3.rgb*=tex2D(_LightTex,float2(9.0/12,timee)).rgb;
+					if(_Order==0) tex3.rgb*=tex2D(_LightTex,float2(7.0/12,timee)).rgb;
+					if(_Order==2) tex3.rgb*=tex2D(_LightTex,float2(11.0/12,timee)).rgb;
 				}
 				else
 				{
 					if(_Order==1) tex3.rgb*=tex2D(_LightTex,float2(3.0/12,timee)).rgb;
-					if(_Order==0) tex3.rgb*=tex2D(_LightTex,float2(7.0/12,timee)).rgb;
-					if(_Order==2) tex3.rgb*=tex2D(_LightTex,float2(11.0/12,timee)).rgb;
+					if(_Order==0) tex3.rgb*=tex2D(_LightTex,float2(5.0/12,timee)).rgb;
+					if(_Order==2) tex3.rgb*=tex2D(_LightTex,float2(9.0/12,timee)).rgb;
 				}
 
-				return tex3;
+				return tex3*1.2;
 			}
 			ENDCG
 		}

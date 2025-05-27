@@ -1,22 +1,40 @@
 ﻿
+using System;
 using UdonSharp;
 using UnityEngine;
 
 public class Item : UdonSharpBehaviour
 {
-	[SerializeField] private int _id;
-	[SerializeField] private string _name;
+	[SerializeField] private string _nameEN;
+	[SerializeField] private string _nameRU;
 	[SerializeField] private int _count = 64;
 	[SerializeField] private bool _isBlockItem;
-	[SerializeField] private int _blockItemId;
-	[SerializeField] private Sprite _icon;
+	[SerializeField] private int _iconId;
+	[SerializeField] private Vector2Int _craftSize;
+	[SerializeField] private Vector3Int[] _craft;
+	[SerializeField] private int _craftCount = 1;
+	[SerializeField] private Vector2Int[] _alternateItems;
+	[SerializeField] private SetType _setType = SetType.symple;
+	[SerializeField] private int[] _sets = new int[1];
+	[SerializeField] private ItemDataManager _itemDataManager;
 
-	public int id => _id;
-	public string nameInfo => _name;
-	public int maxCount => _count;
-	public bool isBlockItem => _isBlockItem;
+	public string _name { get { return _itemDataManager == null || _itemDataManager.Language == "ru" ? _nameRU : _nameEN; } }
+	public int maxCount { get { return _count; } }
+	public bool isBlockItem { get { return _isBlockItem; } }
+	public int iconId { get { return _iconId; } }
+	public bool isCraftable { get { return _craftSize != Vector2Int.zero; } }
+	public Vector2Int craftSize { get { return _craftSize; } }
+	public Vector3Int[] craft { get { return _craft; } }
+	public Vector2Int[] alternateItems { get { return _alternateItems; } }
+	public SetType setType { get { return _setType; } }
+	public int[] sets { get { return _sets; } }
+}
 
-	public int blockItemId => _blockItemId;
-
-	public Sprite icon => _icon;
+[Serializable]
+public enum SetType
+{
+	symple,
+	side,
+	front,
+	none
 }

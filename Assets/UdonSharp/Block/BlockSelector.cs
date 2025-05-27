@@ -9,8 +9,10 @@ public class BlockSelector : UdonSharpBehaviour
 {
 	[SerializeField] private Transform orderTransform;
 	[SerializeField] private WorldController worldController;
-	[SerializeField] private NetworkManager networkManager;
+	//[SerializeField] private NetworkManager networkManager;
+	[SerializeField] private Inventory inventory;
 	[SerializeField] private GameObject selectedCube;
+	[SerializeField] private GameObject UIplus;
 	[SerializeField] private GameObject plus;
 	[SerializeField] private GameObject plusX;
 	[SerializeField] private GameObject plusY;
@@ -28,11 +30,14 @@ public class BlockSelector : UdonSharpBehaviour
 
 	private void Update()
 	{
+		if (UIplus != null) UIplus.SetActive(!Input.GetKey(KeyCode.Tab));
+
 		if (Input.GetKey(KeyCode.Tab) || (handUI != null && handUI.isOn) || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))
 		{
 			selectedCube.SetActive(false);
-			plus.SetActive(!Input.GetKey(KeyCode.Tab));
+			if (plus != null) plus.SetActive(false);
 			selectedBlock = Vector3Int.down;
+			selectedAir = Vector3Int.down;
 			return;
 		}
 
@@ -66,6 +71,8 @@ public class BlockSelector : UdonSharpBehaviour
 		{
 			if (worldController.InBlock(current))
 			{
+				VRCPlayerApi creator;
+				//find the b
 				selectedBlock = current;
 				selectedCube.SetActive(true);
 				selectedCube.transform.position = selectedBlock + Vector3.one * 0.5f;
@@ -109,13 +116,13 @@ public class BlockSelector : UdonSharpBehaviour
 		selectedBlock = Vector3Int.down;
 		selectedAir = Vector3Int.down;
 		selectedCube.SetActive(false);
-		plus.SetActive(!Input.GetKey(KeyCode.Tab));
+		if (plus != null) plus.SetActive(false);
 
-		if (localPlayer.IsUserInVR()) return;
+		//if (localPlayer.IsUserInVR()) return;
 
 		if (selectedAir == Vector3Int.down || worldController.InBlock(Vector3Int.FloorToInt(transform.position))) return;
 
-		if (Input.GetMouseButtonDown(0))
+		/*if (Input.GetMouseButtonDown(0))
 		{
 			networkManager.SetBlock(selectedBlock, 1);
 		}
@@ -124,7 +131,7 @@ public class BlockSelector : UdonSharpBehaviour
 		{
 			Random.InitState(DateTime.Now.Millisecond);
 			networkManager.SetBlock(selectedAir, Random.Range(2, 47));
-		}
+		}*/
 	}
 
 	private float IntBound(float s, float ds)
@@ -139,31 +146,55 @@ public class BlockSelector : UdonSharpBehaviour
 
 	public override void InputUse(bool value, UdonInputEventArgs args)
 	{
-		if (!localPlayer.IsUserInVR()) return;
+		if (!localPlayer.IsUserInVR())
+		{
+			base.InputUse(value, args);
+			return;
+		}
 
 		if (!value || selectedAir == Vector3Int.down || args.handType == HandType.LEFT || handUI.isOn || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))
 		{
+			base.InputUse(value, args);
 			return;
 		}
 
 		Random.InitState(DateTime.Now.Millisecond);
-		networkManager.SetBlock(selectedAir, Random.Range(2, 47));
+		inventory.ClickBlock(selectedBlock, selectedAir, true);
+		base.InputUse(value, args);
 	}
 	public override void InputGrab(bool value, UdonInputEventArgs args)
 	{
-		if (localPlayer.IsUserInVR() && (!value || selectedAir == Vector3Int.down || args.handType == HandType.LEFT || (handUI != null && handUI.isOn) || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))) return;
-		if (!localPlayer.IsUserInVR() && (!value || selectedAir == Vector3Int.down || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))) return;
+		if (localPlayer.IsUserInVR() && (!value || selectedAir == Vector3Int.down || args.handType == HandType.LEFT || (handUI != null && handUI.isOn) || worldController.InBlock(Vector3Int.FloorToInt(transform.position))))// return;
+		{
+			base.InputGrab(value, args);
+			return;
+		}
+		if (!localPlayer.IsUserInVR() && (!value || selectedAir == Vector3Int.down || worldController.InBlock(Vector3Int.FloorToInt(transform.position))))// return;
+		{
+			base.InputGrab(value, args);
+			return;
+		}
 
-		networkManager.SetBlock(selectedBlock, 1);
+		inventory.ClickBlock(selectedBlock, selectedAir, false);
+		base.InputGrab(value, args);
 	}
 
 	public override void InputDrop(bool value, UdonInputEventArgs args)
 	{
-		if (localPlayer.IsUserInVR()) return;
+		if (localPlayer.IsUserInVR())// return;
+		{
+			base.InputDrop(value, args);
+			return;
+		}
 
-		if (!value || selectedAir == Vector3Int.down || worldController.InBlock(Vector3Int.FloorToInt(transform.position))) return;
+		if (!value || selectedAir == Vector3Int.down || worldController.InBlock(Vector3Int.FloorToInt(transform.position)))// return;
+		{
+			base.InputDrop(value, args);
+			return;
+		}
 
 		Random.InitState(DateTime.Now.Millisecond);
-		networkManager.SetBlock(selectedAir, Random.Range(2, 47));
+		inventory.ClickBlock(selectedBlock, selectedAir, true);
+		base.InputDrop(value, args);
 	}
 }

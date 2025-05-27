@@ -19,9 +19,12 @@ public class WorldController : UdonSharpBehaviour
 	[SerializeField] private Material worldMaterialY;
 	[SerializeField] private Material worldMaterialZ;
 	[SerializeField] private Material worldOptimizer;
+	[SerializeField] private Material sky;
 	[SerializeField] private GameObject cubeCollider;
 
 	[SerializeField] private Vector3IntList setBlockPos;
+
+	[SerializeField] private int treeTest;
 
 	private VRCPlayerApi player;
 
@@ -39,11 +42,16 @@ public class WorldController : UdonSharpBehaviour
 	private int mountainsNoiseScale1 = 32;
 	private Vector2 mountainsNoiseOffset2;
 	private int mountainsNoiseScale2 = 256;
+	private Vector2 treesNoiseOffset1;
+	private int treesNoiseScale1 = 32;
+	private Vector2 treesNoiseOffset2;
+	private int treesNoiseScale2 = 32;
 	byte[] byteData = new byte[4096 * 2048 * 4];
 	private bool isBlockChanged;
 	#endregion
 
 	private int generatedChunks = 0;
+	private int chunksProgressor = 0;
 
 	private Texture2D worldTexture;
 	private Texture2D meshController;
@@ -85,7 +93,7 @@ public class WorldController : UdonSharpBehaviour
 
 		UpdateRandom();
 
-		spawnPoint.transform.position = new Vector3(0, GetLandscapeHeight(0, 0) + 2, 0);
+		spawnPoint.transform.position = new Vector3(0.5f, GetLandscapeHeight(0, 0), -3.5f);
 
 		worldTexture = new Texture2D(4_096, 2_048, TextureFormat.RGBA32, false, true);
 		worldTexture.filterMode = FilterMode.Point;
@@ -114,14 +122,17 @@ public class WorldController : UdonSharpBehaviour
 	}
 
 	[UdonSynced]
-	private float m_frame = 0f;
+	private float skyTime = 0f;
+
 
 	private void Update()
 	{
-		m_frame += Time.deltaTime / 60 / 12;
-		worldMaterialX.SetFloat("_InputTime", m_frame);
-		worldMaterialY.SetFloat("_InputTime", m_frame);
-		worldMaterialZ.SetFloat("_InputTime", m_frame);
+		skyTime += Time.deltaTime / 60 / 24;
+		worldMaterialX.SetFloat("_InputTime", skyTime);
+		worldMaterialY.SetFloat("_InputTime", skyTime);
+		worldMaterialZ.SetFloat("_InputTime", skyTime);
+		sky.SetFloat("_TimePower", skyTime);
+
 
 		if (isAnalise)
 		{
@@ -132,8 +143,7 @@ public class WorldController : UdonSharpBehaviour
 
 		if (generatedChunks < 144)
 		{
-			GenerateChunk(generatedChunks % 12 - 6, generatedChunks / 12 - 6);
-			generatedChunks++;
+			if (GenerateChunk(generatedChunks % 12 - 6, generatedChunks / 12 - 6)) generatedChunks++;
 			if (generatedChunks == 144)
 			{
 				spawnPlatform.SetActive(false);
@@ -167,9 +177,9 @@ public class WorldController : UdonSharpBehaviour
 			isAnalise = true;
 		}
 
-		var playerPos = Vector3Int.FloorToInt(player.GetPosition());
+		var playerPos = Vector3Int.FloorToInt(player.GetPosition() + Vector3.up * 0.5f);
 
-		if (oldPlayerPos != playerPos)
+		if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyUp(KeyCode.Tab) || oldPlayerPos != playerPos)
 		{
 			oldPlayerPos = playerPos;
 
@@ -184,9 +194,13 @@ public class WorldController : UdonSharpBehaviour
 
 				collidersObj[i].transform.position = colliders[i] + Vector3.one / 2f;
 
-				collidersObj[i].enabled = InBlock(colliders[i]);
+				collidersObj[i].enabled = InBlock(colliders[i]) && (!Input.GetKey(KeyCode.Tab) || colliders[i] == playerPos - Vector3Int.up);
 			}
 		}
+
+		if (Input.GetKeyDown(KeyCode.Tab)) player.Immobilize(true);
+
+		if (Input.GetKeyUp(KeyCode.Tab)) player.Immobilize(false);
 
 		if (isBlockChanged)
 		{
@@ -209,41 +223,111 @@ public class WorldController : UdonSharpBehaviour
 		}
 	}
 
-	private void GenerateChunk(int x, int z)
+	private bool GenerateChunk(int x, int z)
 	{
-		x *= 16;
-		z *= 16;
-		var fx = (x + 8192) % 256;
-		var fy = (z + 8192) % 256;
-
-		for (var i = 0; i < 16; i++)
+		if (chunksProgressor == 0)
 		{
-			for (var j = 0; j < 16; j++)
-			{
-				var px = (i + fx) * 4 + (j + fy) * 16_384;
+			x *= 16;
+			z *= 16;
+			var fx = (x + 8192) % 256;
+			var fy = (z + 8192) % 256;
 
-				var height = GetLandscapeHeight(x + i, z + j);
-				var mHeight = GetMauntainHeight(x + i, z + j);
-				byteData[px + 2] = (byte)mHeight;
-				byteData[px + 2 + 1024] = (byte)height;
+			for (var i = 0; i < 16; i++)
+			{
+				for (var j = 0; j < 16; j++)
+				{
+					var px = (i + fx) * 4 + (j + fy) * 16_384;
+
+					var height = GetLandscapeHeight(x + i, z + j);
+					var mHeight = GetMauntainHeight(x + i, z + j);
+					byteData[px + 2] = (byte)mHeight;
+					byteData[px + 2 + 1024] = (byte)height;
+				}
+			}
+			worldTexture.LoadRawTextureData(byteData);
+			worldTexture.Apply();
+		}
+		else if (chunksProgressor == 1)
+		{
+			x *= 16;
+			z *= 16;
+			var fx = (x + 8192) % 256;
+			var fy = (z + 8192) % 256;
+
+			for (var i = 0; i < 16; i++)
+			{
+				for (var j = 0; j < 16; j++)
+				{
+					var px = (i + fx) * 4 + (j + fy) * 16_384;
+					int height = byteData[px + 2 + 1024];
+					if (byteData[px + 2] >= height) continue;
+					var pos = new Vector3Int(x + i, height, z + j);
+					var r = Random3D(i + x, j + z, seed, 1000);
+					if (r * GetTree1Height(x + i, z + j) < treeTest)
+					{
+						Random.InitState(r);
+						r = Random.Range(3, 6);
+						for (int k = 0; k < r; k++)
+						{
+							SetBlock(pos, 6);
+							pos += Vector3Int.up;
+						}
+						pos += Vector3Int.down * 2;
+						for (int k = 0; k < tree.Length; k++)
+						{
+							var treePos = pos + tree[k];
+							if (InBlock(treePos)) continue;
+							SetBlock(treePos, 9);
+						}
+						for (int k = 0; k < treeRand.Length; k++)
+						{
+							if (Random.Range(0, 2) == 0) continue;
+							var treePos = pos + treeRand[k];
+							if (InBlock(treePos)) continue;
+							SetBlock(treePos, 9);
+						}
+					}
+				}
 			}
 		}
-		worldTexture.LoadRawTextureData(byteData);
-		worldTexture.Apply();
+		else
+		{
 
-		x = Mathf.FloorToInt(((float)x / 32) + 3);
-		z = Mathf.FloorToInt(((float)z / 32) + 3);
+			x = Mathf.FloorToInt(((float)x / 2) + 3);
+			z = Mathf.FloorToInt(((float)z / 2) + 3);
 
-		meshController.SetPixels(0, x + z * 6, 129, 1, analise);
-		for (var i = 0; i < 4; i++) meshController.SetPixels(x * 32, 36 + z + i * 6, 33, 1, analise);
-		for (var i = 0; i < 4; i++) meshController.SetPixels(z * 32, 60 + x + i * 6, 33, 1, analise);
-		isPixelsChanged = true;
-		isAnalise = true;
+			meshController.SetPixels(0, x + z * 6, 129, 1, analise);
+			for (var i = 0; i < 4; i++) meshController.SetPixels(x * 32, 36 + z + i * 6, 33, 1, analise);
+			for (var i = 0; i < 4; i++) meshController.SetPixels(z * 32, 60 + x + i * 6, 33, 1, analise);
+			isPixelsChanged = true;
+			isAnalise = true;
+		}
+
+		chunksProgressor++;
+		if (chunksProgressor == 3)
+		{
+			chunksProgressor = 0;
+			return true;
+		}
+
+		return false;
+	}
+
+	int Hash3D(int x, int y, int z)
+	{
+		int h = x * 73856093 ^ y * 19349663 ^ z * 83492791;
+		h ^= (h >> 13);
+		return h;
+	}
+
+	int Random3D(int x, int y, int z, int max)
+	{
+		return Mathf.Abs(Hash3D(x, y, z)) % max;
 	}
 
 	public void SetBlock(Vector3Int pos, int block)
 	{
-		if (pos.y < 0 || pos.y > 127) return;
+		if (pos.y < 1 || pos.y > 127) return;
 
 		setBlockPos.Add(pos);
 
@@ -281,6 +365,13 @@ public class WorldController : UdonSharpBehaviour
 					z / mountainsNoiseScale2 + mountainsNoiseOffset2.y), 2)) * 6 - 5)));
 	}
 
+	private float GetTree1Height(float x, float z)
+	{
+		return Mathf.PerlinNoise(
+					x / treesNoiseScale1 + treesNoiseOffset1.x,
+					z / treesNoiseScale1 + treesNoiseOffset1.y);
+	}
+
 	private void UpdateRandom()
 	{
 		Random.InitState(GetSeed());
@@ -290,6 +381,9 @@ public class WorldController : UdonSharpBehaviour
 
 		mountainsNoiseOffset1 = GetNoiceOffset(mountainsNoiseScale1);
 		mountainsNoiseOffset2 = GetNoiceOffset(mountainsNoiseScale2);
+
+		treesNoiseOffset1 = GetNoiceOffset(treesNoiseScale1);
+		treesNoiseOffset2 = GetNoiceOffset(treesNoiseScale2);
 	}
 
 	private Vector2 GetNoiceOffset(float scale)
@@ -331,4 +425,73 @@ public class WorldController : UdonSharpBehaviour
 
 		return block > 1;
 	}
+
+	private Vector3Int[] tree =
+	{
+		new Vector3Int(2,0,1),
+		new Vector3Int(2,1,1),
+		new Vector3Int(2,0,0),
+		new Vector3Int(2,1,0),
+		new Vector3Int(2,0,-1),
+		new Vector3Int(2,1,-1),
+		new Vector3Int(1,0,2),
+		new Vector3Int(1,1,2),
+		new Vector3Int(1,0,1),
+		new Vector3Int(1,1,1),
+		new Vector3Int(1,0,0),
+		new Vector3Int(1,1,0),
+		new Vector3Int(1,0,-1),
+		new Vector3Int(1,1,-1),
+		new Vector3Int(1,0,-2),
+		new Vector3Int(1,1,-2),
+		new Vector3Int(0,0,2),
+		new Vector3Int(0,1,2),
+		new Vector3Int(0,0,1),
+		new Vector3Int(0,1,1),
+		new Vector3Int(0,0,-1),
+		new Vector3Int(0,1,-1),
+		new Vector3Int(0,0,-2),
+		new Vector3Int(0,1,-2),
+		new Vector3Int(-1,0,2),
+		new Vector3Int(-1,1,2),
+		new Vector3Int(-1,0,1),
+		new Vector3Int(-1,1,1),
+		new Vector3Int(-1,0,0),
+		new Vector3Int(-1,1,0),
+		new Vector3Int(-1,0,-1),
+		new Vector3Int(-1,1,-1),
+		new Vector3Int(-1,0,-2),
+		new Vector3Int(-1,1,-2),
+		new Vector3Int(-2,0,1),
+		new Vector3Int(-2,1,1),
+		new Vector3Int(-2,0,0),
+		new Vector3Int(-2,1,0),
+		new Vector3Int(-2,0,-1),
+		new Vector3Int(-2,1,-1),
+		new Vector3Int(1,2,0),
+		new Vector3Int(1,3,0),
+		new Vector3Int(0,2,0),
+		new Vector3Int(0,3,0),
+		new Vector3Int(-1,2,0),
+		new Vector3Int(-1,3,0),
+		new Vector3Int(0,2,1),
+		new Vector3Int(0,3,1),
+		new Vector3Int(0,2,-1),
+		new Vector3Int(0,3,-1),
+	};
+	private Vector3Int[] treeRand =
+	{
+		new Vector3Int(2,0,2),
+		new Vector3Int(2,1,2),
+		new Vector3Int(2,0,-2),
+		new Vector3Int(2,1,-2),
+		new Vector3Int(-2,0,2),
+		new Vector3Int(-2,1,2),
+		new Vector3Int(-2,0,-2),
+		new Vector3Int(-2,1,-2),
+		new Vector3Int(1,2,1),
+		new Vector3Int(1,2,-1),
+		new Vector3Int(-1,2,1),
+		new Vector3Int(-1,2,-1),
+	};
 }

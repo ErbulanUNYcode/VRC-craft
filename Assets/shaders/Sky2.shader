@@ -11,8 +11,9 @@ Shader "Unlit/Sky2"
 
         Pass
         {
-            Blend One One
-            ZWrite Off
+            //ZTest Always
+            //ZWrite Off
+            Blend SrcAlpha OneMinusSrcAlpha
 
             CGPROGRAM
             #pragma vertex vert
@@ -56,22 +57,23 @@ Shader "Unlit/Sky2"
             fixed4 frag (v2f i) : SV_Target
             {
                 float2 uvOffsets[20];
-                for (int j = 0; j < 20; j++)
+                for (int j = 19; j >-1; j--)
                 {
                     float scale = 0.15 + j * 0.0007;
                     uvOffsets[j] = (i.uv - 0.5) * scale + 0.5;
                     uvOffsets[j].x += _Time.y * 0.0001;
                 }
 
-                float weights[20] = {0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.1, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01};
-
-                fixed4 col = 0;
+                fixed4 col = fixed4(1,1,1, 0);
                 for (int j = 0; j < 20; j++)
                 {
-                    col += tex2D(_MainTex, uvOffsets[j]) * weights[j];
+                    float c = tex2D(_MainTex, uvOffsets[j]).r * (25-j)/100.0;
+                    col.a +=c;
+                    col.rgb *= 1-c;
+                    col.rgb += (1-c)*c;
                 }
 
-                UNITY_APPLY_FOG(i.fogCoord, col);
+                //UNITY_APPLY_FOG(i.fogCoord, col);
                 float2 uv = i.uv * 2.0 - 1.0;
                 float dist = max(0.6-dot(uv, uv),0);
                 return col*dist;

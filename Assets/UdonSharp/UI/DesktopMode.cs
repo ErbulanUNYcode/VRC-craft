@@ -7,6 +7,7 @@ public class DesktopMode : UdonSharpBehaviour
 	[SerializeField] private GameObject[] vrUis;
 	[SerializeField] private Collider box;
 	[SerializeField] private GameObject desktopUi;
+	//[SerializeField] private bool testModeIsVR = false;
 
 	private VRCPlayerApi player;
 
@@ -15,6 +16,7 @@ public class DesktopMode : UdonSharpBehaviour
 		player = Networking.LocalPlayer;
 
 		if (!player.IsUserInVR())
+		//if (!testModeIsVR)
 		{
 			foreach (GameObject vrUi in vrUis)
 			{
