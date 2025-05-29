@@ -121,17 +121,20 @@ public class WorldController : UdonSharpBehaviour
 		worldTexture.Apply();
 	}
 
+	private float skyTime = 60f;
 	[UdonSynced]
-	private float skyTime = 0f;
-
+	private float syncSkyTime = 60f;
 
 	private void Update()
 	{
-		skyTime += Time.deltaTime / 60 / 24;
-		worldMaterialX.SetFloat("_InputTime", skyTime);
-		worldMaterialY.SetFloat("_InputTime", skyTime);
-		worldMaterialZ.SetFloat("_InputTime", skyTime);
-		sky.SetFloat("_TimePower", skyTime);
+		if (Networking.IsOwner(gameObject)) syncSkyTime = skyTime;
+		if (Mathf.Abs(syncSkyTime - skyTime) > 2) skyTime = syncSkyTime;
+		skyTime += Time.deltaTime;
+		var time = skyTime / 24f / 60f;
+		worldMaterialX.SetFloat("_InputTime", time - 0.03f);
+		worldMaterialY.SetFloat("_InputTime", time - 0.03f);
+		worldMaterialZ.SetFloat("_InputTime", time - 0.03f);
+		sky.SetFloat("_TimePower", time);
 
 
 		if (isAnalise)

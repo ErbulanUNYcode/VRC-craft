@@ -89,7 +89,7 @@ Shader "Unlit/CustomSkybox"
                 float time = sin(r)*cos(radians(_Angle));
 
                 //top
-                float alphaGradient = smoothstep(1-smoothstep(-0.2,0.5,time)*15, 5, dir.z);
+                float alphaGradient = smoothstep(1-smoothstep(-0.1,0.5,time)*5, 5, dir.z);
                 float3 col = _TopCol * alphaGradient * 1.2;
                 
                 float2 uv;
@@ -142,7 +142,7 @@ Shader "Unlit/CustomSkybox"
                 dir = i.viewDir;
 
                 // + reflection
-                col += max(0,alphaGradient * smoothstep(0.1,-0.1,time) * _ReleCol - dir.y/10);
+                col += max(0,alphaGradient * smoothstep(0.3,-0.1,time) * _ReleCol * 3 - dir.y/5);
 
                 // + horizon
                 alphaGradient = smoothstep(0.15,-0.15,dir.y) * alphaGradient;
@@ -153,9 +153,9 @@ Shader "Unlit/CustomSkybox"
                 
                 // - bottom
                 alphaGradient = smoothstep(-0.05,0,dir.y);
+                col = alphaGradient * col + (1-alphaGradient) * _BottomCol * smoothstep(-0.1,0.5,time);
                 
                 // + clouds
-                col = alphaGradient * col + (1-alphaGradient) * _BottomCol * smoothstep(-0.1,0.2,time);
                 dir.y += pow(length(dir.xz), 2) /8;
                 for(float j = 0; j < 20; j ++)
                 {
@@ -165,7 +165,7 @@ Shader "Unlit/CustomSkybox"
                     if(c<0.01) continue;
                     c = smoothstep(c,0.01,0.02)*(dir.y-0.1);
                     col.rgb *= 1-c;
-                    col.rgb += c * (1-j/32) * (0.01+smoothstep(-0.1,0.3,time));
+                    col.rgb += c * (1-j/32) * (0.02+smoothstep(-0.05,0.4,time));
                 }
 
                 return fixed4(col.rgb, 1.0);

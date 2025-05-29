@@ -16,9 +16,18 @@ public class Item : UdonSharpBehaviour
 	[SerializeField] private Vector2Int[] _alternateItems;
 	[SerializeField] private SetType _setType = SetType.symple;
 	[SerializeField] private int[] _sets = new int[1];
-	[SerializeField] private ItemDataManager _itemDataManager;
+	[SerializeField] private ItemDataManager itemDataManager;
 
-	public string _name { get { return _itemDataManager == null || _itemDataManager.Language == "ru" ? _nameRU : _nameEN; } }
+	private Mesh _mesh;
+
+	public string _name
+	{
+		get
+		{
+			if (itemDataManager == null) itemDataManager = GetComponent<ItemDataManager>();
+			return itemDataManager.Language == "ru" ? _nameRU : _nameEN;
+		}
+	}
 	public int maxCount { get { return _count; } }
 	public bool isBlockItem { get { return _isBlockItem; } }
 	public int iconId { get { return _iconId; } }
@@ -28,6 +37,18 @@ public class Item : UdonSharpBehaviour
 	public Vector2Int[] alternateItems { get { return _alternateItems; } }
 	public SetType setType { get { return _setType; } }
 	public int[] sets { get { return _sets; } }
+	public Mesh mesh
+	{
+		get
+		{
+			if (_mesh == null)
+			{
+
+			}
+			return _mesh;
+		}
+	}
+
 }
 
 [Serializable]

@@ -156,11 +156,11 @@ Material:
     - _SunSizeConvergence: 5
     - _Test1: 0
     - _Test2: 1
-    - _TimePower: 7.003936
+    - _TimePower: 0.39811194
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
-    - _BottomCol: {r: 0.18867922, g: 0.15218937, b: 0.1548213, a: 1}
+    - _BottomCol: {r: 0.07355822, g: 0.3054197, b: 0.5377358, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GroundColor: {r: 0.36899996, g: 0.34899998, b: 0.34099993, a: 1}

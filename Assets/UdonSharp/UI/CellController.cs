@@ -58,9 +58,7 @@ public class CellController : UdonSharpBehaviour
 
 			isDragging = true;
 			if (selected != null) selected.SetActive(false);
-			draggedCell.Sync(id, count);
-			count = 0;
-			UpdateVisuals();
+			draggedCell.Shuffle(this);
 		}
 		pos += transform.localPosition;
 		draggedCell.transform.localPosition = pos;
@@ -320,6 +318,7 @@ public class CellController : UdonSharpBehaviour
 				networkManager.SetBlock(air, itemData[id].sets[best] + 1);
 			}
 			count--;
+			if (count == 0) count = itemData[id].maxCount;
 			UpdateVisuals();
 		}
 	}

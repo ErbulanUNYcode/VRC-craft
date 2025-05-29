@@ -16,16 +16,15 @@ public class AttachCameraToHead : UdonSharpBehaviour
 	{
 		if (player != null)
 		{
-			Vector3 headPosition = player.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).position;
+			Vector3 playerPosition = (player.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).position + player.GetPosition()) / 2;
 			Quaternion headRotation = player.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).rotation;
 
 			Vector3 euler = headRotation.eulerAngles;
 			Quaternion onlyYawRotation = Quaternion.Euler(0, euler.y, 0);
 
-			transform.position = headPosition;
+			transform.position = playerPosition;
 			transform.rotation = onlyYawRotation;
-			//x = 0, y = - player high / 2, z = player high * 1.1
-			cameraTransform.localPosition = new Vector3(0, -player.GetAvatarEyeHeightAsMeters() * 0.45f, player.GetAvatarEyeHeightAsMeters() * 1.1f);
+			cameraTransform.localPosition = new Vector3(0, 0, player.GetAvatarEyeHeightAsMeters() * 1.1f);
 		}
 	}
 }

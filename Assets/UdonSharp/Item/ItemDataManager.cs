@@ -8,6 +8,7 @@ public class ItemDataManager : UdonSharpBehaviour
 	[SerializeField] private Item[] items;
 	[SerializeField] private Sprite[] icons;
 	[SerializeField] private DebugConsole debugConsole;
+	public Shader itemMeshShader;
 	private string language = "";
 
 	public override void OnLanguageChanged(string language)
