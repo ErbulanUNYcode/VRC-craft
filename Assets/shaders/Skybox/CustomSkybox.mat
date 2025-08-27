@@ -74,7 +74,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Moon:
-        m_Texture: {fileID: 2800000, guid: 56b36c8adc97e9547be203449beb92c9, type: 3}
+        m_Texture: {fileID: 2800000, guid: 2c5e97430537b354f81920746740a802, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -156,7 +156,7 @@ Material:
     - _SunSizeConvergence: 5
     - _Test1: 0
     - _Test2: 1
-    - _TimePower: 0.39557636
+    - _TimePower: 0.75206697
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:

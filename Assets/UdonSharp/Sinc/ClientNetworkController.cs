@@ -10,6 +10,7 @@ public class ClientNetworkController : UdonSharpBehaviour
 	/*
 	 * 0 - set block
 	 * 1 - give chunks
+	 * 2 - request chunks
 	 */
 	[UdonSynced] private int type = 0;
 	[UdonSynced] private string syncData = "";

@@ -87,9 +87,9 @@ Material:
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
-    - _OffsetX: 0
+    - _OffsetX: -2
     - _OffsetY: 0
-    - _OffsetZ: 0
+    - _OffsetZ: -1
     - _Order: 0
     - _Parallax: 0.02
     - _SmoothnessTextureChannel: 0

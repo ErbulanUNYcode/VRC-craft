@@ -17,7 +17,7 @@ Shader "Unlit/CustomSkybox"
         _ReleCol ("Relief Color", Color) = (1.0, 0.8, 0.5, 1.0)
         _SunLightCol ("Sun Light Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _Angle ("Angle", Range(-180, 180)) = -180
-        _TimePower ("Time Power", Range(0, 1)) = 0
+        _TimePower ("Time Power", Range(0, 8)) = 0
     }
     SubShader
     {
@@ -132,7 +132,9 @@ Shader "Unlit/CustomSkybox"
                     else
                     {
                         float day = round(_TimePower+0.25);
-                        col += tex2D(_Moon, (uv * float2(-2.5,2.5) + 0.5 + float2(day%4,floor(day/4)))/float2(4,2));
+                        float4 mo = tex2D(_Moon, (uv * float2(-2.5,2.5) + 0.5 + float2(day%4,floor(day/4)))/float2(4,2));
+                        col *= mo.a;
+                        col += mo.rgb;
                     }
                 }
 
@@ -164,8 +166,8 @@ Shader "Unlit/CustomSkybox"
                     float c = tex2D(_Clouds,(dir.xz/dir.y/64)-0.5+float2(_TimePower/2,_TimePower/3)).r;
                     if(c<0.01) continue;
                     c = smoothstep(c,0.01,0.02)*(dir.y-0.1);
-                    col.rgb *= 1-c;
-                    col.rgb += c * (1-j/32) * (0.02+smoothstep(-0.1,0.4,time));
+                    col *= 1-c;
+                    col += c * (1-j/32) * (0.02+smoothstep(-0.1,0.4,time));
                 }
 
                 return fixed4(col.rgb, 1.0);
