@@ -271,23 +271,23 @@ public class CellController : UdonSharpBehaviour
 			var setType = itemData[id].setType;
 
 			if (setType == SetType.none) return;
-
+			bool setState = false;
 			if (itemData[id].setType == SetType.symple)
-				networkManager.SetBlock(air, itemData[id].sets[0] + 1);
+				setState = networkManager.SetBlock(air, itemData[id].sets[0] + 1);
 			else if (setType == SetType.side)
 			{
 				if (selected.x > air.x)
-					networkManager.SetBlock(air, itemData[id].sets[0] + 1);
+					setState = networkManager.SetBlock(air, itemData[id].sets[0] + 1);
 				else if (selected.x < air.x)
-					networkManager.SetBlock(air, itemData[id].sets[3] + 1);
+					setState = networkManager.SetBlock(air, itemData[id].sets[3] + 1);
 				else if (selected.y > air.y)
-					networkManager.SetBlock(air, itemData[id].sets[1] + 1);
+					setState = networkManager.SetBlock(air, itemData[id].sets[1] + 1);
 				else if (selected.y < air.y)
-					networkManager.SetBlock(air, itemData[id].sets[4] + 1);
+					setState = networkManager.SetBlock(air, itemData[id].sets[4] + 1);
 				else if (selected.z > air.z)
-					networkManager.SetBlock(air, itemData[id].sets[2] + 1);
+					setState = networkManager.SetBlock(air, itemData[id].sets[2] + 1);
 				else if (selected.z < air.z)
-					networkManager.SetBlock(air, itemData[id].sets[5] + 1);
+					setState = networkManager.SetBlock(air, itemData[id].sets[5] + 1);
 			}
 			else if (setType == SetType.front)
 			{
@@ -315,8 +315,9 @@ public class CellController : UdonSharpBehaviour
 					}
 				}
 
-				networkManager.SetBlock(air, itemData[id].sets[best] + 1);
+				setState = networkManager.SetBlock(air, itemData[id].sets[best] + 1);
 			}
+			if (!setState) return;
 			count--;
 			if (count == 0) count = itemData[id].maxCount;
 			UpdateVisuals();

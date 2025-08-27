@@ -1,5 +1,6 @@
 ﻿using UdonSharp;
 using UnityEngine;
+using UnityEngine.UI;
 using VRC.SDKBase;
 
 public class DebugConsole : UdonSharpBehaviour
@@ -11,6 +12,12 @@ public class DebugConsole : UdonSharpBehaviour
 	[SerializeField] private Transform desktopUIconsole;
 	private GameObject consolePrefab;
 	private Transform console;
+
+	private void Start()
+	{
+		vrConsolePrefab.gameObject.SetActive(false);
+		desktopConsolePrefab.gameObject.SetActive(false);
+	}
 
 	public void Message(string message)
 	{
@@ -29,5 +36,6 @@ public class DebugConsole : UdonSharpBehaviour
 		}
 		Debug.Log(message);
 		Instantiate(consolePrefab, console).GetComponent<ConsoleMessage>().SetText(message).SetActive(true);
+		LayoutRebuilder.ForceRebuildLayoutImmediate(console.GetComponent<RectTransform>());
 	}
 }

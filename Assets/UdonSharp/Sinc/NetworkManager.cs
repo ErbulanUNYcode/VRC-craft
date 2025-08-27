@@ -10,8 +10,8 @@ public class NetworkManager : UdonSharpBehaviour
 		myNetworkController = controller;
 	}
 
-	public void SetBlock(Vector3Int pos, int block)
+	public bool SetBlock(Vector3Int pos, int block)
 	{
-		myNetworkController.SetBlock(pos, block);
+		return myNetworkController.SetBlock(pos, block);
 	}
 }

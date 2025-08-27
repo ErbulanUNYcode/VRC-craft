@@ -156,7 +156,7 @@ Material:
     - _SunSizeConvergence: 5
     - _Test1: 0
     - _Test2: 1
-    - _TimePower: 0.39811194
+    - _TimePower: 0.39557636
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:

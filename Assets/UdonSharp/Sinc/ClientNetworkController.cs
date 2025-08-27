@@ -7,7 +7,14 @@ public class ClientNetworkController : UdonSharpBehaviour
 	[SerializeField] private NetworkManager networkManager;
 	[SerializeField] private DebugConsole debugConsole;
 	[SerializeField] private WorldController worldController;
+	/*
+	 * 0 - set block
+	 * 1 - give chunks
+	 */
+	[UdonSynced] private int type = 0;
 	[UdonSynced] private string syncData = "";
+	[UdonSynced] private int dataVersion = 0;
+	[UdonSynced] private string playerId = "";
 	private string playerName = "";
 
 	private void Start()
@@ -15,27 +22,44 @@ public class ClientNetworkController : UdonSharpBehaviour
 		playerName = Networking.GetOwner(gameObject).displayName;
 
 		if (playerName == "TonyEric")
-			debugConsole.Message($"<color=red>TonyEric</color>[<color=red>CREATOR</color>] joined");
+			debugConsole.Message($"TonyEric[<color=red>CREATOR</color>] <color=green>joined</color>");
 		else
-			debugConsole.Message($"{playerName}<color=green>[player]</color> joined");
+			debugConsole.Message($"{playerName}[<color=green>player</color>] <color=green>joined</color>");
 
 		if (Networking.IsOwner(gameObject))
 			networkManager.SetMyController(this);
 	}
 
-	public void SetBlock(Vector3Int pos, int block)
+	public bool SetBlock(Vector3Int pos, int block)
 	{
-		worldController.SetBlock(pos, block);
+		var setState = worldController.SetBlock(pos, block);
+		if (!setState) return false;
 		syncData = $"{pos.x}/{pos.y}/{pos.z}/{block}";
 		RequestSerialization();
+		return true;
 	}
 
 	private void OnDestroy()
 	{
-		debugConsole.Message($"[{playerName}]  left");
+		if (playerName == "TonyEric")
+			debugConsole.Message($"TonyEric[<color=red>CREATOR</color>] <color=red>left</color>");
+		else
+			debugConsole.Message($"{playerName}[<color=green>player</color>] <color=red>left</color>");
 	}
 
 	public override void OnDeserialization()
+	{
+		switch (type)
+		{
+			case 0:
+				ReceiveSetBlock();
+				break;
+			default:
+				break;
+		}
+	}
+
+	private void ReceiveSetBlock()
 	{
 		var data = syncData.Split('/');
 		if (data.Length == 4)

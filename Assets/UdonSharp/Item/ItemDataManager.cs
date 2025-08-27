@@ -6,9 +6,9 @@ using UnityEngine;
 public class ItemDataManager : UdonSharpBehaviour
 {
 	[SerializeField] private Item[] items;
+	[SerializeField] private GameObject itemsData;
 	[SerializeField] private Sprite[] icons;
 	[SerializeField] private DebugConsole debugConsole;
-	public Shader itemMeshShader;
 	private string language = "";
 
 	public override void OnLanguageChanged(string language)
@@ -30,7 +30,6 @@ public class ItemDataManager : UdonSharpBehaviour
 		{
 			if (id < 0 || id >= items.Length)
 			{
-				Debug.LogError($"Item ID {id} is out of range.");
 				return null;
 			}
 			return items[id];
@@ -44,7 +43,7 @@ public class ItemDataManager : UdonSharpBehaviour
 
 	public void ResetItems()
 	{
-		items = GetComponents<Item>();
+		items = itemsData.GetComponents<Item>();
 	}
 }
 

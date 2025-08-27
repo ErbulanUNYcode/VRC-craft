@@ -3,6 +3,7 @@ Shader "Unlit/MeshBooster"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+        _BiomeTex ("Biome", 2D) = "white" {}
 		_WorldTex ("World", 2D) = "white" {}
 		_ControllerTex ("Controller", 2D) = "white" {}
 		_OffsetX ("OffsetX", int) = 0
@@ -37,10 +38,11 @@ Shader "Unlit/MeshBooster"
             };
 			
             Texture2D _MainTex;
+            Texture2D _BiomeTex;
             Texture2D _WorldTex;
 			Texture2D _ControllerTex;
-			int _OffsetX;
-			int _OffsetZ;
+			float _OffsetX;
+			float _OffsetZ;
             float4 _MainTex_ST;
 
             v2f vert (appdata v)
@@ -53,77 +55,55 @@ Shader "Unlit/MeshBooster"
 
             bool isDrawable(int4 p)
 			{
-				p.xz = (int2(p.x, p.z) + 8192) % 256;
+				p.x = (p.x%256+256) % 256;
+				p.z = (p.z%256+256) % 256;
 
-				float2 ids = 0;
+				int2 ids = 0;
 
-				if (p.y == 128) ids.x = 0;
+				if (p.y == 128) ids.y = 0;
 				else
 				{
-					int2 coordXZ = int2(p.x, p.z);
-					int h = round(_WorldTex.Load(int3(coordXZ, 0)).b * 255);
+					int2 h = round(_WorldTex.Load(int3(p.xz, 0)).ba * 255);
 
-					if (h != 0)
+					if (h.x != 0)
 					{
-						int2 uv = coordXZ + int2(p.y % 16, p.y / 16)*256;
+						int2 uv = p.xz + int2(p.y % 16, p.y / 16)*256;
 
 						int2 c = round(_WorldTex.Load(int3(uv, 0)).rg * 255);
-
+						
 						if (c.x != 0)
 							ids.x = c.x - 1;
 						else if (p.y == 0)
 							ids.x = 1;
-						else if (p.y < h)
-							ids.x = 2;
 						else
-						{
-							coordXZ.x += 256;
-							h = round(_WorldTex.Load(int3(coordXZ, 0)).b * 255);
-
-							if(p.y> h-1) ids.x = 0;
-							else if(p.y>h-2) ids.x = 4;
-							else if(p.y>h-4) ids.x = 3;
-							else if(p.y>0) ids.x = 2;
-							else ids.x = 1;
-						}
+							ids.x = round(_BiomeTex.Load(int3(h.y,clamp(p.y-h.x+5,0,5), 0)).r * 255);
 					}
 				}
 
 				if (p.w == 0) p.x--;
 				else if (p.w == 1) p.y--;
 				else if (p.w == 2) p.z--;
-
-				p.xz = (int2(p.x, p.z) + 8192) % 256;
+				
+				p.x = (p.x%256+256) % 256;
+				p.z = (p.z%256+256) % 256;
 
 				if (p.y == -1) ids.y = 0;
 				else
 				{
-					int2 coordXZ = int2(p.x, p.z);
-					int h = round(_WorldTex.Load(int3(coordXZ, 0)).b * 255);
+					int2 h = round(_WorldTex.Load(int3(p.xz, 0)).ba * 255);
 
-					if (h != 0)
+					if (h.x != 0)
 					{
-						int2 uv = coordXZ + int2(p.y % 16, p.y / 16)*256;
+						int2 uv = p.xz + int2(p.y % 16, p.y / 16)*256;
 
 						int2 c = round(_WorldTex.Load(int3(uv, 0)).rg * 255);
-
+						
 						if (c.x != 0)
 							ids.y = c.x - 1;
 						else if (p.y == 0)
 							ids.y = 1;
-						else if (p.y < h)
-							ids.y = 2;
 						else
-						{
-							coordXZ.x += 256;
-							h = round(_WorldTex.Load(int3(coordXZ, 0)).b * 255);
-
-							if(p.y> h-1) ids.y = 0;
-							else if(p.y>h-2) ids.y = 4;
-							else if(p.y>h-4) ids.y = 3;
-							else if(p.y>0) ids.y = 2;
-							else ids.y = 1;
-						}
+							ids.y = round(_BiomeTex.Load(int3(h.y,clamp(p.y-h.x+5,0,5), 0)).r * 255);
 					}
 				}
 
@@ -137,18 +117,15 @@ Shader "Unlit/MeshBooster"
 				if (ctrl.r==0) return fixed4(16,16,0,0)/255;
                 float4 col = _MainTex.Load(int3(p,0));
 				if (ctrl.g==0) return col;
-				//if(col.a==0) return fixed4(16,16,0,0)/255;
-				//if(col.a<60.0/255) return col;
 
 				if(p.y<36)//y
 				{
 					if(p.x>=129) return col;
-					
+
 					float id = p.y;
 					int3 pos = int3(id%6,p.x,floor(id/6));
-					int2 val = floor(float2(_OffsetX,_OffsetZ)/6)*6;
-					pos.x += val.x + (_OffsetX-val.x>pos.x?6:0);
-					pos.z += val.y + (_OffsetZ-val.y>pos.z?6:0);
+					pos.x += ceil(float(-pos.x+_OffsetX)/6)*6;
+					pos.z += ceil(float(-pos.z+_OffsetZ)/6)*6;
 					pos.x *=32;
 					pos.z *=32;
 					pos.x -=96;
@@ -184,17 +161,18 @@ Shader "Unlit/MeshBooster"
 				else if(p.y<60)//x
 				{
 					float id = p.y-36;
+					
 					int3 pos = int3(p.x,floor(id/6),id%6);
+					
+					pos.z += ceil(float(-pos.z+_OffsetZ)/6)*6;
 
-
-					float val = floor(_OffsetZ/6)*6;
-					pos.z += val + (_OffsetZ-val>pos.z?6:0);
+					pos.x += ceil(float(-pos.x+_OffsetX*32)/193)*193;
 
 					pos.z *=32;
 					pos.z -=96;
 					pos.y *=32;
 					pos.x -=96;
-
+					
 					fixed4 minMaxes = fixed4(-1,0,0,0);
 
 					for(int j=0;j<32;j++)
@@ -227,9 +205,11 @@ Shader "Unlit/MeshBooster"
 				{
 					float id = p.y-60;
 					int3 pos = int3(id%6,floor(id/6),p.x);
+					
+					pos.x += ceil(float(-pos.x+_OffsetX)/6)*6;
+					
+					pos.z += ceil(float(-pos.z+_OffsetZ*32)/193)*193;
 
-					float val = floor(_OffsetX/6)*6;
-					pos.x += val + (_OffsetX-val>pos.x?6:0);
 					pos.x *=32;
 					pos.x -=96;
 					pos.y *=32;

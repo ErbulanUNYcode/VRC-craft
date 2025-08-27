@@ -24,7 +24,7 @@ public class TimeShower : UdonSharpBehaviour
 		//coordinate.text = log.GetComponent<Camera>().targetTexture == null ? "No" : "Yes";
 		//coordinate.text = player position to round
 		Vector3 headPosition = player.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).position;
-		testLog.text = System.Math.Round(headPosition.x) + ", " + System.Math.Round(headPosition.y) + ", " + System.Math.Round(headPosition.z);
+		testLog.text = System.Math.Floor(headPosition.x) + ", " + System.Math.Floor(headPosition.y) + ", " + System.Math.Floor(headPosition.z);
 
 		if (System.DateTime.Now.Second % 2 == 0)
 			text.text = System.DateTime.Now.ToString("yyyy.MM.dd") + "\n" + System.DateTime.Now.ToString("HH:mm");

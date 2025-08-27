@@ -1,13 +1,12 @@
-﻿using UdonSharp;
+﻿using System;
+using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 using Random = UnityEngine.Random;
 
 public class WorldController : UdonSharpBehaviour
 {
-	[UdonSynced] public string changeBlock = "0/0/0/0";
-	public string _changeBlock = "0/0/0/0";
-
+	#region refs
 	[SerializeField] bool miniWorld;
 	[SerializeField] private GameObject spawnPoint;
 	[SerializeField] private GameObject spawnPlatform;
@@ -21,11 +20,16 @@ public class WorldController : UdonSharpBehaviour
 	[SerializeField] private Material worldOptimizer;
 	[SerializeField] private Material sky;
 	[SerializeField] private GameObject cubeCollider;
+	[SerializeField] private Transform world;
+	[SerializeField] private StructureDataManager structures;
+	[SerializeField] private DebugConsole debugConsole;
+	[SerializeField] private WorldData worldData;
+	private Chunk[] chunksData;
 
 	[SerializeField] private Vector3IntList setBlockPos;
 
 	[SerializeField] private int treeTest;
-
+	#endregion
 	private VRCPlayerApi player;
 
 	#region menu world data
@@ -33,6 +37,7 @@ public class WorldController : UdonSharpBehaviour
 	#endregion
 
 	#region world data
+	[UdonSynced]
 	private int seed;
 	private Vector2 landscapeNoiseOffset1;
 	private int landscapeNoiseScale1 = 64;
@@ -42,24 +47,23 @@ public class WorldController : UdonSharpBehaviour
 	private int mountainsNoiseScale1 = 32;
 	private Vector2 mountainsNoiseOffset2;
 	private int mountainsNoiseScale2 = 256;
-	private Vector2 treesNoiseOffset1;
-	private int treesNoiseScale1 = 32;
-	private Vector2 treesNoiseOffset2;
-	private int treesNoiseScale2 = 32;
-	byte[] byteData = new byte[4096 * 2048 * 4];
 	private bool isBlockChanged;
 	#endregion
 
 	private int generatedChunks = 0;
 	private int chunksProgressor = 0;
+	private int structProgressor = 0;
 
 	private Texture2D worldTexture;
+	[SerializeField] private Texture2D biomes;
 	private Texture2D meshController;
+
+	private Color32[] clearData;
 
 	private bool isAnalise = true;
 	private bool isPixelsChanged = false;
-	private Color[] stopAnalise = new Color[193 * 84];
-	private Color[] analise = new Color[129];
+	private Color32[] stopAnalise = new Color32[193 * 84];
+	private Color32[] analise = new Color32[129];
 
 	private Vector3Int oldPlayerPos = new Vector3Int(0, 0, 0);
 	private Vector3Int[] colliders = new Vector3Int[36];
@@ -67,15 +71,29 @@ public class WorldController : UdonSharpBehaviour
 
 	private void Start()
 	{
-		for (int i = 0; i < stopAnalise.Length; i++)
+		chunksData = transform.GetChild(0).GetComponentsInChildren<Chunk>();
+		player = Networking.LocalPlayer;
+		if (player.isMaster)
 		{
-			stopAnalise[i] = new Color(1, 0, 0, 0);
+			if (seed == 0)
+			{
+				seed = Random.Range(1, 654654);
+				RequestSerialization();
+				debugConsole.Message("SetSeed:" + seed + " from master " + player.displayName);
+
+				UpdateRandom();
+
+				spawnPoint.transform.position = new Vector3(0.5f, Mathf.Max(GetLandscapeHeight(0, 0), GetMauntainHeight(0, 0)), -3.5f);
+
+				player.TeleportTo(spawnPoint.transform.position, Quaternion.identity);
+			}
 		}
 
-		for (int i = 0; i < analise.Length; i++)
-		{
-			analise[i] = new Color(1, 1, 0, 0);
-		}
+		worldOptimizer.SetFloat("_OffsetX", 0);
+		worldOptimizer.SetFloat("_OffsetZ", 0);
+
+		for (int i = 0; i < stopAnalise.Length; i++) stopAnalise[i] = new Color32(255, 0, 0, 0);
+		for (int i = 0; i < analise.Length; i++) analise[i] = new Color32(255, 255, 0, 0);
 
 		for (int i = 0; i < 3; i++)
 		{
@@ -88,12 +106,6 @@ public class WorldController : UdonSharpBehaviour
 				}
 			}
 		}
-
-		player = Networking.LocalPlayer;
-
-		UpdateRandom();
-
-		spawnPoint.transform.position = new Vector3(0.5f, GetLandscapeHeight(0, 0), -3.5f);
 
 		worldTexture = new Texture2D(4_096, 2_048, TextureFormat.RGBA32, false, true);
 		worldTexture.filterMode = FilterMode.Point;
@@ -112,21 +124,54 @@ public class WorldController : UdonSharpBehaviour
 		worldOptimizer.SetTexture("_WorldTex", worldTexture);
 		worldOptimizer.SetTexture("_ControllerTex", meshController);
 
-		worldTexture.LoadRawTextureData(byteData);
+		worldTexture.LoadRawTextureData(new byte[4096 * 2048 * 4]);
+
+		Array.Copy(worldTexture.GetPixels32(), clearData = new Color32[4096 * 256], 4096 * 256);
+
+		Debug.Log(clearData.Length);
 
 		meshController.LoadRawTextureData(new byte[193 * 84 * 4]);
 
 		meshController.Apply();
 
 		worldTexture.Apply();
+
+		miniWorld = true;
 	}
 
 	private float skyTime = 60f;
 	[UdonSynced]
 	private float syncSkyTime = 60f;
 
+
+	bool isDeserializing = false;
+	public override void OnDeserialization()
+	{
+		if (isDeserializing) return;
+		isDeserializing = true;
+
+		debugConsole.Message("SetSeed:" + seed + " from master " + Networking.Master.displayName);
+
+		UpdateRandom();
+
+		spawnPoint.transform.position = new Vector3(0.5f, Mathf.Max(GetLandscapeHeight(0, 0), GetMauntainHeight(0, 0)), -3.5f);
+
+		player.TeleportTo(spawnPoint.transform.position, Quaternion.identity);
+	}
+
+
 	private void Update()
 	{
+		if (seed == 0) return;
+
+		if (!spawnPlatform.activeSelf)
+		{
+			spawnPoint.transform.position = player.GetPosition();
+			spawnPoint.transform.rotation = player.GetRotation();
+		}
+
+		WorldAnchor();
+
 		if (Networking.IsOwner(gameObject)) syncSkyTime = skyTime;
 		if (Mathf.Abs(syncSkyTime - skyTime) > 2) skyTime = syncSkyTime;
 		skyTime += Time.deltaTime;
@@ -139,17 +184,35 @@ public class WorldController : UdonSharpBehaviour
 
 		if (isAnalise)
 		{
-			meshController.SetPixels(0, 0, 193, 84, stopAnalise);
+			meshController.SetPixels32(0, 0, 193, 84, stopAnalise);
 			isAnalise = false;
 			isPixelsChanged = true;
 		}
 
 		if (generatedChunks < 144)
 		{
-			if (GenerateChunk(generatedChunks % 12 - 6, generatedChunks / 12 - 6)) generatedChunks++;
-			if (generatedChunks == 144)
+			var pos = chankQueue[generatedChunks] + new Vector2Int((((int)world.position.x) >> 4), (int)(world.position.z / 16));
+			var fpos = new Vector2Int((pos.x % 12 + 12) % 12, (pos.y % 12 + 12) % 12);
+			while (chunksProgressor == 0 && chunksData[fpos.x + fpos.y * 12].state)
 			{
-				spawnPlatform.SetActive(false);
+				generatedChunks++;
+				if (generatedChunks == 144) break;
+				pos = chankQueue[generatedChunks] + new Vector2Int((int)(world.position.x / 16), (((int)world.position.z) >> 4));
+				fpos = new Vector2Int((pos.x % 12 + 12) % 12, (pos.y % 12 + 12) % 12);
+			}
+			if (generatedChunks < 144)
+			{
+				if (GenerateChunk(pos))
+				{
+					generatedChunks++;
+					chunksData[fpos.x + fpos.y * 12].state = true;
+				}
+				if (generatedChunks == 4)
+				{
+					spawnPlatform.SetActive(false);
+
+					for (int i = 0; i < 36; i++) collidersObj[i].enabled = InBlock(colliders[i]);
+				}
 			}
 		}
 
@@ -158,22 +221,26 @@ public class WorldController : UdonSharpBehaviour
 			for (int i = 0; i < setBlockPos.Count; i++)
 			{
 				var pos = setBlockPos[i];
+				pos.x += 96;
+				pos.z += 96;
 
 				var fx = pos.y;
-				var fy = Mathf.FloorToInt(((float)pos.x) / 32) + 3 + (Mathf.FloorToInt(((float)pos.z) / 32) + 3) * 6;
+				float px192 = (pos.x % 192 + 192) % 192;
+				float pz192 = (pos.z % 192 + 192) % 192;
+				var fy = Mathf.FloorToInt(px192 / 32) + (Mathf.FloorToInt(pz192 / 32)) * 6;
 
 				meshController.SetPixel(fx, fy, new Color(1, 1, 0, 0));
-				meshController.SetPixel(fx + 1, fy, new Color(1, 1, 0, 0));
+				meshController.SetPixel(fx + 1, fy, new Color32(255, 255, 0, 0));
 
-				fx = pos.x + 96;
-				fy = Mathf.FloorToInt(((float)pos.z) / 32) + 3 + Mathf.FloorToInt(((float)pos.y) / 32) * 6 + 36;
-				meshController.SetPixel(fx, fy, new Color(1, 1, 0, 0));
-				meshController.SetPixel(fx + 1, fy, new Color(1, 1, 0, 0));
+				fx = (pos.x % 193 + 193) % 193;
+				fy = Mathf.FloorToInt(pz192 / 32) + Mathf.FloorToInt(((float)pos.y) / 32) * 6 + 36;
+				meshController.SetPixel(fx, fy, new Color32(255, 255, 0, 0));
+				meshController.SetPixel((fx + 1) % 193, fy, new Color32(255, 255, 0, 0));
 
-				fx = pos.z + 96;
-				fy = Mathf.FloorToInt(((float)pos.x) / 32) + 3 + Mathf.FloorToInt(((float)pos.y) / 32) * 6 + 60;
-				meshController.SetPixel(fx, fy, new Color(1, 1, 0, 0));
-				meshController.SetPixel(fx + 1, fy, new Color(1, 1, 0, 0));
+				fx = (pos.z % 193 + 193) % 193;
+				fy = Mathf.FloorToInt(px192 / 32) + Mathf.FloorToInt(((float)pos.y) / 32) * 6 + 60;
+				meshController.SetPixel(fx, fy, new Color(255, 255, 0, 0));
+				meshController.SetPixel((fx + 1) % 193, fy, new Color32(255, 255, 0, 0));
 			}
 			setBlockPos.Clear();
 			isPixelsChanged = true;
@@ -208,15 +275,9 @@ public class WorldController : UdonSharpBehaviour
 		if (isBlockChanged)
 		{
 			isBlockChanged = false;
-
-			worldTexture.LoadRawTextureData(byteData);
 			worldTexture.Apply();
 
-
-			for (int i = 0; i < 36; i++)
-			{
-				collidersObj[i].enabled = InBlock(colliders[i]);
-			}
+			for (int i = 0; i < 36; i++) collidersObj[i].enabled = InBlock(colliders[i]);
 		}
 
 		if (isPixelsChanged)
@@ -226,89 +287,431 @@ public class WorldController : UdonSharpBehaviour
 		}
 	}
 
-	private bool GenerateChunk(int x, int z)
+	private void WorldAnchor()
 	{
-		if (chunksProgressor == 0)
+		var oldPosition = world.position;
+		if (player.GetPosition().x < world.position.x - 32) world.position = world.position + Vector3.left * 32;
+		if (player.GetPosition().x > world.position.x + 32) world.position = world.position + Vector3.right * 32;
+		if (player.GetPosition().z < world.position.z - 32) world.position = world.position + Vector3.back * 32;
+		if (player.GetPosition().z > world.position.z + 32) world.position = world.position + Vector3.forward * 32;
+		if (oldPosition == world.position) return;
+
+		if (world.position.x > oldPosition.x)
+		{
+			var pos = ((int)(oldPosition.x - 96) % 256 + 256) % 256;
+			for (int i = 0; i < 16; i++) worldTexture.SetPixels32(pos + i * 256, 0, 32, 2048, clearData);
+			for (int i = 0; i < 12; i++)
+			{
+				pos = (((int)world.position.x) >> 4) + 4;
+				chunksData[(pos % 12 + 12) % 12 + i * 12].ClearStructures(worldData);
+				pos = (((int)world.position.x) >> 4) + 5;
+				chunksData[(pos % 12 + 12) % 12 + i * 12].ClearStructures(worldData);
+			}
+		}
+		else if (world.position.x < oldPosition.x)
+		{
+			var pos = ((int)(world.position.x + 96) % 256 + 256) % 256;
+			for (int i = 0; i < 16; i++) worldTexture.SetPixels32(pos + i * 256, 0, 32, 2048, clearData);
+			for (int i = 0; i < 12; i++)
+			{
+				pos = (((int)world.position.x) >> 4) + 6;
+				chunksData[(pos % 12 + 12) % 12 + i * 12].ClearStructures(worldData);
+				pos = (((int)world.position.x) >> 4) + 7;
+				chunksData[(pos % 12 + 12) % 12 + i * 12].ClearStructures(worldData);
+			}
+		}
+
+		if (world.position.z > oldPosition.z)
+		{
+			var pos = ((int)(oldPosition.z - 96) % 256 + 256) % 256;
+			for (int i = 0; i < 8; i++) worldTexture.SetPixels32(0, pos + i * 256, 4096, 32, clearData);
+			for (int i = 0; i < 24; i++)
+			{
+				pos = (((int)world.position.z) >> 4) * 12 + 48;
+				chunksData[(pos % 144 + 144) % 144 + i].ClearStructures(worldData);
+			}
+		}
+		else if (world.position.z < oldPosition.z)
+		{
+			var pos = ((int)(world.position.z + 96) % 256 + 256) % 256;
+			for (int i = 0; i < 8; i++) worldTexture.SetPixels32(0, pos + i * 256, 4096, 32, clearData);
+			for (int i = 0; i < 24; i++)
+			{
+				pos = (((int)world.position.z) >> 4) * 12 + 72;
+				chunksData[(pos % 144 + 144) % 144 + i].ClearStructures(worldData);
+			}
+		}
+
+		worldTexture.Apply();
+
+		generatedChunks = 0;
+		chunksProgressor = 0;
+		structProgressor = 0;
+
+		worldOptimizer.SetFloat("_OffsetX", world.position.x / 32f);
+		worldOptimizer.SetFloat("_OffsetZ", world.position.z / 32f);
+	}
+
+	private Color32[] generatorColors = new Color32[256];
+	private bool GenerateChunk(Vector2Int position)
+	{
+		var x = position.x;
+		var z = position.y;
+		if (chunksProgressor == 0)//landscape+biome
 		{
 			x *= 16;
 			z *= 16;
-			var fx = (x + 8192) % 256;
-			var fy = (z + 8192) % 256;
 
+			var fx = (x & 255 + 256) & 255;
+			var fy = (z & 255 + 256) & 255;
 			for (var i = 0; i < 16; i++)
 			{
 				for (var j = 0; j < 16; j++)
 				{
-					var px = (i + fx) * 4 + (j + fy) * 16_384;
-
-					var height = GetLandscapeHeight(x + i, z + j);
-					var mHeight = GetMauntainHeight(x + i, z + j);
-					byteData[px + 2] = (byte)mHeight;
-					byteData[px + 2 + 1024] = (byte)height;
+					byte height = (byte)GetLandscapeHeight(x + i, z + j);
+					byte mHeight = (byte)GetMauntainHeight(x + i, z + j);
+					generatorColors[i + j * 16] = new Color32(0, 0, height > mHeight ? height : mHeight, (byte)(height > mHeight ? 0 : 4));
 				}
 			}
-			worldTexture.LoadRawTextureData(byteData);
+			worldTexture.SetPixels32(fx, fy, 16, 16, generatorColors);
 			worldTexture.Apply();
+			chunksProgressor++;
 		}
-		else if (chunksProgressor == 1)
+		else if (chunksProgressor == 1)//structures + their positions
 		{
+			var chunk = chunksData[(x % 12 + 12) % 12 + (z % 12 + 12) % 12 * 12];
 			x *= 16;
 			z *= 16;
-			var fx = (x + 8192) % 256;
-			var fy = (z + 8192) % 256;
 
-			for (var i = 0; i < 16; i++)
+			for (int i = 0; i < structures.Length; i++)
 			{
-				for (var j = 0; j < 16; j++)
+				var structure = structures[i];
+				var w = structure._size.x * 2 - 2;
+				var h = structure._size.z * 2 - 2;
+				var scx = Mathf.FloorToInt((float)x / w) * w;
+				var scz = Mathf.FloorToInt((float)z / h) * h;
+				var nscx = scx + w / 2;
+				if (nscx > x) nscx -= w;
+				var nscz = scz + h / 2;
+				if (nscz > z) nscz -= h;
+
+				switch (structure._type)
 				{
-					var px = (i + fx) * 4 + (j + fy) * 16_384;
-					int height = byteData[px + 2 + 1024];
-					if (byteData[px + 2] >= height) continue;
-					var pos = new Vector3Int(x + i, height, z + j);
-					var r = Random3D(i + x, j + z, seed, 1000);
-					if (r * GetTree1Height(x + i, z + j) < treeTest)
+					case 0://trees
+						for (int ix = 0; ix < 2; ix++)
+						{
+							for (int iz = 0; iz < 2; iz++)
+							{
+								int startX = (ix == 0 ? scx : nscx);
+								int startZ = (iz == 0 ? scz : nscz);
+
+								for (int j = startX; j < x + 16; j += w)
+								{
+									for (int k = startZ; k < z + 16; k += h)
+									{
+										var noice = structure.GetStructureNoice(j, k);
+										Random.InitState((int)(noice * 125_647) + i);
+										var count = Mathf.RoundToInt(Random.Range(0, noice));
+										var aStructure = structure[Random.Range(0, structure.length)];
+										for (int l = 0; l < count; l++)
+										{
+											var pos = new Vector2Int(
+												Random.Range(0, aStructure._size.x - 1) + j,
+												Random.Range(0, aStructure._size.z - 1) + k
+											);
+
+											if (pos.x + aStructure._size.x <= x || pos.x >= x + 16 ||
+											   pos.y + aStructure._size.z <= z || pos.y >= z + 16) continue;
+
+											var approved = false;
+											var height = 0;
+											var randomHeight = 0;
+											height = 128;
+											foreach (var anchor in aStructure._anchors)
+											{
+												var a = anchor;
+
+												var pos2 = new Vector2Int(
+													pos.x + a.x,
+													pos.y + a.y
+												);
+
+												var landscapeHeight = GetLandscapeHeight(pos2.x, pos2.y);
+												var mHeight = GetMauntainHeight(pos2.x, pos2.y);
+												var data = landscapeHeight > mHeight ? 0 : 1;
+												foreach (var biome in aStructure._biomes)
+												{
+													if (data == biome)
+													{
+														approved = true;
+													}
+												}
+												data = (landscapeHeight > mHeight ? landscapeHeight : mHeight) - aStructure._root;
+												if (data < height) height = data;
+											}
+
+											randomHeight = Random.Range(0, aStructure._randomHeight);
+
+											if (!approved) continue;
+
+											chunk.AddStructure(
+												aStructure,
+												new Vector3Int(
+													pos.x,
+													height,
+													pos.y
+												)
+												,
+												randomHeight
+											);
+										}
+									}
+								}
+							}
+						}
+						break;
+					case 1://ores
+						for (int ix = 0; ix < 2; ix++)
+						{
+							for (int iz = 0; iz < 2; iz++)
+							{
+								int startX = (ix == 0 ? scx : nscx);
+								int startZ = (iz == 0 ? scz : nscz);
+
+								for (int j = startX; j < x + 16; j += w)
+								{
+									for (int k = startZ; k < z + 16; k += h)
+									{
+										var noice = structure.GetStructureNoice(j, k);
+										Random.InitState((int)(noice * 125_647) + i);
+										var approved = Random.Range(0, 1000) < structure._root;
+										var aStructure = structure[Random.Range(0, structure.length)];
+										if (approved)
+										{
+											var pos = new Vector2Int(
+												Random.Range(0, aStructure._size.x - 1) + j,
+												Random.Range(0, aStructure._size.z - 1) + k
+											);
+
+											if (pos.x + aStructure._size.x <= x || pos.x >= x + 16 ||
+											   pos.y + aStructure._size.z <= z || pos.y >= z + 16) continue;
+
+											var height = 0;
+											var randomHeight = 0;
+
+											height = Random.Range(2, aStructure._randomHeight);
+
+											var landscapeHeight = GetLandscapeHeight(pos.x, pos.y);
+											var mHeight = GetMauntainHeight(pos.x, pos.y);
+											var data = Mathf.Max(landscapeHeight, mHeight);
+
+											if (data + 2 < height) continue;
+
+											chunk.AddStructure(
+												aStructure,
+												new Vector3Int(
+													pos.x,
+													height,
+													pos.y
+												)
+												,
+												randomHeight
+											);
+										}
+									}
+								}
+							}
+						}
+						break;
+				}
+			}
+			chunksProgressor++;
+		}
+		else if (chunksProgressor == 2)//generate structures
+		{
+			var chunk = chunksData[(x % 12 + 12) % 12 + (z % 12 + 12) % 12 * 12];
+			x *= 16;
+			z *= 16;
+			for (int i = structProgressor; i < chunk.Count; i++)
+			{
+				if (i == structProgressor + 8) break;
+				var structure = chunk.StructureAt(i);
+				var pos = chunk.PositionAt(i);
+				var randomHeight = chunk.RandomHeightAt(i);
+				switch (structure._type)
+				{
+					case 0://trees
+						   //if (!structure.isAnalog && structure.Name.Contains("big") && !structure.Name.Contains("_2"))
+						for (int Y = 0; Y < structure._size.y + randomHeight; Y++)
+						{
+							var fy = Y < structure._root ? Y : Mathf.Max(Y - randomHeight, structure._root);
+
+							var mx = Mathf.Min(structure.ends[fy].x, x + 16 - pos.x);
+							var mz = Mathf.Min(structure.ends[fy].y, z + 16 - pos.z);
+
+							for (int Z = Mathf.Max(structure.starts[fy].y, z - pos.z); Z < mz; Z++)
+							{
+								var blocks = structure.GetBlocksData(fy, Z);
+								for (int X = Mathf.Max(structure.starts[fy].x, x - pos.x); X < mx; X++)
+								{
+									var block = blocks[X];
+									var sx = pos.x + X;
+									var sy = pos.y + Y;
+									var sz = pos.z + Z;
+
+									var fx = (sx & 255 + 256) & 255;
+									var fz = (sz & 255 + 256) & 255;
+
+									fx += (sy & 15) * 256;
+									fz += sy / 16 * 256;
+									if (block.b == 0 && ((Color32)worldTexture.GetPixel(fx, fz)).r > 1) continue;
+									var b = structure.GetRandom(sx, sy, sz) ? block.r : block.g;
+									worldTexture.SetPixel(fx, fz, new Color32(b, 0, 0, 0));
+								}
+							}
+						}
+						break;
+					case 1://ores
+						{
+							for (int Y = 0; Y < structure._size.y + randomHeight; Y++)
+							{
+								var fy = Y < structure._root ? Y : Mathf.Max(Y - randomHeight, structure._root);
+
+								var mx = Mathf.Min(structure.ends[fy].x, x + 16 - pos.x);
+								var mz = Mathf.Min(structure.ends[fy].y, z + 16 - pos.z);
+
+								for (int Z = Mathf.Max(structure.starts[fy].y, z - pos.z); Z < mz; Z++)
+								{
+									var blocks = structure.GetBlocksData(fy, Z);
+									for (int X = Mathf.Max(structure.starts[fy].x, x - pos.x); X < mx; X++)
+									{
+										var block = blocks[X];
+										var sx = pos.x + X;
+										var sy = pos.y + Y;
+										var sz = pos.z + Z;
+
+										var fx = (sx & 255 + 256) & 255;
+										var fz = (sz & 255 + 256) & 255;
+
+										var data = (Color32)worldTexture.GetPixel(fx, fz);
+										data = (Color32)biomes.GetPixel(data.a, Mathf.Clamp(sy - data.b + 5, 0, 5));
+										if (data.r != 2) continue;
+										var b = structure.GetRandom(sx, sy, sz) ? block.r : block.g;
+										fx += (sy & 15) * 256;
+										fz += sy / 16 * 256;
+										worldTexture.SetPixel(fx, fz, new Color32(b, 0, 0, 0));
+									}
+								}
+							}
+						}
+						break;
+				}
+			}
+			structProgressor += 8;
+			worldTexture.Apply();
+			if (structProgressor >= chunk.Count)
+			{
+				structProgressor = 0;
+				chunksProgressor++;
+			}
+		}
+		else if (chunksProgressor == 3)//generate builds
+		{
+			var chunk = chunksData[(x % 12 + 12) % 12 + (z % 12 + 12) % 12 * 12];
+
+			var data = chunk.AddData(worldData.GetData(new Vector2Int(x, z)));
+
+			var X = x * 16;
+			var Z = z * 16;
+			var fx = (X & 255 + 256) & 255;
+			var fz = (Z & 255 + 256) & 255;
+
+			var pos = 0;
+			var levelOfNumber = 1;
+			var blocksCount = 0;
+
+			if (data != null)
+			{
+				for (int i = 0; i < data.Length; i++)
+				{
+					var b = data[i];
+					if (b > 9)
 					{
-						Random.InitState(r);
-						r = Random.Range(3, 6);
-						for (int k = 0; k < r; k++)
-						{
-							SetBlock(pos, 6);
-							pos += Vector3Int.up;
-						}
-						pos += Vector3Int.down * 2;
-						for (int k = 0; k < tree.Length; k++)
-						{
-							var treePos = pos + tree[k];
-							if (InBlock(treePos)) continue;
-							SetBlock(treePos, 9);
-						}
-						for (int k = 0; k < treeRand.Length; k++)
-						{
-							if (Random.Range(0, 2) == 0) continue;
-							var treePos = pos + treeRand[k];
-							if (InBlock(treePos)) continue;
-							SetBlock(treePos, 9);
-						}
+						if (blocksCount == 0) blocksCount = 1;
+						if (b > 10)
+							for (int j = 0; j < blocksCount; j++)
+							{
+								var p = pos + j;
+								var sx = p & 15;
+								var sz = (p >> 4) & 15;
+								var sy = p >> 8;
+
+								X = fx + sx + (sy & 15) * 256;
+								Z = fz + sz + (sy >> 4) * 256;
+
+								worldTexture.SetPixel(X, Z, new Color32((byte)(b - 10), 0, 0, 0));
+							}
+
+						pos += blocksCount;
+						blocksCount = 0;
+						levelOfNumber = 1;
+					}
+					else
+					{
+						var count = b * levelOfNumber;
+						blocksCount += count;
+						levelOfNumber *= 10;
 					}
 				}
+
+				worldTexture.Apply();
+				chunksProgressor++;
+			}
+			else
+			{
+				chunksProgressor += 2;
 			}
 		}
 		else
+		{ chunksProgressor++; }
+
+		if (chunksProgressor == 5)//update mesh controller
 		{
+			x += 6;
+			z += 6;
+			var fx = (x % 12 + 12) % 12;
+			var fz = (z % 12 + 12) % 12;
+			fx >>= 1;
+			fz >>= 1;
+			meshController.SetPixels32(0, fx + fz * 6, 129, 1, analise);
 
-			x = Mathf.FloorToInt(((float)x / 2) + 3);
-			z = Mathf.FloorToInt(((float)z / 2) + 3);
+			var f2x = ((x * 16) % 193 + 193) % 193;
+			var f2z = ((z * 16) % 193 + 193) % 193;
+			for (var i = 0; i < 4; i++)
+			{
+				if (f2x + 17 <= 193)
+					meshController.SetPixels32(f2x, 36 + fz + i * 6, 17, 1, analise);
+				else
+				{
+					var size = 193 - f2x;
+					meshController.SetPixels32(f2x, 36 + fz + i * 6, size, 1, analise);
+					meshController.SetPixels32(0, 36 + fz + i * 6, 17 - size, 1, analise);
+				}
 
-			meshController.SetPixels(0, x + z * 6, 129, 1, analise);
-			for (var i = 0; i < 4; i++) meshController.SetPixels(x * 32, 36 + z + i * 6, 33, 1, analise);
-			for (var i = 0; i < 4; i++) meshController.SetPixels(z * 32, 60 + x + i * 6, 33, 1, analise);
+				if (f2z + 17 <= 193)
+					meshController.SetPixels32(f2z, 60 + fx + i * 6, 17, 1, analise);
+				else
+				{
+					var size = 193 - f2z;
+					meshController.SetPixels32(f2z, 60 + fx + i * 6, size, 1, analise);
+					meshController.SetPixels32(0, 60 + fx + i * 6, 17 - size, 1, analise);
+				}
+			}
 			isPixelsChanged = true;
 			isAnalise = true;
-		}
+			isPixelsChanged = true;
+			isAnalise = true;
 
-		chunksProgressor++;
-		if (chunksProgressor == 3)
-		{
 			chunksProgressor = 0;
 			return true;
 		}
@@ -316,32 +719,32 @@ public class WorldController : UdonSharpBehaviour
 		return false;
 	}
 
-	int Hash3D(int x, int y, int z)
+	public bool SetBlock(Vector3Int pos, int block)
 	{
-		int h = x * 73856093 ^ y * 19349663 ^ z * 83492791;
-		h ^= (h >> 13);
-		return h;
-	}
 
-	int Random3D(int x, int y, int z, int max)
-	{
-		return Mathf.Abs(Hash3D(x, y, z)) % max;
-	}
+		if (pos.y < 1 || pos.y > 127 ||
+			pos.x < world.position.x - 96 ||
+			pos.x > world.position.x + 95 ||
+			pos.z < world.position.z - 96 ||
+			pos.z > world.position.z + 95) return false;
 
-	public void SetBlock(Vector3Int pos, int block)
-	{
-		if (pos.y < 1 || pos.y > 127) return;
+		var chX = pos.x >> 4;
+		var chZ = pos.z >> 4;
+		chX = (chX % 12 + 12) % 12;
+		chZ = (chZ % 12 + 12) % 12;
+		chunksData[chX + chZ * 12].SetBlock((pos.x & 15 + 16) & 15, pos.y, (pos.z & 15 + 16) & 15, (byte)(block + 10));
 
 		setBlockPos.Add(pos);
 
-		var fx = (pos.x + 8192) % 256;
-		var fy = (pos.z + 8192) % 256;
+		var fx = (pos.x & 255 + 256) & 255;
+		var fy = (pos.z & 255 + 256) & 255;
+		worldTexture.SetPixel(fx + (pos.y & 15) * 256, fy + (pos.y >> 4) * 256, new Color32((byte)block, 0, 0, 0));
 
 		var px = fx * 4 + fy * 16_384;
 
-		byteData[px + (pos.y % 16 * 1024) + (pos.y / 16) * 4_194_304] = (byte)block;
-
 		isBlockChanged = true;
+
+		return true;
 	}
 
 	private int GetLandscapeHeight(float x, float z)
@@ -368,13 +771,6 @@ public class WorldController : UdonSharpBehaviour
 					z / mountainsNoiseScale2 + mountainsNoiseOffset2.y), 2)) * 6 - 5)));
 	}
 
-	private float GetTree1Height(float x, float z)
-	{
-		return Mathf.PerlinNoise(
-					x / treesNoiseScale1 + treesNoiseOffset1.x,
-					z / treesNoiseScale1 + treesNoiseOffset1.y);
-	}
-
 	private void UpdateRandom()
 	{
 		Random.InitState(GetSeed());
@@ -385,8 +781,11 @@ public class WorldController : UdonSharpBehaviour
 		mountainsNoiseOffset1 = GetNoiceOffset(mountainsNoiseScale1);
 		mountainsNoiseOffset2 = GetNoiceOffset(mountainsNoiseScale2);
 
-		treesNoiseOffset1 = GetNoiceOffset(treesNoiseScale1);
-		treesNoiseOffset2 = GetNoiceOffset(treesNoiseScale2);
+		for (int i = 0; i < structures.Length; i++)
+		{
+			var str = structures[i];
+			str.SetNoiceOffset(GetNoiceOffset(str.noiceScale));
+		}
 	}
 
 	private Vector2 GetNoiceOffset(float scale)
@@ -401,100 +800,176 @@ public class WorldController : UdonSharpBehaviour
 
 	private int GetSeed()
 	{
-		if (onMenuLocation) return menuLocationSeed;
 		return seed;
 	}
 
+	public bool InBlock(int x, int y, int z)
+	{
+		return InBlock(new Vector3Int(x, y, z));
+	}
 	public bool InBlock(Vector3Int pos)
 	{
-		if (pos.y < 0 || pos.y > 127) return false;
+		if (!miniWorld) return false;
+		var fx = (pos.x % 256 + 256) % 256;
+		var fy = (pos.z % 256 + 256) % 256;
 
-		var fx = (pos.x + 8192) % 256;
-		var fy = (pos.z + 8192) % 256;
-		var px = fx * 4 + fy * 16_384;
+		var px = ((Color32)worldTexture.GetPixel(fx + (pos.y % 16) * 256, fy + pos.y / 16 * 256)).r;
 
-		var h = byteData[px + 2];
-
-		if (h == 0) return false;
-
-		var block = byteData[px + (pos.y % 16 * 1024) + (pos.y / 16) * 4_194_304];
-
-		if (block == 0)
+		if (px != 0f)
 		{
-			if (pos.y < h) return true;
-			h = byteData[px + 2 + 1024];
-			return pos.y < h;
+			return px > 1;
 		}
 
-		return block > 1;
+		px = ((Color32)worldTexture.GetPixel(fx, fy)).b;
+
+		return pos.y < px;
 	}
 
-	private Vector3Int[] tree =
+	private Vector2Int[] chankQueue =
 	{
-		new Vector3Int(2,0,1),
-		new Vector3Int(2,1,1),
-		new Vector3Int(2,0,0),
-		new Vector3Int(2,1,0),
-		new Vector3Int(2,0,-1),
-		new Vector3Int(2,1,-1),
-		new Vector3Int(1,0,2),
-		new Vector3Int(1,1,2),
-		new Vector3Int(1,0,1),
-		new Vector3Int(1,1,1),
-		new Vector3Int(1,0,0),
-		new Vector3Int(1,1,0),
-		new Vector3Int(1,0,-1),
-		new Vector3Int(1,1,-1),
-		new Vector3Int(1,0,-2),
-		new Vector3Int(1,1,-2),
-		new Vector3Int(0,0,2),
-		new Vector3Int(0,1,2),
-		new Vector3Int(0,0,1),
-		new Vector3Int(0,1,1),
-		new Vector3Int(0,0,-1),
-		new Vector3Int(0,1,-1),
-		new Vector3Int(0,0,-2),
-		new Vector3Int(0,1,-2),
-		new Vector3Int(-1,0,2),
-		new Vector3Int(-1,1,2),
-		new Vector3Int(-1,0,1),
-		new Vector3Int(-1,1,1),
-		new Vector3Int(-1,0,0),
-		new Vector3Int(-1,1,0),
-		new Vector3Int(-1,0,-1),
-		new Vector3Int(-1,1,-1),
-		new Vector3Int(-1,0,-2),
-		new Vector3Int(-1,1,-2),
-		new Vector3Int(-2,0,1),
-		new Vector3Int(-2,1,1),
-		new Vector3Int(-2,0,0),
-		new Vector3Int(-2,1,0),
-		new Vector3Int(-2,0,-1),
-		new Vector3Int(-2,1,-1),
-		new Vector3Int(1,2,0),
-		new Vector3Int(1,3,0),
-		new Vector3Int(0,2,0),
-		new Vector3Int(0,3,0),
-		new Vector3Int(-1,2,0),
-		new Vector3Int(-1,3,0),
-		new Vector3Int(0,2,1),
-		new Vector3Int(0,3,1),
-		new Vector3Int(0,2,-1),
-		new Vector3Int(0,3,-1),
-	};
-	private Vector3Int[] treeRand =
-	{
-		new Vector3Int(2,0,2),
-		new Vector3Int(2,1,2),
-		new Vector3Int(2,0,-2),
-		new Vector3Int(2,1,-2),
-		new Vector3Int(-2,0,2),
-		new Vector3Int(-2,1,2),
-		new Vector3Int(-2,0,-2),
-		new Vector3Int(-2,1,-2),
-		new Vector3Int(1,2,1),
-		new Vector3Int(1,2,-1),
-		new Vector3Int(-1,2,1),
-		new Vector3Int(-1,2,-1),
+		new Vector2Int(0, 0),
+		new Vector2Int(1, 0),
+		new Vector2Int(0, 1),
+		new Vector2Int(0, -1),
+		new Vector2Int(-1, 0),
+		new Vector2Int(1, 1),
+		new Vector2Int(1, -1),
+		new Vector2Int(-1, 1),
+		new Vector2Int(-1, -1),
+		new Vector2Int(2, 0),
+		new Vector2Int(0, 2),
+		new Vector2Int(0, -2),
+		new Vector2Int(-2, 0),
+		new Vector2Int(2, 1),
+		new Vector2Int(2, -1),
+		new Vector2Int(1, 2),
+		new Vector2Int(1, -2),
+		new Vector2Int(-1, 2),
+		new Vector2Int(-1, -2),
+		new Vector2Int(-2, 1),
+		new Vector2Int(-2, -1),
+		new Vector2Int(2, 2),
+		new Vector2Int(2, -2),
+		new Vector2Int(-2, 2),
+		new Vector2Int(-2, -2),
+		new Vector2Int(3, 0),
+		new Vector2Int(0, 3),
+		new Vector2Int(0, -3),
+		new Vector2Int(-3, 0),
+		new Vector2Int(3, 1),
+		new Vector2Int(3, -1),
+		new Vector2Int(1, 3),
+		new Vector2Int(1, -3),
+		new Vector2Int(-1, 3),
+		new Vector2Int(-1, -3),
+		new Vector2Int(-3, 1),
+		new Vector2Int(-3, -1),
+		new Vector2Int(3, 2),
+		new Vector2Int(3, -2),
+		new Vector2Int(2, 3),
+		new Vector2Int(2, -3),
+		new Vector2Int(-2, 3),
+		new Vector2Int(-2, -3),
+		new Vector2Int(-3, 2),
+		new Vector2Int(-3, -2),
+		new Vector2Int(4, 0),
+		new Vector2Int(0, 4),
+		new Vector2Int(0, -4),
+		new Vector2Int(-4, 0),
+		new Vector2Int(4, 1),
+		new Vector2Int(4, -1),
+		new Vector2Int(1, 4),
+		new Vector2Int(1, -4),
+		new Vector2Int(-1, 4),
+		new Vector2Int(-1, -4),
+		new Vector2Int(-4, 1),
+		new Vector2Int(-4, -1),
+		new Vector2Int(3, 3),
+		new Vector2Int(3, -3),
+		new Vector2Int(-3, 3),
+		new Vector2Int(-3, -3),
+		new Vector2Int(4, 2),
+		new Vector2Int(4, -2),
+		new Vector2Int(2, 4),
+		new Vector2Int(2, -4),
+		new Vector2Int(-2, 4),
+		new Vector2Int(-2, -4),
+		new Vector2Int(-4, 2),
+		new Vector2Int(-4, -2),
+		new Vector2Int(5, 0),
+		new Vector2Int(4, 3),
+		new Vector2Int(4, -3),
+		new Vector2Int(3, 4),
+		new Vector2Int(3, -4),
+		new Vector2Int(0, 5),
+		new Vector2Int(0, -5),
+		new Vector2Int(-3, 4),
+		new Vector2Int(-3, -4),
+		new Vector2Int(-4, 3),
+		new Vector2Int(-4, -3),
+		new Vector2Int(-5, 0),
+		new Vector2Int(5, 1),
+		new Vector2Int(5, -1),
+		new Vector2Int(1, 5),
+		new Vector2Int(1, -5),
+		new Vector2Int(-1, 5),
+		new Vector2Int(-1, -5),
+		new Vector2Int(-5, 1),
+		new Vector2Int(-5, -1),
+		new Vector2Int(5, 2),
+		new Vector2Int(5, -2),
+		new Vector2Int(2, 5),
+		new Vector2Int(2, -5),
+		new Vector2Int(-2, 5),
+		new Vector2Int(-2, -5),
+		new Vector2Int(-5, 2),
+		new Vector2Int(-5, -2),
+		new Vector2Int(4, 4),
+		new Vector2Int(4, -4),
+		new Vector2Int(-4, 4),
+		new Vector2Int(-4, -4),
+		new Vector2Int(5, 3),
+		new Vector2Int(5, -3),
+		new Vector2Int(3, 5),
+		new Vector2Int(3, -5),
+		new Vector2Int(-3, 5),
+		new Vector2Int(-3, -5),
+		new Vector2Int(-5, 3),
+		new Vector2Int(-5, -3),
+		new Vector2Int(0, -6),
+		new Vector2Int(-6, 0),
+		new Vector2Int(1, -6),
+		new Vector2Int(-1, -6),
+		new Vector2Int(-6, 1),
+		new Vector2Int(-6, -1),
+		new Vector2Int(2, -6),
+		new Vector2Int(-2, -6),
+		new Vector2Int(-6, 2),
+		new Vector2Int(-6, -2),
+		new Vector2Int(5, 4),
+		new Vector2Int(5, -4),
+		new Vector2Int(4, 5),
+		new Vector2Int(4, -5),
+		new Vector2Int(-4, 5),
+		new Vector2Int(-4, -5),
+		new Vector2Int(-5, 4),
+		new Vector2Int(-5, -4),
+		new Vector2Int(3, -6),
+		new Vector2Int(-3, -6),
+		new Vector2Int(-6, 3),
+		new Vector2Int(-6, -3),
+		new Vector2Int(5, 5),
+		new Vector2Int(5, -5),
+		new Vector2Int(-5, 5),
+		new Vector2Int(-5, -5),
+		new Vector2Int(4, -6),
+		new Vector2Int(-4, -6),
+		new Vector2Int(-6, 4),
+		new Vector2Int(-6, -4),
+		new Vector2Int(5, -6),
+		new Vector2Int(-5, -6),
+		new Vector2Int(-6, 5),
+		new Vector2Int(-6, -5),
+		new Vector2Int(-6, -6)
 	};
 }

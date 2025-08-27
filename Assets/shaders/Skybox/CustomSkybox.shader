@@ -89,12 +89,12 @@ Shader "Unlit/CustomSkybox"
                 float time = sin(r)*cos(radians(_Angle));
 
                 //top
-                float alphaGradient = smoothstep(1-smoothstep(-0.1,0.5,time)*5, 5, dir.z);
+                float alphaGradient = smoothstep(1-smoothstep(-0.3,0.5,time)*5, 5, dir.z);
                 float3 col = _TopCol * alphaGradient * 1.2;
                 
                 float2 uv;
                 // + stars
-                if(time<0.2)
+                if(time<0.3)
                 {
                     float3 absDir = abs(dir);
                     float maxAxis = max(max(absDir.x, absDir.y), absDir.z);
@@ -102,23 +102,23 @@ Shader "Unlit/CustomSkybox"
                     if (maxAxis == absDir.x) {
                         uv = dir.zy / absDir.x;
                         if (dir.x > 0)
-                            col += tex2D(_StarsXP, uv * float2(-0.5,0.5) + 0.5)*max(0,1-alphaGradient*4);
+                            col += tex2D(_StarsXP, uv * float2(-0.5,0.5) + 0.5)*max(0,1-alphaGradient*8);
                         else
-                            col += tex2D(_StarsXM, uv * 0.5 + 0.5)*max(0,1-alphaGradient*4);
+                            col += tex2D(_StarsXM, uv * 0.5 + 0.5)*max(0,1-alphaGradient*8);
                     }
                     else if (maxAxis == absDir.y) {
                         uv = dir.xz / absDir.y;
                         if (dir.y > 0)
-                            col += tex2D(_StarsYP, uv.yx * 0.5 + 0.5)*max(0,1-alphaGradient*4);
+                            col += tex2D(_StarsYP, uv.yx * 0.5 + 0.5)*max(0,1-alphaGradient*8);
                         else
-                            col += tex2D(_StarsYM, uv.yx * float2(-0.5,0.5) + 0.5)*max(0,1-alphaGradient*4);
+                            col += tex2D(_StarsYM, uv.yx * float2(-0.5,0.5) + 0.5)*max(0,1-alphaGradient*8);
                     }
                     else {
                         uv = dir.xy / absDir.z;
                         if (dir.z > 0)
-                            col += tex2D(_StarsZP, uv * 0.5 + 0.5)*max(0,1-alphaGradient*4);
+                            col += tex2D(_StarsZP, uv * 0.5 + 0.5)*max(0,1-alphaGradient*8);
                         else
-                            col += tex2D(_StarsZM, uv * float2(-0.5,0.5) + 0.5)*max(0,1-alphaGradient*4);
+                            col += tex2D(_StarsZM, uv * float2(-0.5,0.5) + 0.5)*max(0,1-alphaGradient*8);
                     }
                 }
                 
@@ -137,12 +137,12 @@ Shader "Unlit/CustomSkybox"
                 }
 
                 // + sun
-                col += _SunLightCol * smoothstep(1-smoothstep(-0.2,1,time)*0.5,1.2,dir.z);
+                col += _SunLightCol * smoothstep(1-smoothstep(-0.2,1,time)*0.45,1.2,dir.z);
                 
                 dir = i.viewDir;
 
                 // + reflection
-                col += max(0,alphaGradient * smoothstep(0.3,-0.1,time) * _ReleCol * 3 - dir.y/5);
+                col += max(0,pow(alphaGradient,2) * smoothstep(0.3,-0.05,time) * _ReleCol * 3 - dir.y/3);
 
                 // + horizon
                 alphaGradient = smoothstep(0.15,-0.15,dir.y) * alphaGradient;
@@ -165,7 +165,7 @@ Shader "Unlit/CustomSkybox"
                     if(c<0.01) continue;
                     c = smoothstep(c,0.01,0.02)*(dir.y-0.1);
                     col.rgb *= 1-c;
-                    col.rgb += c * (1-j/32) * (0.02+smoothstep(-0.05,0.4,time));
+                    col.rgb += c * (1-j/32) * (0.02+smoothstep(-0.1,0.4,time));
                 }
 
                 return fixed4(col.rgb, 1.0);
