@@ -280,7 +280,7 @@ Shader "Unlit/Tets"
 					clip(-0.5);
 					return 0;
 					/*float4 cc = float4(sin(i.worldPos.xyz*3.1415926535*4),1);
-					if(cc.r<0.95 && cc.g<0.95 && cc.b<0.95) clip(-0.5);
+					if(cc.r<0.999 && cc.g<0.999 && cc.b<0.999) clip(-0.5);
 					return cc;*/
 				}
 				float2 u1;

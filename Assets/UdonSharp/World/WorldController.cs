@@ -19,11 +19,14 @@ public class WorldController : UdonSharpBehaviour
 	[SerializeField] private Material worldMaterialZ;
 	[SerializeField] private Material worldOptimizer;
 	[SerializeField] private Material sky;
+	[SerializeField] private Material godRays;
 	[SerializeField] private GameObject cubeCollider;
 	[SerializeField] private Transform world;
 	[SerializeField] private StructureDataManager structures;
 	[SerializeField] private DebugConsole debugConsole;
 	[SerializeField] private WorldData worldData;
+	[SerializeField] private RotateLightCamera rotateLightCamera;
+	[SerializeField] private RotateLightCamera rotateLightCameraVR;
 	private Chunk[] chunksData;
 
 	[SerializeField] private Vector3IntList setBlockPos;
@@ -37,7 +40,6 @@ public class WorldController : UdonSharpBehaviour
 	#endregion
 
 	#region world data
-	[UdonSynced]
 	private int seed;
 	private Vector2 landscapeNoiseOffset1;
 	private int landscapeNoiseScale1 = 64;
@@ -144,11 +146,10 @@ public class WorldController : UdonSharpBehaviour
 	private float syncSkyTime = 60f;
 
 
-	bool isDeserializing = false;
-	public override void OnDeserialization()
+
+	public void SetSeed(int val)
 	{
-		if (isDeserializing) return;
-		isDeserializing = true;
+		seed = val;
 
 		debugConsole.Message("SetSeed:" + seed + " from master " + Networking.Master.displayName);
 
@@ -180,6 +181,11 @@ public class WorldController : UdonSharpBehaviour
 		worldMaterialY.SetFloat("_InputTime", time - 0.03f);
 		worldMaterialZ.SetFloat("_InputTime", time - 0.03f);
 		sky.SetFloat("_TimePower", time);
+		godRays.SetFloat("_TimePower", time);
+		if (rotateLightCamera != null)
+			rotateLightCamera.SetTime(time);
+		if (rotateLightCameraVR != null)
+			rotateLightCameraVR.SetTime(time);
 
 
 		if (isAnalise)
@@ -209,7 +215,7 @@ public class WorldController : UdonSharpBehaviour
 				}
 				if (generatedChunks == 4)
 				{
-					spawnPlatform.SetActive(false);
+					//spawnPlatform.SetActive(false);
 
 					for (int i = 0; i < 36; i++) collidersObj[i].enabled = InBlock(colliders[i]);
 				}
@@ -420,8 +426,8 @@ public class WorldController : UdonSharpBehaviour
 												Random.Range(0, aStructure._size.z - 1) + k
 											);
 
-											if (pos.x + aStructure._size.x <= x || pos.x >= x + 16 ||
-											   pos.y + aStructure._size.z <= z || pos.y >= z + 16) continue;
+											if (pos.x + aStructure.maxEnd.x <= x || pos.x + aStructure.minStart.x >= x + 16 ||
+											   pos.y + aStructure.maxEnd.y <= z || pos.y + aStructure.minStart.y >= z + 16) continue;
 
 											var approved = false;
 											var height = 0;
@@ -534,7 +540,7 @@ public class WorldController : UdonSharpBehaviour
 			z *= 16;
 			for (int i = structProgressor; i < chunk.Count; i++)
 			{
-				if (i == structProgressor + 8) break;
+				if (i == structProgressor + 10) break;
 				var structure = chunk.StructureAt(i);
 				var pos = chunk.PositionAt(i);
 				var randomHeight = chunk.RandomHeightAt(i);
@@ -607,7 +613,7 @@ public class WorldController : UdonSharpBehaviour
 						break;
 				}
 			}
-			structProgressor += 8;
+			structProgressor += 10;
 			worldTexture.Apply();
 			if (structProgressor >= chunk.Count)
 			{
@@ -619,7 +625,7 @@ public class WorldController : UdonSharpBehaviour
 		{
 			var chunk = chunksData[(x % 12 + 12) % 12 + (z % 12 + 12) % 12 * 12];
 
-			var data = chunk.AddData(worldData.GetData(new Vector2Int(x, z)));
+			var data = chunk.AddData(worldData.GetData(new Vector2Int(x, z))[0], new Vector2Int(x, z));
 
 			var X = x * 16;
 			var Z = z * 16;
@@ -798,7 +804,7 @@ public class WorldController : UdonSharpBehaviour
 		return new Vector2(x, z);
 	}
 
-	private int GetSeed()
+	public int GetSeed()
 	{
 		return seed;
 	}
@@ -823,6 +829,11 @@ public class WorldController : UdonSharpBehaviour
 		px = ((Color32)worldTexture.GetPixel(fx, fy)).b;
 
 		return pos.y < px;
+	}
+
+	internal void SetChunksData(string[] intArray, int[] positions)
+	{
+		worldData.SetWorldData(intArray, positions);
 	}
 
 	private Vector2Int[] chankQueue =

@@ -12,11 +12,11 @@ Shader "Unlit/CustomSkybox"
         _Sun ("Sun Texture", 2D) = "white" {}
         _Moon ("Moon Texture", 2D) = "white" {}
         _TopCol ("Top Color", Color) = (0.0, 0.5, 1.0, 1.0)
-        _BottomCol ("Bottom Color", Color) = (0.0, 0.0, 0.2, 1.0)
-        _HorizonCol ("Horizon Color", Color) = (1.0, 1.0, 1.0, 1.0)
-        _ReleCol ("Relief Color", Color) = (1.0, 0.8, 0.5, 1.0)
-        _SunLightCol ("Sun Light Color", Color) = (1.0, 1.0, 1.0, 1.0)
-        _Angle ("Angle", Range(-180, 180)) = -180
+        _BottomCol ("Bottom Color", Color) = (0.0745, 0.306, 0.537, 1.0)
+        _HorizonCol ("Horizon Color", Color) = (0.788, 0.992, 1.0, 1.0)
+        _ReleCol ("Relief Color", Color) = (1.0, 0.0, 0.0, 1.0)
+        _SunLightCol ("Sun Light Color", Color) = (1.0, 1.0, 0.0, 1.0)
+        _Angle ("Angle", Range(-180, 180)) = 50
         _TimePower ("Time Power", Range(0, 8)) = 0
     }
     SubShader
@@ -125,10 +125,16 @@ Shader "Unlit/CustomSkybox"
                 // + sun + moon
                 col = max(col, 0);
                 uv = dir.xy / abs(dir.z);
+                
+                float lightChanel=1;
                 if (abs(uv.x)<0.2 && abs(uv.y)<0.2)
                 {
                     if (dir.z>0)
-                        col += tex2D(_Sun, uv * 2.5 + 0.5);
+                    {
+                        float2 sunUV = uv * 2.5 + 0.5;
+                        col += tex2D(_Sun, sunUV);
+                        lightChanel=length(sunUV-0.5)*2.3;
+                    }
                     else
                     {
                         float day = round(_TimePower+0.25);
@@ -155,6 +161,7 @@ Shader "Unlit/CustomSkybox"
                 
                 // - bottom
                 alphaGradient = smoothstep(-0.05,0,dir.y);
+                lightChanel+=1-alphaGradient;
                 col = alphaGradient * col + (1-alphaGradient) * _BottomCol * smoothstep(-0.1,0.5,time);
                 
                 // + clouds
@@ -168,9 +175,10 @@ Shader "Unlit/CustomSkybox"
                     c = smoothstep(c,0.01,0.02)*(dir.y-0.1);
                     col *= 1-c;
                     col += c * (1-j/32) * (0.02+smoothstep(-0.1,0.4,time));
+                    lightChanel+=c;
                 }
-
-                return fixed4(col.rgb, 1.0);
+                lightChanel=min(lightChanel,1);
+                return fixed4(col.rgb, lightChanel);
             }
             ENDCG
         }

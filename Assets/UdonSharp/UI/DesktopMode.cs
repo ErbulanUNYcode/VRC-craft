@@ -7,6 +7,7 @@ public class DesktopMode : UdonSharpBehaviour
 	[SerializeField] private GameObject[] vrUis;
 	[SerializeField] private Collider box;
 	[SerializeField] private GameObject desktopUi;
+	[SerializeField] private GameObject desktopLight;
 	//[SerializeField] private bool testModeIsVR = false;
 
 	private VRCPlayerApi player;
@@ -26,7 +27,7 @@ public class DesktopMode : UdonSharpBehaviour
 		}
 		else
 		{
-			Destroy(desktopUi);
+			Destroy(desktopLight);
 			Destroy(gameObject);
 		}
 	}

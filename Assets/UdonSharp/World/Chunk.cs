@@ -9,7 +9,7 @@ public class Chunk : UdonSharpBehaviour
 	private int[] randomHeights = new int[128];
 	private int count = 0;
 	private byte[] blocksData;
-	private Vector2Int position = new Vector2Int(999, 999);
+	private Vector2Int position;
 
 	/*
 	0-9 is count of blocks
@@ -17,7 +17,7 @@ public class Chunk : UdonSharpBehaviour
 	*/
 	public void SetBlock(int x, int y, int z, byte block)
 	{
-		var index = x + z * 16 + y * 16 * 16;
+		var index = x + (z << 4) + (y << 8);
 
 		if (block < 10 || index < 0 || index >= 32768)
 		{
@@ -33,7 +33,6 @@ public class Chunk : UdonSharpBehaviour
 					8,6,7,2,3,10//8192 empty(nature generated) blocks
 				};
 		}
-
 		//find block type for in this block
 		var pos = 0;
 		var levelOfNumber = 1;
@@ -72,7 +71,6 @@ public class Chunk : UdonSharpBehaviour
 					}
 					else if (i + 1 < blocksData.Length)
 					{
-						Debug.Log("step 1");
 						var j = i + 1;
 						var tempLastCount = 0;
 						levelOfNumber = 1;
@@ -205,19 +203,18 @@ public class Chunk : UdonSharpBehaviour
 		if (blocksData == null) return;
 
 		if (blocksData != null)
-			dataSystem.AddData(position.x + ":" + position.y + ":" + Convert.ToBase64String(blocksData), position);
+			dataSystem.AddData(Convert.ToBase64String(blocksData), position);
 
 		blocksData = null; //clear blocks data
 	}
 
-	public byte[] AddData(string data)
+	public byte[] AddData(string data, Vector2Int pos)
 	{
-		var parts = data.Split(':');
+		position = pos;
 
-		position = new Vector2Int(int.Parse(parts[0]), int.Parse(parts[1]));
-
-		if (parts.Length == 3)
-			blocksData = Convert.FromBase64String(parts[2]);
+		if (data == null) blocksData = null;
+		else
+			blocksData = Convert.FromBase64String(data);
 
 		return blocksData;
 	}

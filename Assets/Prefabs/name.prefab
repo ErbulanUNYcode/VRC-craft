@@ -156,7 +156,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: ff
+  m_text: ffggfjghjghj
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 942e90b6956b0dd4f918726c5c88ca06, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 942e90b6956b0dd4f918726c5c88ca06, type: 2}
@@ -392,7 +392,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 25.26, y: 0}
+  m_AnchoredPosition: {x: 135.88, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2389787999641327124

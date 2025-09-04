@@ -18,6 +18,8 @@ public class Structure : UdonSharpBehaviour
 	[SerializeField] private Structure[] analogStructures;
 	[SerializeField] public Vector2Int[] starts;
 	[SerializeField] public Vector2Int[] ends;
+	[SerializeField] public Vector2Int minStart;
+	[SerializeField] public Vector2Int maxEnd;
 	[SerializeField] private Color32[] fastMap;
 	[SerializeField] int zStep;
 	[SerializeField] int yStep;
@@ -45,6 +47,8 @@ public class Structure : UdonSharpBehaviour
 		}
 		starts = new Vector2Int[_size.y];
 		ends = new Vector2Int[_size.y];
+		minStart = Vector2Int.one * 50;
+		maxEnd = Vector2Int.zero;
 		for (int i = 0; i < _size.y; i++)
 		{
 			starts[i] = new Vector2Int(_size.x, _size.z);
@@ -59,6 +63,10 @@ public class Structure : UdonSharpBehaviour
 					if (starts[i].y > k) starts[i].y = k;
 					if (ends[i].x <= j) ends[i].x = j + 1;
 					if (ends[i].y <= k) ends[i].y = k + 1;
+					if (minStart.x > starts[i].x) minStart.x = starts[i].x;
+					if (minStart.y > starts[i].y) minStart.y = starts[i].y;
+					if (maxEnd.x < ends[i].x) maxEnd.x = ends[i].x;
+					if (maxEnd.y < ends[i].y) maxEnd.y = ends[i].y;
 				}
 			}
 			if (starts[i].x == _size.x && starts[i].y == _size.z)
