@@ -35,7 +35,10 @@ public class DebugConsole : UdonSharpBehaviour
 			}
 		}
 		Debug.Log(message);
-		Instantiate(consolePrefab, console).GetComponent<ConsoleMessage>().SetText(message).SetActive(true);
+		var m = Instantiate(consolePrefab, console);
+		m.SetActive(true);
+		m.GetComponent<ConsoleMessage>().SetText(message);
+		LayoutRebuilder.ForceRebuildLayoutImmediate(m.GetComponent<RectTransform>());
 		LayoutRebuilder.ForceRebuildLayoutImmediate(console.GetComponent<RectTransform>());
 	}
 }

@@ -52,7 +52,7 @@ public class WorldData : UdonSharpBehaviour
 	}
 
 
-	public void SetOwner(string owner, Vector2Int position)
+	public string SetOwner(string owner, Vector2Int position)
 	{
 		int left = 0;
 		int right = count - 1;
@@ -68,7 +68,7 @@ public class WorldData : UdonSharpBehaviour
 			if (cmp == 0)
 			{
 				owners[mid] = owner;
-				return;
+				return world[mid];
 			}
 			else if (cmp < 0)
 				left = mid + 1;
@@ -90,6 +90,7 @@ public class WorldData : UdonSharpBehaviour
 		positions[left] = position;
 		owners[left] = owner;
 		count++;
+		return null;
 	}
 
 
@@ -124,6 +125,7 @@ public class WorldData : UdonSharpBehaviour
 
 			if (cmp == 0)
 				return new string[] { world[mid], owners[mid] };
+			//return new string[] { owners[mid] == null ? world[mid] : null, owners[mid] };
 			else if (cmp < 0)
 				left = mid + 1;
 			else
@@ -169,5 +171,11 @@ public class WorldData : UdonSharpBehaviour
 		{
 			positions[i] = new Vector2Int(Pdata[idx++], Pdata[idx++]);
 		}
+	}
+
+	public bool HasOwner(Vector2Int vector2Int)
+	{
+		var data = GetData(vector2Int);
+		return data != null && data[1] != null;
 	}
 }

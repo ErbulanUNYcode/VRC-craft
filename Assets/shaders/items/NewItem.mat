@@ -7,15 +7,15 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: TetsY
-  m_Shader: {fileID: 4800000, guid: b92ee1836e12409489eca21f53217092, type: 3}
+  m_Name: NewItem
+  m_Shader: {fileID: 4800000, guid: e09e94bf6d4230d4098ca98c8a659295, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 1
+  m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
@@ -23,10 +23,6 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
-    - _BiomeTex:
-        m_Texture: {fileID: 2800000, guid: 861458351c637a545a786c3ba6553c12, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
     - _BumpMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -52,11 +48,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _MesherTex:
-        m_Texture: {fileID: 8400000, guid: 27c14d65a3185d44d91e254d9e783d2d, type: 2}
+        m_Texture: {fileID: 2800000, guid: 675a425369ac58c4cb8d7924dd411272, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -66,10 +58,6 @@ Material:
     - _OcclusionMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _PackTex:
-        m_Texture: {fileID: 2800000, guid: 79ef552411c8da24f9f67b4d26f4b144, type: 3}
-        m_Scale: {x: 36, y: 36}
         m_Offset: {x: 0, y: 0}
     - _ParallaxMap:
         m_Texture: {fileID: 0}
@@ -84,20 +72,15 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _ImputTime: 0
-    - _InputTime: 0.06990084
+    - _GridSize: 16
+    - _InputTime: 0.09990084
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
-    - _Order: 1
     - _Parallax: 0.02
-    - _PlayerX: 1
-    - _PlayerY: 35.386566
-    - _PlayerZ: 1
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _Test: 255
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:

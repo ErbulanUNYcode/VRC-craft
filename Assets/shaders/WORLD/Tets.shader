@@ -48,8 +48,8 @@ Shader "Unlit/Tets"
 			Texture2D _BiomeTex;
 			sampler2D _LightTex;
 			Texture2D _MesherTex;
-			float4 _MainTex_ST;
-			float _Test;
+			//float4 _MainTex_ST;
+			//float _Test;
 			float _Order;
 			float _InputTime;
 

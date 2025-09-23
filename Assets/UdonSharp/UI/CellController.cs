@@ -17,7 +17,6 @@ public class CellController : UdonSharpBehaviour
 	[SerializeField] private ItemDataManager itemData;
 	[SerializeField] private CellController syncCell;
 	[SerializeField] private CellController draggedCell;
-	[SerializeField] private NetworkManager networkManager;
 
 	private int count = 0;
 	private int id = 0;
@@ -258,36 +257,40 @@ public class CellController : UdonSharpBehaviour
 		}
 	}
 
-	internal void ClickBlock(Vector3Int selected, Vector3Int air, bool value)
+	public int[] TryClickBlock(Vector3Int selected, Vector3Int air, bool set)
 	{
-		if (!value)
+
+		if (!set)
 		{
-			networkManager.SetBlock(selected, 1);
+			return new int[] { (int)SetPosition.selected, 1 };
 		}
 		else
 		{
-			if (count == 0) return;
+			if (count == 0) return null;
 
 			var setType = itemData[id].setType;
 
-			if (setType == SetType.none) return;
-			bool setState = false;
-			if (itemData[id].setType == SetType.symple)
-				setState = networkManager.SetBlock(air, itemData[id].sets[0] + 1);
+			if (setType == SetType.none) return null;
+
+
+			int[] returned = null;
+
+			if (setType == SetType.symple)
+				return new int[] { (int)SetPosition.air, itemData[id].sets[0] + 1 };
 			else if (setType == SetType.side)
 			{
 				if (selected.x > air.x)
-					setState = networkManager.SetBlock(air, itemData[id].sets[0] + 1);
+					returned = new int[] { (int)SetPosition.air, itemData[id].sets[0] + 1 };
 				else if (selected.x < air.x)
-					setState = networkManager.SetBlock(air, itemData[id].sets[3] + 1);
+					returned = new int[] { (int)SetPosition.air, itemData[id].sets[3] + 1 };
 				else if (selected.y > air.y)
-					setState = networkManager.SetBlock(air, itemData[id].sets[1] + 1);
+					returned = new int[] { (int)SetPosition.air, itemData[id].sets[1] + 1 };
 				else if (selected.y < air.y)
-					setState = networkManager.SetBlock(air, itemData[id].sets[4] + 1);
+					returned = new int[] { (int)SetPosition.air, itemData[id].sets[4] + 1 };
 				else if (selected.z > air.z)
-					setState = networkManager.SetBlock(air, itemData[id].sets[2] + 1);
+					returned = new int[] { (int)SetPosition.air, itemData[id].sets[2] + 1 };
 				else if (selected.z < air.z)
-					setState = networkManager.SetBlock(air, itemData[id].sets[5] + 1);
+					returned = new int[] { (int)SetPosition.air, itemData[id].sets[5] + 1 };
 			}
 			else if (setType == SetType.front)
 			{
@@ -315,12 +318,23 @@ public class CellController : UdonSharpBehaviour
 					}
 				}
 
-				setState = networkManager.SetBlock(air, itemData[id].sets[best] + 1);
+				returned = new int[] { (int)SetPosition.air, itemData[id].sets[best] + 1 };
 			}
-			if (!setState) return;
-			count--;
-			if (count == 0) count = itemData[id].maxCount;
-			UpdateVisuals();
+			return returned;
 		}
 	}
+
+	public void Use()
+	{
+		count--;
+		//infinite items
+		if (count == 0) count = itemData[id].maxCount;
+		UpdateVisuals();
+	}
+}
+
+public enum SetPosition
+{
+	selected,
+	air
 }

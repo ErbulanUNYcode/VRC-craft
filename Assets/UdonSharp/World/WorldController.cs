@@ -20,6 +20,7 @@ public class WorldController : UdonSharpBehaviour
 	[SerializeField] private Material worldOptimizer;
 	[SerializeField] private Material sky;
 	[SerializeField] private Material godRays;
+	[SerializeField] private Material icons;
 	[SerializeField] private GameObject cubeCollider;
 	[SerializeField] private Transform world;
 	[SerializeField] private StructureDataManager structures;
@@ -27,6 +28,7 @@ public class WorldController : UdonSharpBehaviour
 	[SerializeField] private WorldData worldData;
 	[SerializeField] private RotateLightCamera rotateLightCamera;
 	[SerializeField] private RotateLightCamera rotateLightCameraVR;
+	[SerializeField] private NetworkManager networkManager;
 	private Chunk[] chunksData;
 
 	[SerializeField] private Vector3IntList setBlockPos;
@@ -53,7 +55,6 @@ public class WorldController : UdonSharpBehaviour
 	#endregion
 
 	private int generatedChunks = 0;
-	private int chunksProgressor = 0;
 	private int structProgressor = 0;
 
 	private Texture2D worldTexture;
@@ -75,21 +76,7 @@ public class WorldController : UdonSharpBehaviour
 	{
 		chunksData = transform.GetChild(0).GetComponentsInChildren<Chunk>();
 		player = Networking.LocalPlayer;
-		if (player.isMaster)
-		{
-			if (seed == 0)
-			{
-				seed = Random.Range(1, 654654);
-				RequestSerialization();
-				debugConsole.Message("SetSeed:" + seed + " from master " + player.displayName);
-
-				UpdateRandom();
-
-				spawnPoint.transform.position = new Vector3(0.5f, Mathf.Max(GetLandscapeHeight(0, 0), GetMauntainHeight(0, 0)), -3.5f);
-
-				player.TeleportTo(spawnPoint.transform.position, Quaternion.identity);
-			}
-		}
+		if (player.isMaster) SetSeed(Random.Range(1, 654654654));
 
 		worldOptimizer.SetFloat("_OffsetX", 0);
 		worldOptimizer.SetFloat("_OffsetZ", 0);
@@ -113,30 +100,23 @@ public class WorldController : UdonSharpBehaviour
 		worldTexture.filterMode = FilterMode.Point;
 		worldTexture.wrapMode = TextureWrapMode.Clamp;
 		worldTexture.ignoreMipmapLimit = true;
-
+		worldTexture.LoadRawTextureData(new byte[4096 * 2048 * 4]);
+		worldTexture.Apply();
 
 		meshController = new Texture2D(193, 84, TextureFormat.RGBA32, false, true);
 		meshController.filterMode = FilterMode.Point;
 		meshController.wrapMode = TextureWrapMode.Clamp;
 		meshController.ignoreMipmapLimit = true;
+		meshController.LoadRawTextureData(new byte[193 * 84 * 4]);
+		meshController.Apply();
+
+		Array.Copy(worldTexture.GetPixels32(), clearData = new Color32[4096 * 256], 4096 * 256);
 
 		worldMaterialX.SetTexture("_MainTex", worldTexture);
 		worldMaterialY.SetTexture("_MainTex", worldTexture);
 		worldMaterialZ.SetTexture("_MainTex", worldTexture);
 		worldOptimizer.SetTexture("_WorldTex", worldTexture);
 		worldOptimizer.SetTexture("_ControllerTex", meshController);
-
-		worldTexture.LoadRawTextureData(new byte[4096 * 2048 * 4]);
-
-		Array.Copy(worldTexture.GetPixels32(), clearData = new Color32[4096 * 256], 4096 * 256);
-
-		Debug.Log(clearData.Length);
-
-		meshController.LoadRawTextureData(new byte[193 * 84 * 4]);
-
-		meshController.Apply();
-
-		worldTexture.Apply();
 
 		miniWorld = true;
 	}
@@ -145,31 +125,74 @@ public class WorldController : UdonSharpBehaviour
 	[UdonSynced]
 	private float syncSkyTime = 60f;
 
-
-
 	public void SetSeed(int val)
 	{
 		seed = val;
 
-		debugConsole.Message("SetSeed:" + seed + " from master " + Networking.Master.displayName);
-
 		UpdateRandom();
 
-		spawnPoint.transform.position = new Vector3(0.5f, Mathf.Max(GetLandscapeHeight(0, 0), GetMauntainHeight(0, 0)), -3.5f);
+		spawnPoint.transform.position = new Vector3(0.5f, Mathf.Max(GetLandscapeHeight(0, -3), GetMauntainHeight(0, -3)), -3.5f);
 
 		player.TeleportTo(spawnPoint.transform.position, Quaternion.identity);
+
+		var wantChunks = new Vector2Int[144];
+		var wantChunksCount = 0;
+
+		var requestedChunks = new Vector2Int[144];
+		var requestedOwners = new string[144];
+		var requestedChunksCount = 0;
+
+		for (int i = -6; i < 6; i++)
+		{
+			for (int j = -6; j < 6; j++)
+			{
+				var pos = new Vector2Int(i, j);
+				var fpos = new Vector2Int((pos.x % 12 + 12) % 12, (pos.y % 12 + 12) % 12);
+				var chunk = chunksData[fpos.x + fpos.y * 12];
+				var data = worldData.GetData(pos);
+				if (data != null)
+				{
+					if (data[1] != null)
+					{
+						requestedChunks[requestedChunksCount] = pos;
+						requestedOwners[requestedChunksCount] = data[1];
+						requestedChunksCount++;
+					}
+					else
+					{
+						wantChunks[wantChunksCount] = pos;
+						wantChunksCount++;
+					}
+				}
+				chunk.LoadData(data, pos);
+			}
+		}
+		if (Networking.LocalPlayer.isMaster) return;
+		var _wantChunks = new Vector2Int[wantChunksCount];
+		var _requestedChunks = new Vector2Int[requestedChunksCount];
+		var _requestedOwners = new string[requestedChunksCount];
+		Array.Copy(wantChunks, _wantChunks, wantChunksCount);
+		Array.Copy(requestedChunks, _requestedChunks, requestedChunksCount);
+		Array.Copy(requestedOwners, _requestedOwners, requestedChunksCount);
+		networkManager.GlobalRequest(_wantChunks, _requestedChunks, _requestedOwners);
+	}
+
+	public override void OnAvatarChanged(VRCPlayerApi player)
+	{
+		if (player.GetAvatarEyeHeightAsMeters() < 1.4f) player.SetAvatarEyeHeightByMeters(1.4f);
+		if (player.GetAvatarEyeHeightAsMeters() > 1.8f) player.SetAvatarEyeHeightByMeters(1.8f);
+	}
+
+	public override void OnAvatarEyeHeightChanged(VRCPlayerApi player, float prevEyeHeightAsMeters)
+	{
+		if (player.GetAvatarEyeHeightAsMeters() < 1.4f) player.SetAvatarEyeHeightByMeters(1.4f);
+		if (player.GetAvatarEyeHeightAsMeters() > 1.8f) player.SetAvatarEyeHeightByMeters(1.8f);
 	}
 
 
 	private void Update()
 	{
 		if (seed == 0) return;
-
-		if (!spawnPlatform.activeSelf)
-		{
-			spawnPoint.transform.position = player.GetPosition();
-			spawnPoint.transform.rotation = player.GetRotation();
-		}
 
 		WorldAnchor();
 
@@ -182,6 +205,7 @@ public class WorldController : UdonSharpBehaviour
 		worldMaterialZ.SetFloat("_InputTime", time - 0.03f);
 		sky.SetFloat("_TimePower", time);
 		godRays.SetFloat("_TimePower", time);
+		icons.SetFloat("_InputTime", time);
 		if (rotateLightCamera != null)
 			rotateLightCamera.SetTime(time);
 		if (rotateLightCameraVR != null)
@@ -197,27 +221,22 @@ public class WorldController : UdonSharpBehaviour
 
 		if (generatedChunks < 144)
 		{
-			var pos = chankQueue[generatedChunks] + new Vector2Int((((int)world.position.x) >> 4), (int)(world.position.z / 16));
+			var pos = chankQueue[generatedChunks] + new Vector2Int((((int)world.position.x) >> 4), (int)(world.position.z) >> 4);
 			var fpos = new Vector2Int((pos.x % 12 + 12) % 12, (pos.y % 12 + 12) % 12);
-			while (chunksProgressor == 0 && chunksData[fpos.x + fpos.y * 12].state)
+			var chunk = chunksData[fpos.x + fpos.y * 12];
+			while (chunk.state)
 			{
 				generatedChunks++;
 				if (generatedChunks == 144) break;
-				pos = chankQueue[generatedChunks] + new Vector2Int((int)(world.position.x / 16), (((int)world.position.z) >> 4));
+				pos = chankQueue[generatedChunks] + new Vector2Int((int)(world.position.x) >> 4, (((int)world.position.z) >> 4));
 				fpos = new Vector2Int((pos.x % 12 + 12) % 12, (pos.y % 12 + 12) % 12);
+				chunk = chunksData[fpos.x + fpos.y * 12];
 			}
 			if (generatedChunks < 144)
 			{
-				if (GenerateChunk(pos))
+				if (GenerateChunk(pos, chunk))
 				{
 					generatedChunks++;
-					chunksData[fpos.x + fpos.y * 12].state = true;
-				}
-				if (generatedChunks == 4)
-				{
-					//spawnPlatform.SetActive(false);
-
-					for (int i = 0; i < 36; i++) collidersObj[i].enabled = InBlock(colliders[i]);
 				}
 			}
 		}
@@ -274,9 +293,7 @@ public class WorldController : UdonSharpBehaviour
 			}
 		}
 
-		if (Input.GetKeyDown(KeyCode.Tab)) player.Immobilize(true);
-
-		if (Input.GetKeyUp(KeyCode.Tab)) player.Immobilize(false);
+		player.Immobilize(Input.GetKey(KeyCode.Tab));
 
 		if (isBlockChanged)
 		{
@@ -304,8 +321,8 @@ public class WorldController : UdonSharpBehaviour
 
 		if (world.position.x > oldPosition.x)
 		{
-			var pos = ((int)(oldPosition.x - 96) % 256 + 256) % 256;
-			for (int i = 0; i < 16; i++) worldTexture.SetPixels32(pos + i * 256, 0, 32, 2048, clearData);
+			var pos = (int)(oldPosition.x - 96) & 255;
+			for (int i = 0; i < 16; i++) worldTexture.SetPixels32(pos + (i << 8), 0, 32, 2048, clearData);
 			for (int i = 0; i < 12; i++)
 			{
 				pos = (((int)world.position.x) >> 4) + 4;
@@ -316,8 +333,8 @@ public class WorldController : UdonSharpBehaviour
 		}
 		else if (world.position.x < oldPosition.x)
 		{
-			var pos = ((int)(world.position.x + 96) % 256 + 256) % 256;
-			for (int i = 0; i < 16; i++) worldTexture.SetPixels32(pos + i * 256, 0, 32, 2048, clearData);
+			var pos = (int)(world.position.x + 96) & 255;
+			for (int i = 0; i < 16; i++) worldTexture.SetPixels32(pos + (i << 8), 0, 32, 2048, clearData);
 			for (int i = 0; i < 12; i++)
 			{
 				pos = (((int)world.position.x) >> 4) + 6;
@@ -329,8 +346,8 @@ public class WorldController : UdonSharpBehaviour
 
 		if (world.position.z > oldPosition.z)
 		{
-			var pos = ((int)(oldPosition.z - 96) % 256 + 256) % 256;
-			for (int i = 0; i < 8; i++) worldTexture.SetPixels32(0, pos + i * 256, 4096, 32, clearData);
+			var pos = (int)(oldPosition.z - 96) & 255;
+			for (int i = 0; i < 8; i++) worldTexture.SetPixels32(0, pos + (i << 8), 4096, 32, clearData);
 			for (int i = 0; i < 24; i++)
 			{
 				pos = (((int)world.position.z) >> 4) * 12 + 48;
@@ -339,8 +356,8 @@ public class WorldController : UdonSharpBehaviour
 		}
 		else if (world.position.z < oldPosition.z)
 		{
-			var pos = ((int)(world.position.z + 96) % 256 + 256) % 256;
-			for (int i = 0; i < 8; i++) worldTexture.SetPixels32(0, pos + i * 256, 4096, 32, clearData);
+			var pos = (int)(world.position.z + 96) & 255;
+			for (int i = 0; i < 8; i++) worldTexture.SetPixels32(0, pos + (i << 8), 4096, 32, clearData);
 			for (int i = 0; i < 24; i++)
 			{
 				pos = (((int)world.position.z) >> 4) * 12 + 72;
@@ -351,7 +368,6 @@ public class WorldController : UdonSharpBehaviour
 		worldTexture.Apply();
 
 		generatedChunks = 0;
-		chunksProgressor = 0;
 		structProgressor = 0;
 
 		worldOptimizer.SetFloat("_OffsetX", world.position.x / 32f);
@@ -359,35 +375,34 @@ public class WorldController : UdonSharpBehaviour
 	}
 
 	private Color32[] generatorColors = new Color32[256];
-	private bool GenerateChunk(Vector2Int position)
+	private bool GenerateChunk(Vector2Int position, Chunk chunk)
 	{
 		var x = position.x;
 		var z = position.y;
-		if (chunksProgressor == 0)//landscape+biome
+		if (chunk.chunkProgressor == 0)//landscape+biome
 		{
-			x *= 16;
-			z *= 16;
+			x <<= 4;
+			z <<= 4;
 
-			var fx = (x & 255 + 256) & 255;
-			var fy = (z & 255 + 256) & 255;
+			var fx = x & 255;
+			var fy = z & 255;
 			for (var i = 0; i < 16; i++)
 			{
 				for (var j = 0; j < 16; j++)
 				{
 					byte height = (byte)GetLandscapeHeight(x + i, z + j);
 					byte mHeight = (byte)GetMauntainHeight(x + i, z + j);
-					generatorColors[i + j * 16] = new Color32(0, 0, height > mHeight ? height : mHeight, (byte)(height > mHeight ? 0 : 4));
+					generatorColors[i + (j << 4)] = new Color32(0, 0, height > mHeight ? height : mHeight, (byte)(height > mHeight ? 0 : 4));
 				}
 			}
 			worldTexture.SetPixels32(fx, fy, 16, 16, generatorColors);
 			worldTexture.Apply();
-			chunksProgressor++;
+			chunk.nextProgressor();
 		}
-		else if (chunksProgressor == 1)//structures + their positions
+		else if (chunk.chunkProgressor == 1)//structures + their positions
 		{
-			var chunk = chunksData[(x % 12 + 12) % 12 + (z % 12 + 12) % 12 * 12];
-			x *= 16;
-			z *= 16;
+			x <<= 4;
+			z <<= 4;
 
 			for (int i = 0; i < structures.Length; i++)
 			{
@@ -531,13 +546,12 @@ public class WorldController : UdonSharpBehaviour
 						break;
 				}
 			}
-			chunksProgressor++;
+			chunk.nextProgressor();
 		}
-		else if (chunksProgressor == 2)//generate structures
+		else if (chunk.chunkProgressor == 2)//generate structures
 		{
-			var chunk = chunksData[(x % 12 + 12) % 12 + (z % 12 + 12) % 12 * 12];
-			x *= 16;
-			z *= 16;
+			x <<= 4;
+			z <<= 4;
 			for (int i = structProgressor; i < chunk.Count; i++)
 			{
 				if (i == structProgressor + 10) break;
@@ -565,11 +579,11 @@ public class WorldController : UdonSharpBehaviour
 									var sy = pos.y + Y;
 									var sz = pos.z + Z;
 
-									var fx = (sx & 255 + 256) & 255;
-									var fz = (sz & 255 + 256) & 255;
+									var fx = sx & 255;
+									var fz = sz & 255;
 
-									fx += (sy & 15) * 256;
-									fz += sy / 16 * 256;
+									fx += (sy & 15) << 8;
+									fz += sy >> 4 << 8;
 									if (block.b == 0 && ((Color32)worldTexture.GetPixel(fx, fz)).r > 1) continue;
 									var b = structure.GetRandom(sx, sy, sz) ? block.r : block.g;
 									worldTexture.SetPixel(fx, fz, new Color32(b, 0, 0, 0));
@@ -596,15 +610,15 @@ public class WorldController : UdonSharpBehaviour
 										var sy = pos.y + Y;
 										var sz = pos.z + Z;
 
-										var fx = (sx & 255 + 256) & 255;
-										var fz = (sz & 255 + 256) & 255;
+										var fx = sx & 255;
+										var fz = sz & 255;
 
 										var data = (Color32)worldTexture.GetPixel(fx, fz);
 										data = (Color32)biomes.GetPixel(data.a, Mathf.Clamp(sy - data.b + 5, 0, 5));
 										if (data.r != 2) continue;
 										var b = structure.GetRandom(sx, sy, sz) ? block.r : block.g;
-										fx += (sy & 15) * 256;
-										fz += sy / 16 * 256;
+										fx += (sy & 15) << 8;
+										fz += sy >> 4 << 8;
 										worldTexture.SetPixel(fx, fz, new Color32(b, 0, 0, 0));
 									}
 								}
@@ -618,19 +632,17 @@ public class WorldController : UdonSharpBehaviour
 			if (structProgressor >= chunk.Count)
 			{
 				structProgressor = 0;
-				chunksProgressor++;
+				chunk.nextProgressor();
 			}
 		}
-		else if (chunksProgressor == 3)//generate builds
+		else if (chunk.chunkProgressor == 3)//generate builds
 		{
-			var chunk = chunksData[(x % 12 + 12) % 12 + (z % 12 + 12) % 12 * 12];
+			var data = chunk.GetData();
 
-			var data = chunk.AddData(worldData.GetData(new Vector2Int(x, z))[0], new Vector2Int(x, z));
-
-			var X = x * 16;
-			var Z = z * 16;
-			var fx = (X & 255 + 256) & 255;
-			var fz = (Z & 255 + 256) & 255;
+			var X = x << 4;
+			var Z = z << 4;
+			var fx = X & 255;
+			var fz = Z & 255;
 
 			var pos = 0;
 			var levelOfNumber = 1;
@@ -652,9 +664,8 @@ public class WorldController : UdonSharpBehaviour
 								var sz = (p >> 4) & 15;
 								var sy = p >> 8;
 
-								X = fx + sx + (sy & 15) * 256;
-								Z = fz + sz + (sy >> 4) * 256;
-
+								X = fx + sx + ((sy & 15) << 8);
+								Z = fz + sz + ((sy >> 4) << 8);
 								worldTexture.SetPixel(X, Z, new Color32((byte)(b - 10), 0, 0, 0));
 							}
 
@@ -671,17 +682,17 @@ public class WorldController : UdonSharpBehaviour
 				}
 
 				worldTexture.Apply();
-				chunksProgressor++;
+				chunk.nextProgressor();
 			}
 			else
 			{
-				chunksProgressor += 2;
+				chunk.nextProgressor(2);
 			}
 		}
 		else
-		{ chunksProgressor++; }
+		{ chunk.nextProgressor(); }
 
-		if (chunksProgressor == 5)//update mesh controller
+		if (chunk.chunkProgressor == 5)//update mesh controller
 		{
 			x += 6;
 			z += 6;
@@ -718,39 +729,67 @@ public class WorldController : UdonSharpBehaviour
 			isPixelsChanged = true;
 			isAnalise = true;
 
-			chunksProgressor = 0;
 			return true;
 		}
 
 		return false;
 	}
 
-	public bool SetBlock(Vector3Int pos, int block)
+	public void SetBlockLocal(Vector3Int pos, int block)
 	{
+		if (pos.y < 1 || pos.y > 127) return;
 
+		if (!chunksData[((pos.x >> 4) % 12 + 12) % 12 + ((pos.z >> 4) % 12 + 12) % 12 * 12].SetBlockLocal(pos, block, networkManager)) return;
+
+		setBlockPos.Add(pos);
+
+		var fx = pos.x & 255;
+		var fy = pos.z & 255;
+		worldTexture.SetPixel(fx + ((pos.y & 15) << 8), fy + ((pos.y >> 4) << 8), new Color32((byte)block, 0, 0, 0));
+
+		isBlockChanged = true;
+	}
+	public void SetBlockNet(Vector3Int pos, int to, int from, string playerName)
+	{
 		if (pos.y < 1 || pos.y > 127 ||
 			pos.x < world.position.x - 96 ||
 			pos.x > world.position.x + 95 ||
 			pos.z < world.position.z - 96 ||
-			pos.z > world.position.z + 95) return false;
+		pos.z > world.position.z + 95) return;
 
-		var chX = pos.x >> 4;
-		var chZ = pos.z >> 4;
-		chX = (chX % 12 + 12) % 12;
-		chZ = (chZ % 12 + 12) % 12;
-		chunksData[chX + chZ * 12].SetBlock((pos.x & 15 + 16) & 15, pos.y, (pos.z & 15 + 16) & 15, (byte)(block + 10));
+		if (!chunksData[((pos.x >> 4) % 12 + 12) % 12 + ((pos.z >> 4) % 12 + 12) % 12 * 12].SetBlockNet(pos, to, from, playerName, networkManager)) return;
 
 		setBlockPos.Add(pos);
 
-		var fx = (pos.x & 255 + 256) & 255;
-		var fy = (pos.z & 255 + 256) & 255;
-		worldTexture.SetPixel(fx + (pos.y & 15) * 256, fy + (pos.y >> 4) * 256, new Color32((byte)block, 0, 0, 0));
-
-		var px = fx * 4 + fy * 16_384;
+		var fx = pos.x & 255;
+		var fy = pos.z & 255;
+		worldTexture.SetPixel(fx + ((pos.y & 15) << 8), fy + ((pos.y >> 4) << 8), new Color32((byte)to, 0, 0, 0));
 
 		isBlockChanged = true;
+	}
 
-		return true;
+	public void FixBack(Vector3Int pos, int oldTo, int fix, string playerName)
+	{
+		if (pos.y < 1 || pos.y > 127 ||
+			pos.x < world.position.x - 96 ||
+			pos.x > world.position.x + 95 ||
+			pos.z < world.position.z - 96 ||
+		pos.z > world.position.z + 95) return;
+		if (!chunksData[((pos.x >> 4) % 12 + 12) % 12 + ((pos.z >> 4) % 12 + 12) % 12 * 12].SetBlockFix(pos, fix, oldTo)) return;
+
+		var fx = pos.x & 255;
+		var fy = pos.z & 255;
+		worldTexture.SetPixel(fx + ((pos.y & 15) << 8), fy + ((pos.y >> 4) << 8), new Color32((byte)fix, 0, 0, 0));
+
+		isBlockChanged = true;
+	}
+
+	public void FixBack(Vector3Int[] fixPositions, int[] fixOldToBlocks, int[] fixBlocks, string[] stringArray)
+	{
+		for (int i = 0; i < fixPositions.Length; i++)
+		{
+			FixBack(fixPositions[i], fixOldToBlocks[i], fixBlocks[i], stringArray[i]);
+		}
 	}
 
 	private int GetLandscapeHeight(float x, float z)
@@ -808,11 +847,6 @@ public class WorldController : UdonSharpBehaviour
 	{
 		return seed;
 	}
-
-	public bool InBlock(int x, int y, int z)
-	{
-		return InBlock(new Vector3Int(x, y, z));
-	}
 	public bool InBlock(Vector3Int pos)
 	{
 		if (!miniWorld) return false;
@@ -831,9 +865,82 @@ public class WorldController : UdonSharpBehaviour
 		return pos.y < px;
 	}
 
-	internal void SetChunksData(string[] intArray, int[] positions)
+	public void SetOwner(Vector2Int pos, string owner)
 	{
-		worldData.SetWorldData(intArray, positions);
+		worldData.SetOwner(owner, pos);
+		var chunk = chunksData[(pos.x % 12 + 12) % 12 + (pos.y % 12 + 12) % 12 * 12];
+		if (!chunk.UpdateOwner(owner, pos, debugConsole)) return;
+		if (owner == Networking.LocalPlayer.displayName)
+		{
+			chunk.FixBack(networkManager);
+		}
+	}
+
+	public void GlobalRequest(Vector2Int[] wantChunks, Vector2Int[] requestedChunks, string[] requestedOwners, string[] discardedData, Vector2Int[] discardedChunks, string playerName)
+	{
+		var allowedOwners = new Vector2Int[wantChunks.Length];
+		var allowedCount = 0;
+
+		/*if (Networking.LocalPlayer.isMaster)
+		{
+			for (int i = 0; i < wantChunks.Length; i++)
+			{
+				if (worldData.HasOwner(wantChunks[i])) continue;
+
+				allowedOwners[allowedCount] = wantChunks[i];
+				allowedCount++;
+			}
+		}*/
+
+		var _allowedOwners = new Vector2Int[allowedCount];
+		Array.Copy(allowedOwners, _allowedOwners, allowedCount);
+
+		var requestedData = new string[requestedChunks.Length];
+		var requestedPositions = new Vector2Int[requestedChunks.Length];
+		var requestedCount = 0;
+
+		for (int i = 0; i < requestedChunks.Length; i++)
+		{
+			if (requestedOwners[i] != Networking.LocalPlayer.displayName) continue;
+			var chunk = chunksData[(requestedChunks[i].x % 12 + 12) % 12 + (requestedChunks[i].y % 12 + 12) % 12 * 12];
+			if (!chunk.isLocalOwner(requestedChunks[i])) continue;
+
+			requestedData[requestedCount] = Convert.ToBase64String(chunk.GetData());
+			requestedPositions[requestedCount] = requestedChunks[i];
+			requestedCount++;
+		}
+
+		var _requestedData = new string[requestedCount];
+		var _requestedPositions = new Vector2Int[requestedCount];
+		Array.Copy(requestedData, _requestedData, requestedCount);
+		Array.Copy(requestedPositions, _requestedPositions, requestedCount);
+
+		/*for (int i = 0; i < discardedChunks.Length; i++)
+		{
+			worldData.SetOwner(null, discardedChunks[i]);
+			worldData.AddData(discardedData[i], discardedChunks[i]);
+
+			var chunk = chunksData[(discardedChunks[i].x % 12 + 12) % 12 + (discardedChunks[i].y % 12 + 12) % 12 * 12];
+			chunk.LoadData(discardedData[i], discardedChunks[i]);
+		}*/
+
+		debugConsole.Message("Global request for " + requestedChunks.Length + " chunks finish");
+		networkManager.AnswerGlobalRequest(_requestedData, _requestedPositions, playerName);
+	}
+
+	public void AnswerGlobalRequest(string[] data, int[] positions)
+	{
+		if (data.Length == 0) return;
+		var posCounter = 0;
+		for (int i = 0; i < data.Length; i++)
+		{
+			var pos = new Vector2Int(positions[posCounter++], positions[posCounter++]);
+			worldData.AddData(data[i], pos);
+			var chunk = chunksData[(pos.x % 12 + 12) % 12 + (pos.y % 12 + 12) % 12 * 12];
+			chunk.LoadData(data[i], pos, debugConsole);
+		}
+		debugConsole.Message("Answer global request for " + data.Length + " chunks finish");
+		generatedChunks = 0;
 	}
 
 	private Vector2Int[] chankQueue =

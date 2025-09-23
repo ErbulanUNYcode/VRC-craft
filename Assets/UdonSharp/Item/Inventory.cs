@@ -13,6 +13,8 @@ public class Inventory : UdonSharpBehaviour
 	[SerializeField] private CellController crafted;
 	private VRCPlayerApi localPlayer;
 	[SerializeField] private Transform order;
+	[SerializeField] private NetworkManager net;
+	[SerializeField] private WorldController worldController;
 
 	public Vector3 OrderOffset
 	{
@@ -149,7 +151,6 @@ public class Inventory : UdonSharpBehaviour
 
 	private void Update()
 	{
-
 		usedCell.Sync(cells[usedID]);
 		used.localPosition = new Vector3(usedID * 18 - 72, 0, 0);
 
@@ -199,8 +200,11 @@ public class Inventory : UdonSharpBehaviour
 		}
 	}
 
-	public void ClickBlock(Vector3Int selected, Vector3Int air, bool value)
+	public void ClickBlock(Vector3Int selected, Vector3Int air, bool set)
 	{
-		cells[usedID].ClickBlock(selected, air, value);
+		var trying = cells[usedID].TryClickBlock(selected, air, set);
+		if (trying == null) return;
+		var pos = trying[0] == (int)SetPosition.selected ? selected : air;
+		worldController.SetBlockLocal(pos, trying[1]);
 	}
 }

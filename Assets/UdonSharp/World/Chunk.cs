@@ -1,6 +1,7 @@
 ﻿using System;
 using UdonSharp;
 using UnityEngine;
+using VRC.SDKBase;
 
 public class Chunk : UdonSharpBehaviour
 {
@@ -9,32 +10,105 @@ public class Chunk : UdonSharpBehaviour
 	private int[] randomHeights = new int[128];
 	private int count = 0;
 	private byte[] blocksData;
-	private Vector2Int position;
+	private Vector2Int _position;
+	private string owner;
+
+	//stack comands
+	private int stackCount = 0;
+	private Vector3Int[] stackPositions = new Vector3Int[1];
+	private int[] stackTo = new int[1];
+	private int[] stackFrom = new int[1];
+	private string[] stackOwners = new string[1];
+
+	//fix
+	private int fixCount = 0;
+	private Vector3Int[] fixPositions = new Vector3Int[1];
+	private int[] fixToBlocks = new int[1];
+	private int[] fixLocalBlocks = new int[1];
+	private string[] fixOwners = new string[1];
 
 	/*
 	0-9 is count of blocks
 	10-255 is block type (block = value-10)
 	*/
-	public void SetBlock(int x, int y, int z, byte block)
+	public bool SetBlockLocal(Vector3Int pos, int block, NetworkManager networkManager)
 	{
-		var index = x + (z << 4) + (y << 8);
+		if (!state) return false;
 
-		if (block < 10 || index < 0 || index >= 32768)
+		if (hasOwner)
 		{
-			Debug.LogError("Invalid block data: " + block + " at " + x + "," + y + "," + z + '\n' + index);
-			return;
+			networkManager.SetBlock(pos, block, SetBlock(pos, block, -1));
+			return true;
 		}
 
+		if (Networking.LocalPlayer.isMaster)
+		{
+			networkManager.PublicOwner(Networking.LocalPlayer.displayName, pos, block, SetBlock(pos, block, -1));
+			return true;
+		}
+
+		networkManager.WantOwner(pos, block, SetBlock(pos, block, -1));
+
+		return true;
+	}
+	public bool SetBlockNet(Vector3Int pos, int to, int from, string playerName, NetworkManager networkManager)
+	{
+		if (!state)
+		{
+			StackComand(pos, to, from, playerName);
+			return false;
+		}
+
+		if (!hasOwner)
+		{
+			var fix1 = SetBlock(pos, to, from);
+
+			if (fix1 != from)
+			{
+				StackFix(pos, to, fix1, playerName);
+				return false;
+			}
+
+			return true;
+		}
+
+		if (owner != Networking.LocalPlayer.displayName)
+		{
+			SetBlock(pos, to, -1);
+			return true;
+		}
+
+		var fix2 = SetBlock(pos, to, from);
+
+		if (fix2 != from)
+		{
+			networkManager.FixBack(pos, to, fix2, playerName);
+			return false;
+		}
+
+		return true;
+	}
+
+	public int SetBlock(Vector3Int pos, int block, int old)
+	{
+		var x = pos.x;
+		var y = pos.y;
+		var z = pos.z;
+
+		x = x & 15;
+		z = z & 15;
+		var index = x + (z << 4) + (y << 8);
+		block = block + 10;
 		//check if block already exists
 		if (blocksData == null)
 		{
 			blocksData = new byte[]
 				{
-					8,6,7,2,3,10//8192 empty(nature generated) blocks
+					8,6,7,2,3,10//32768 empty(nature generated) blocks
 				};
 		}
 		//find block type for in this block
-		var pos = 0;
+		var posID = 0;
 		var levelOfNumber = 1;
 		var startBlockPos = 0;
 		var blocksCount = 0;
@@ -47,9 +121,14 @@ public class Chunk : UdonSharpBehaviour
 			if (b > 9)
 			{
 				if (blocksCount == 0) blocksCount = 1; //at least one block
-				if (pos + blocksCount > index)
+				if (posID + blocksCount > index)
 				{
-					var newFirstCount = index - pos;
+					if (old != -1 && old != b - 10)
+					{
+						return b - 10;
+					}
+
+					var newFirstCount = index - posID;
 					var centerCount = 1;
 					var newLastCount = blocksCount - newFirstCount - centerCount;
 
@@ -117,7 +196,7 @@ public class Chunk : UdonSharpBehaviour
 								newBlocksData[startBlockPos++] = (byte)(centerCount % 10);
 								centerCount /= 10;
 							}
-						newBlocksData[startBlockPos++] = block; //block type
+						newBlocksData[startBlockPos++] = (byte)block; //block type
 					}
 
 					//center last part
@@ -137,12 +216,42 @@ public class Chunk : UdonSharpBehaviour
 
 					blocksData = newBlocksData;
 
-					break;
+
+#if UNITY_EDITOR
+					posID = 0;
+					levelOfNumber = 1;
+					blocksCount = 0;
+					var debug = "";
+					var debug1 = "[";
+					for (int j = 0; j < blocksData.Length; j++)
+					{
+						debug1 += blocksData[j] + (j < blocksData.Length - 1 ? "," : "");
+						var B = blocksData[j];
+						if (B > 9)
+						{
+							debug += blocksCount + " pieces of {" + (B - 10) + "} blocks at position " + pos + '\n';
+							posID += blocksCount;
+							blocksCount = 0;
+							levelOfNumber = 1;
+						}
+						else
+						{
+							var count = B * levelOfNumber;
+							blocksCount += count;
+							levelOfNumber *= 10;
+						}
+					}
+					debug1 += "]";
+					debug = debug1 + "\n" + debug + Convert.ToBase64String(blocksData);
+					Debug.Log(debug);
+#endif
+
+					return b - 10;
 				}
 				tempStartBlockPos = startBlockPos;
 				tempBlocksCount = blocksCount;
 
-				pos += blocksCount;
+				posID += blocksCount;
 				blocksCount = 0;
 				levelOfNumber = 1;
 				startBlockPos = i + 1;
@@ -154,34 +263,7 @@ public class Chunk : UdonSharpBehaviour
 				levelOfNumber *= 10;
 			}
 		}
-#if UNITY_EDITOR
-		pos = 0;
-		levelOfNumber = 1;
-		blocksCount = 0;
-		var debug = "";
-		var debug1 = "[";
-		for (int i = 0; i < blocksData.Length; i++)
-		{
-			debug1 += blocksData[i] + (i < blocksData.Length - 1 ? "," : "");
-			var b = blocksData[i];
-			if (b > 9)
-			{
-				debug += blocksCount + " pieces of {" + (b - 10) + "} blocks at position " + pos + '\n';
-				pos += blocksCount;
-				blocksCount = 0;
-				levelOfNumber = 1;
-			}
-			else
-			{
-				var count = b * levelOfNumber;
-				blocksCount += count;
-				levelOfNumber *= 10;
-			}
-		}
-		debug1 += "]";
-		debug = debug1 + "\n" + debug + Convert.ToBase64String(blocksData);
-		Debug.Log(debug);
-#endif
+		return -1;
 	}
 
 	internal void AddStructure(Structure structure, Vector3Int pos, int randomHeight)
@@ -198,24 +280,17 @@ public class Chunk : UdonSharpBehaviour
 		structures = new Structure[128];
 		positions = new Vector3Int[128];
 		randomHeights = new int[128];
-		state = false;
+		_chunkProgressor = 0;
 
 		if (blocksData == null) return;
 
-		if (blocksData != null)
-			dataSystem.AddData(Convert.ToBase64String(blocksData), position);
+		dataSystem.AddData(Convert.ToBase64String(blocksData), _position);
 
 		blocksData = null; //clear blocks data
 	}
 
-	public byte[] AddData(string data, Vector2Int pos)
+	public byte[] GetData()
 	{
-		position = pos;
-
-		if (data == null) blocksData = null;
-		else
-			blocksData = Convert.FromBase64String(data);
-
 		return blocksData;
 	}
 
@@ -227,5 +302,116 @@ public class Chunk : UdonSharpBehaviour
 
 	public int Count => count;
 
-	public bool state = false;
+	public bool state { get { return _chunkProgressor == 5; } }
+	public int chunkProgressor { get { return _chunkProgressor; } }
+	public void nextProgressor(int next = 1) { _chunkProgressor += next; }
+
+	public bool UpdateOwner(string owner, Vector2Int pos, DebugConsole debugConsole)
+	{
+		debugConsole.Message(_position + "->" + pos);
+		if (pos != _position) return false;
+		this.owner = owner;
+		return true;
+	}
+
+	public void StackComand(Vector3Int pos, int block, int from, string playerName)
+	{
+		if (stackCount >= stackPositions.Length)
+		{
+			var newPositions = new Vector3Int[stackPositions.Length * 2];
+			var newBlocks = new int[stackTo.Length * 2];
+			var newOwners = new string[stackOwners.Length * 2];
+			Array.Copy(stackPositions, newPositions, stackPositions.Length);
+			Array.Copy(stackTo, newBlocks, stackTo.Length);
+			Array.Copy(stackOwners, newOwners, stackOwners.Length);
+			stackPositions = newPositions;
+			stackTo = newBlocks;
+			stackOwners = newOwners;
+		}
+		stackPositions[stackCount] = pos;
+		stackTo[stackCount] = block;
+		stackOwners[stackCount] = playerName;
+		stackCount++;
+	}
+
+	public void StackFix(Vector3Int pos, int to, int from, string playerName)
+	{
+		if (fixCount >= fixPositions.Length)
+		{
+			var newPositions = new Vector3Int[fixPositions.Length * 2];
+			var newToBlocks = new int[fixToBlocks.Length * 2];
+			var newFromBlocks = new int[fixLocalBlocks.Length * 2];
+			var newOwners = new string[fixOwners.Length * 2];
+			Array.Copy(fixPositions, newPositions, fixPositions.Length);
+			Array.Copy(fixToBlocks, newToBlocks, fixToBlocks.Length);
+			Array.Copy(fixLocalBlocks, newFromBlocks, fixLocalBlocks.Length);
+			Array.Copy(fixOwners, newOwners, fixOwners.Length);
+			fixPositions = newPositions;
+			fixToBlocks = newToBlocks;
+			fixLocalBlocks = newFromBlocks;
+			fixOwners = newOwners;
+		}
+		fixPositions[fixCount] = pos;
+		fixToBlocks[fixCount] = to;
+		fixLocalBlocks[fixCount] = from;
+		fixOwners[fixCount] = playerName;
+		fixCount++;
+	}
+
+	public void FixBack(NetworkManager networkManager)
+	{
+		if (fixCount == 0) return;
+		networkManager.FixBack(fixPositions, fixToBlocks, fixLocalBlocks, fixOwners);
+	}
+
+	public bool SetBlockFix(Vector3Int pos, int fix, int oldTo)
+	{
+		/*if (!state)
+		{
+			StackComand(pos, fix, oldTo, null);
+			return;
+		}*/
+
+		return SetBlock(pos, fix, oldTo) == oldTo;
+	}
+
+	public void LoadData(string[] data, Vector2Int pos)
+	{
+		_position = pos;
+
+		if (data == null)
+		{
+			blocksData = null;
+			owner = null;
+		}
+		else
+		{
+			if (data[0] != null)
+				blocksData = Convert.FromBase64String(data[0]);
+			else blocksData = null;
+			owner = data[1];
+		}
+	}
+
+	public void LoadData(string data, Vector2Int pos, DebugConsole debugConsole)
+	{
+		if (_position != pos) return;
+		blocksData = Convert.FromBase64String(data);
+		debugConsole.Message($"Loaded chunk at {pos} with {blocksData.Length} bytes of data");
+		_chunkProgressor = Mathf.Min(_chunkProgressor, 3);
+	}
+
+	internal bool isLocalOwner(Vector2Int pos)
+	{
+		if (blocksData == null) return false;
+		if (pos != _position) return false;
+		if (owner == null) return false;
+		return owner == Networking.LocalPlayer.displayName;
+	}
+
+	public int _chunkProgressor = 0;
+
+	public bool hasOwner { get { return owner != null; } }
+
+	public Vector2Int position { get { return _position; } }
 }

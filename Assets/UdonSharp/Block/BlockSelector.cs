@@ -112,26 +112,12 @@ public class BlockSelector : UdonSharpBehaviour
 			distTraveled = Vector3.SqrMagnitude(point - origin);
 		}
 
-		// ничего не нашли
 		selectedBlock = Vector3Int.down;
 		selectedAir = Vector3Int.down;
 		selectedCube.SetActive(false);
 		if (plus != null) plus.SetActive(false);
 
-		//if (localPlayer.IsUserInVR()) return;
-
 		if (selectedAir == Vector3Int.down || worldController.InBlock(Vector3Int.FloorToInt(transform.position))) return;
-
-		/*if (Input.GetMouseButtonDown(0))
-		{
-			networkManager.SetBlock(selectedBlock, 1);
-		}
-
-		if (Input.GetMouseButtonDown(1))
-		{
-			Random.InitState(DateTime.Now.Millisecond);
-			networkManager.SetBlock(selectedAir, Random.Range(2, 47));
-		}*/
 	}
 
 	private float IntBound(float s, float ds)
@@ -159,7 +145,7 @@ public class BlockSelector : UdonSharpBehaviour
 		}
 
 		Random.InitState(DateTime.Now.Millisecond);
-		inventory.ClickBlock(selectedBlock, selectedAir, true);
+		Click(true);
 		base.InputUse(value, args);
 	}
 	public override void InputGrab(bool value, UdonInputEventArgs args)
@@ -175,7 +161,7 @@ public class BlockSelector : UdonSharpBehaviour
 			return;
 		}
 
-		inventory.ClickBlock(selectedBlock, selectedAir, false);
+		Click(false);
 		base.InputGrab(value, args);
 	}
 
@@ -194,7 +180,12 @@ public class BlockSelector : UdonSharpBehaviour
 		}
 
 		Random.InitState(DateTime.Now.Millisecond);
-		inventory.ClickBlock(selectedBlock, selectedAir, true);
+		Click(true);
 		base.InputDrop(value, args);
+	}
+
+	private void Click(bool set)
+	{
+		inventory.ClickBlock(selectedBlock, selectedAir, set);
 	}
 }
