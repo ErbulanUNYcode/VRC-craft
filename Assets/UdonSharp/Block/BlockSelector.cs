@@ -5,6 +5,7 @@ using VRC.SDKBase;
 using VRC.Udon.Common;
 using Random = UnityEngine.Random;
 
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class BlockSelector : UdonSharpBehaviour
 {
 	[SerializeField] private Transform orderTransform;
@@ -71,7 +72,6 @@ public class BlockSelector : UdonSharpBehaviour
 		{
 			if (worldController.InBlock(current))
 			{
-				VRCPlayerApi creator;
 				//find the b
 				selectedBlock = current;
 				selectedCube.SetActive(true);

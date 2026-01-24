@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using VRC.Udon.Common;
 
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class CellController : UdonSharpBehaviour
 {
 	[SerializeField] private ScrollRect scrollRect;

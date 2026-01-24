@@ -197,7 +197,7 @@ Shader "Unlit/Tets"
 
 			int4 indexes(int3 p)
 			{
-				p.xz = (p.xz & 255 +256) & 255;
+				p.xz = p.xz & 255;
 
 				int4 ids = 0;
 
@@ -208,7 +208,7 @@ Shader "Unlit/Tets"
 
 					if (h.x != 0)
 					{
-						int2 uv = p.xz + int2(p.y & 15, p.y / 16)*256;
+						int2 uv = p.xz + (int2(p.y & 15, p.y >> 4)<<8);
 
 						int2 c = round(_MainTex.Load(int3(uv, 0)).rg * 255);
 
@@ -227,7 +227,7 @@ Shader "Unlit/Tets"
 				else if (_Order == 1) p.y--;
 				else if (_Order == 2) p.z--;
 
-				p.xz = (p.xz & 255 + 256) & 255;
+				p.xz = p.xz & 255;
 
 				if (p.y == -1) ids.y = 0;
 				else
@@ -236,7 +236,7 @@ Shader "Unlit/Tets"
 
 					if (h.x != 0)
 					{
-						int2 uv = p.xz + int2(p.y % 16, p.y / 16)*256;
+						int2 uv = p.xz + (int2(p.y % 16, p.y >> 4)<<8);
 
 						int2 c = round(_MainTex.Load(int3(uv, 0)).rg * 255);
 						
@@ -273,8 +273,6 @@ Shader "Unlit/Tets"
 
 				int4 id = indexes(pos);
 
-				id.xy*=2;
-
 				if(id.x==id.y)
 				{
 					clip(-0.5);
@@ -283,23 +281,26 @@ Shader "Unlit/Tets"
 					if(cc.r<0.999 && cc.g<0.999 && cc.b<0.999) clip(-0.5);
 					return cc;*/
 				}
+
+				id.xy<<=1;
+
 				float2 u1;
 				float2 u2;
 
 				if(_Order==0)
 				{
-					u1 = (float2(id.x%32+1,1+floor(id.x/32)*3)+frac(float2(-i.worldPos.z,i.worldPos.y)))/32;
-					u2 = (float2(id.y%32,1+floor(id.y/32)*3)+frac(i.worldPos.zy))/32;
+					u1 = (float2((id.x&31)+1,1+floor(id.x>>5)*3)+frac(float2(-i.worldPos.z,i.worldPos.y)))/32;
+					u2 = (float2(id.y&31,1+floor(id.y>>5)*3)+frac(i.worldPos.zy))/32;
 				}
 				else if(_Order==1)
 				{
-					u1 = (float2(id.x%32+1,0+floor(id.x/32)*3)+frac(i.worldPos.zx))/32;
-					u2 = (float2(id.y%32,0+floor(id.y/32)*3)+frac(i.worldPos.zx))/32;
+					u1 = (float2((id.x&31)+1,0+floor(id.x>>5)*3)+frac(i.worldPos.zx))/32;
+					u2 = (float2(id.y&31,0+floor(id.y>>5)*3)+frac(i.worldPos.zx))/32;
 				}
 				else if(_Order==2)
 				{
-					u1 = (float2(id.x%32+1,2+floor(id.x/32)*3)+frac(i.worldPos.xy))/32;
-					u2 = (float2(id.y%32,2+floor(id.y/32)*3)+frac(float2(-i.worldPos.x,i.worldPos.y)))/32;
+					u1 = (float2((id.x&31)+1,2+floor(id.x>>5)*3)+frac(i.worldPos.xy))/32;
+					u2 = (float2(id.y&31,2+floor(id.y>>5)*3)+frac(float2(-i.worldPos.x,i.worldPos.y)))/32;
 				}
 				
 				fixed4 tex1 = tex2D(_PackTex, u1 );

@@ -73,7 +73,7 @@ Material:
     - _Glossiness: 0.5
     - _GlossyReflections: 1
     - _GridSize: 16
-    - _InputTime: 0.09990084
+    - _InputTime: 0.17890264
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1

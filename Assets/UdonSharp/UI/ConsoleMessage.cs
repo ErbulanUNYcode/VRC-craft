@@ -1,5 +1,4 @@
-﻿
-using TMPro;
+﻿using TMPro;
 using UdonSharp;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,6 +11,8 @@ public class ConsoleMessage : UdonSharpBehaviour
 	public GameObject SetText(string message)
 	{
 		text.text = message;
+		LayoutRebuilder.ForceRebuildLayoutImmediate(GetComponent<RectTransform>());
+		LayoutRebuilder.ForceRebuildLayoutImmediate(transform.parent.GetComponent<RectTransform>());
 		return gameObject;
 	}
 

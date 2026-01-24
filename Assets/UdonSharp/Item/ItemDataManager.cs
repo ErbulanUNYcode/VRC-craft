@@ -3,6 +3,7 @@ using UdonSharp;
 using UnityEditor;
 using UnityEngine;
 
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class ItemDataManager : UdonSharpBehaviour
 {
 	[SerializeField] private Item[] items;
@@ -13,7 +14,7 @@ public class ItemDataManager : UdonSharpBehaviour
 
 	public override void OnLanguageChanged(string language)
 	{
-		if (language != "") debugConsole.Message($"Language changed to: {language}");
+		if (language != "") debugConsole.Message($"Language changed to: {language}", false);
 		this.language = language;
 	}
 

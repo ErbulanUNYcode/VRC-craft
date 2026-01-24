@@ -3,72 +3,64 @@ using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class Chunk : UdonSharpBehaviour
 {
+	public void SetDebugConsole(DebugConsole console)
+	{
+		debugConsole = console;
+	}
+
+	private DebugConsole debugConsole;
 	private Structure[] structures = new Structure[128];
 	private Vector3Int[] positions = new Vector3Int[128];
 	private int[] randomHeights = new int[128];
 	private int count = 0;
 	private byte[] blocksData;
 	private Vector2Int _position;
+	private bool _lastLoad = false;
 	private string owner;
-
-	//stack comands
-	private int stackCount = 0;
-	private Vector3Int[] stackPositions = new Vector3Int[1];
-	private int[] stackTo = new int[1];
-	private int[] stackFrom = new int[1];
-	private string[] stackOwners = new string[1];
 
 	//fix
 	private int fixCount = 0;
 	private Vector3Int[] fixPositions = new Vector3Int[1];
 	private int[] fixToBlocks = new int[1];
 	private int[] fixLocalBlocks = new int[1];
-	private string[] fixOwners = new string[1];
 
 	/*
 	0-9 is count of blocks
 	10-255 is block type (block = value-10)
 	*/
-	public bool SetBlockLocal(Vector3Int pos, int block, NetworkManager networkManager)
+	public bool SetBlockLocal(Vector3Int pos, int block, NetworkManager networkManager, WorldData worldData)
 	{
 		if (!state) return false;
 
-		if (hasOwner)
+		if (owner == null)
 		{
-			networkManager.SetBlock(pos, block, SetBlock(pos, block, -1));
-			return true;
+			networkManager.SetOwner(Networking.LocalPlayer.displayName, _position);
+			if (Networking.LocalPlayer.isMaster)
+			{
+				worldData.SetOwner(Networking.LocalPlayer.displayName, _position);
+				owner = Networking.LocalPlayer.displayName;
+			}
 		}
 
-		if (Networking.LocalPlayer.isMaster)
-		{
-			networkManager.PublicOwner(Networking.LocalPlayer.displayName, pos, block, SetBlock(pos, block, -1));
-			return true;
-		}
-
-		networkManager.WantOwner(pos, block, SetBlock(pos, block, -1));
+		networkManager.SetBlock(pos, block, SetBlock(pos, block, -1), false);
 
 		return true;
 	}
-	public bool SetBlockNet(Vector3Int pos, int to, int from, string playerName, NetworkManager networkManager)
-	{
-		if (!state)
-		{
-			StackComand(pos, to, from, playerName);
-			return false;
-		}
 
-		if (!hasOwner)
+	public bool SetBlockNet(Vector3Int pos, int to, int from, NetworkManager networkManager)
+	{
+		if (owner == null)
 		{
 			var fix1 = SetBlock(pos, to, from);
 
 			if (fix1 != from)
 			{
-				StackFix(pos, to, fix1, playerName);
+				StackFix(pos, to, fix1);
 				return false;
 			}
-
 			return true;
 		}
 
@@ -82,7 +74,7 @@ public class Chunk : UdonSharpBehaviour
 
 		if (fix2 != from)
 		{
-			networkManager.FixBack(pos, to, fix2, playerName);
+			networkManager.SetBlock(pos, fix2, to, true);
 			return false;
 		}
 
@@ -97,7 +89,7 @@ public class Chunk : UdonSharpBehaviour
 
 		x = x & 15;
 		z = z & 15;
-		var index = x + (z << 4) + (y << 8);
+		var index = (x << 7) + (z << 11) + y;
 		block = block + 10;
 		//check if block already exists
 		if (blocksData == null)
@@ -245,7 +237,6 @@ public class Chunk : UdonSharpBehaviour
 					debug = debug1 + "\n" + debug + Convert.ToBase64String(blocksData);
 					Debug.Log(debug);
 #endif
-
 					return b - 10;
 				}
 				tempStartBlockPos = startBlockPos;
@@ -274,19 +265,20 @@ public class Chunk : UdonSharpBehaviour
 		count++;
 	}
 
-	public void ClearStructures(WorldData dataSystem)
+	public void ClearStructures(Vector2Int pos)
 	{
+		_position = pos;
 		count = 0;
 		structures = new Structure[128];
 		positions = new Vector3Int[128];
 		randomHeights = new int[128];
 		_chunkProgressor = 0;
+		_structProgressor = 0;
 
 		if (blocksData == null) return;
 
-		dataSystem.AddData(Convert.ToBase64String(blocksData), _position);
-
-		blocksData = null; //clear blocks data
+		owner = null;
+		blocksData = null;
 	}
 
 	public byte[] GetData()
@@ -304,81 +296,64 @@ public class Chunk : UdonSharpBehaviour
 
 	public bool state { get { return _chunkProgressor == 5; } }
 	public int chunkProgressor { get { return _chunkProgressor; } }
-	public void nextProgressor(int next = 1) { _chunkProgressor += next; }
+	public int structProgressor { get { return _structProgressor; } }
+	public void NextProgressor(int next = 1) { _chunkProgressor += next; }
+	internal void NextStruct(int next = 1) { _structProgressor += next; }
 
-	public bool UpdateOwner(string owner, Vector2Int pos, DebugConsole debugConsole)
+	public bool UpdateOwner(string owner, Vector2Int pos)
 	{
-		debugConsole.Message(_position + "->" + pos);
 		if (pos != _position) return false;
 		this.owner = owner;
+		if (owner == Networking.LocalPlayer.displayName) _lastLoad = true;
+		return true;
+	}
+	public bool RemoveOwner(string _owner, Vector2Int pos)
+	{
+		if (pos != _position) return false;
+		if (owner != _owner) return false;
+		owner = null;
 		return true;
 	}
 
-	public void StackComand(Vector3Int pos, int block, int from, string playerName)
-	{
-		if (stackCount >= stackPositions.Length)
-		{
-			var newPositions = new Vector3Int[stackPositions.Length * 2];
-			var newBlocks = new int[stackTo.Length * 2];
-			var newOwners = new string[stackOwners.Length * 2];
-			Array.Copy(stackPositions, newPositions, stackPositions.Length);
-			Array.Copy(stackTo, newBlocks, stackTo.Length);
-			Array.Copy(stackOwners, newOwners, stackOwners.Length);
-			stackPositions = newPositions;
-			stackTo = newBlocks;
-			stackOwners = newOwners;
-		}
-		stackPositions[stackCount] = pos;
-		stackTo[stackCount] = block;
-		stackOwners[stackCount] = playerName;
-		stackCount++;
-	}
-
-	public void StackFix(Vector3Int pos, int to, int from, string playerName)
+	public void StackFix(Vector3Int pos, int to, int from)
 	{
 		if (fixCount >= fixPositions.Length)
 		{
 			var newPositions = new Vector3Int[fixPositions.Length * 2];
 			var newToBlocks = new int[fixToBlocks.Length * 2];
 			var newFromBlocks = new int[fixLocalBlocks.Length * 2];
-			var newOwners = new string[fixOwners.Length * 2];
 			Array.Copy(fixPositions, newPositions, fixPositions.Length);
 			Array.Copy(fixToBlocks, newToBlocks, fixToBlocks.Length);
 			Array.Copy(fixLocalBlocks, newFromBlocks, fixLocalBlocks.Length);
-			Array.Copy(fixOwners, newOwners, fixOwners.Length);
 			fixPositions = newPositions;
 			fixToBlocks = newToBlocks;
 			fixLocalBlocks = newFromBlocks;
-			fixOwners = newOwners;
 		}
 		fixPositions[fixCount] = pos;
 		fixToBlocks[fixCount] = to;
 		fixLocalBlocks[fixCount] = from;
-		fixOwners[fixCount] = playerName;
 		fixCount++;
 	}
 
 	public void FixBack(NetworkManager networkManager)
 	{
 		if (fixCount == 0) return;
-		networkManager.FixBack(fixPositions, fixToBlocks, fixLocalBlocks, fixOwners);
+		for (int i = 0; i < fixCount; i++)
+		{
+			networkManager.SetBlock(fixPositions[i], fixToBlocks[i], fixLocalBlocks[i], true);
+		}
+		fixCount = 0;
 	}
 
 	public bool SetBlockFix(Vector3Int pos, int fix, int oldTo)
 	{
-		/*if (!state)
-		{
-			StackComand(pos, fix, oldTo, null);
-			return;
-		}*/
-
 		return SetBlock(pos, fix, oldTo) == oldTo;
 	}
 
 	public void LoadData(string[] data, Vector2Int pos)
 	{
 		_position = pos;
-
+		_lastLoad = false;
 		if (data == null)
 		{
 			blocksData = null;
@@ -387,31 +362,51 @@ public class Chunk : UdonSharpBehaviour
 		else
 		{
 			if (data[0] != null)
+			{
+				Debug.Log(data[0]);
 				blocksData = Convert.FromBase64String(data[0]);
+			}
 			else blocksData = null;
 			owner = data[1];
 		}
 	}
 
-	public void LoadData(string data, Vector2Int pos, DebugConsole debugConsole)
+	public bool LoadData(string data, Vector2Int pos)
 	{
-		if (_position != pos) return;
-		blocksData = Convert.FromBase64String(data);
-		debugConsole.Message($"Loaded chunk at {pos} with {blocksData.Length} bytes of data");
+		if (_lastLoad) return false;
+		_lastLoad = true;
+		if (_position != pos) return false;
+		if (data == null)
+			blocksData = null;
+		else
+		{
+			Debug.Log(data);
+			blocksData = Convert.FromBase64String(data);
+		}
 		_chunkProgressor = Mathf.Min(_chunkProgressor, 3);
+		return true;
 	}
 
-	internal bool isLocalOwner(Vector2Int pos)
+	internal bool IsLocalOwner(Vector2Int pos)
 	{
-		if (blocksData == null) return false;
 		if (pos != _position) return false;
+		if (blocksData == null) return false;
 		if (owner == null) return false;
 		return owner == Networking.LocalPlayer.displayName;
 	}
 
-	public int _chunkProgressor = 0;
+	public bool TryRemoveOwner(string playerName)
+	{
+		if (owner != null && owner == playerName)
+		{
+			owner = null;
+			return true;
+		}
+		return false;
+	}
 
-	public bool hasOwner { get { return owner != null; } }
+	public int _chunkProgressor = 0;
+	public int _structProgressor = 0;
 
 	public Vector2Int position { get { return _position; } }
 }

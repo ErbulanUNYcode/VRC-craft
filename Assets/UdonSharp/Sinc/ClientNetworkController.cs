@@ -1,334 +1,120 @@
-﻿using System;
-using UdonSharp;
+﻿using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 
+[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 public class ClientNetworkController : UdonSharpBehaviour
 {
 	[SerializeField] private NetworkManager networkManager;
-	[SerializeField] private DebugConsole debugConsole;
 	[SerializeField] private WorldController worldController;
-	[SerializeField] private WorldData worldData;
-	[UdonSynced] private int type = 0;
-	[UdonSynced] private int intData = 0;
-	[UdonSynced] private int[] intArray = new int[0];
-	[UdonSynced] private string stringData = "";
-	[UdonSynced] private string[] stringArray = new string[0];
-	private string playerName = "";
-	#region base
+	[SerializeField] private DebugConsole debugConsole;
+	private string _playerName = "";
+	#region set block
+	[UdonSynced] private int[] block = new int[0];
+	[UdonSynced] private bool[] blockFix = new bool[0];
+	#endregion
+	#region owners
+	[UdonSynced] private string[] owners = new string[0];
+	[UdonSynced] private int[] ownersX = new int[0];
+	[UdonSynced] private int[] ownersZ = new int[0];
+	#endregion
+	#region data
+	[UdonSynced] private string[] data = new string[0];
+	[UdonSynced] private int[] dataX = new int[0];
+	[UdonSynced] private int[] dataZ = new int[0];
+	#endregion
+	#region request
+	[UdonSynced] private int[] requestX = new int[0];
+	[UdonSynced] private int[] requestZ = new int[0];
+	[UdonSynced] private string[] requestOwner = new string[0];
+	#endregion
 	private void Start()
 	{
-		playerName = Networking.GetOwner(gameObject).displayName;
-		networkManager.AddPlayer(playerName);
+		_playerName = Networking.GetOwner(gameObject).displayName;
 
 		if (!Networking.LocalPlayer.IsOwner(gameObject))
 		{
-			if (playerName == "TonyEric")
-				debugConsole.Message($"TonyEric[<color=red>CREATOR</color>] <color=green>joined</color>");
+			if (_playerName == "TonyEric")
+				debugConsole.Message($"TonyEric[<color=red>CREATOR</color>] <color=green>joined</color>", false);
 			else
-				debugConsole.Message($"{playerName}[<color=green>player</color>] <color=green>joined</color>");
+				debugConsole.Message($"{_playerName}[<color=green>player</color>] <color=green>joined</color>", false);
+
+			if (Networking.LocalPlayer.isMaster)
+				networkManager.SendStartData(_playerName);
 		}
-
-		if (Networking.IsOwner(gameObject))
+		else
+		{
 			networkManager.SetMyController(this);
-
-		if (!Networking.IsOwner(gameObject) && Networking.LocalPlayer.isMaster) networkManager.SendStartData(playerName);
+		}
 	}
 	private void OnDestroy()
 	{
-		if (playerName == "TonyEric")
-			debugConsole.Message($"TonyEric[<color=red>CREATOR</color>] <color=red>left</color>");
+		if (_playerName == "TonyEric")
+			debugConsole.Message($"TonyEric[<color=red>CREATOR</color>] <color=red>left</color>", false);
 		else
-			debugConsole.Message($"{playerName}[<color=green>player</color>] <color=red>left</color>");
-		networkManager.RemovePlayer(playerName);
-	}
-	private void Reset()
-	{
-		type = 0;
-		intData = 0;
-		intArray = new int[0];
-		stringData = "";
-		stringArray = new string[0];
+			debugConsole.Message($"{_playerName}[<color=green>player</color>] <color=red>left</color>", false);
+
+		worldController.RemovePlayerOwning(_playerName);
 	}
 	public override void OnDeserialization()
 	{
-		switch ((SignalType)type)
+		if (worldController.GetSeed() == 0) return;//мир еще не прогружен
+
+		for (int i = 0; i < data.Length; i++)//импорт полученных данных о чанках
 		{
-			case SignalType.SetBlock:
-				SetBlock();
-				break;
+			worldController.SetData(data[i], new Vector2Int(dataX[i], dataZ[i]));
+		}
 
-			case SignalType.PublicOwner:
-				PublicOwner();
-				break;
+		for (int i = 0; i < owners.Length; i++)//установка владельцев территорий
+		{
+			worldController.SetOwner(owners[i], new Vector2Int(ownersX[i], ownersZ[i]), _playerName);
+		}
 
-			case SignalType.WantOwner:
-				WantOwner();
-				break;
+		var blockCount = block.Length / 5;
+		for (int i = 0; i < blockCount; i++)//редактирование блоков
+		{
+			var index = i * 5;
+			if (blockFix[i])
+				worldController.FixBack(
+					new Vector3Int(block[index++], block[index++], block[index++]),
+					block[index++],
+					block[index++]);
+			else
+				worldController.SetBlockNet(
+					new Vector3Int(block[index++], block[index++], block[index++]),
+					block[index++],
+					block[index++],
+					_playerName);
+		}
 
-			case SignalType.StartData:
-				GetStartData();
-				break;
-
-			case SignalType.FixBack:
-				FixBack();
-				break;
-
-			case SignalType.GlobalRequest:
-				GlobalRequest();
-				break;
-
-			case SignalType.AnswerGlobalRequest:
-				AnswerGlobalRequest();
-				break;
+		Debug.Log("SetRequests " + requestOwner.Length);
+		for (int i = 0; i < requestOwner.Length; i++)//обработка запросов на получение данных от других игроков
+		{
+			worldController.SetRequest(requestOwner[i], new Vector2Int(requestX[i], requestZ[i]));
 		}
 	}
-	#endregion
-	#region start data
-	public void SendStartData(string playerName, string[] data, int[] positions)
+	private void RequestSerializationLog()
 	{
-		Reset();
-		type = (int)SignalType.StartData;
-		intData = worldController.GetSeed();
-		stringArray = data;
-		intArray = positions;
-		stringData = playerName;
-		RequestSerialization();
-	}
-	private void GetStartData()
-	{
-		if (stringData != Networking.LocalPlayer.displayName) return;
-		worldData.SetWorldData(stringArray, intArray);
-		worldController.SetSeed(intData);
-	}
-	#endregion
-	#region set block
-	public void SetBlockSignal(Vector3Int pos, int to, int from)
-	{
-		Reset();
-		type = (int)SignalType.SetBlock;
-		intArray = new int[] { pos.x, pos.y, pos.z, to, from };
-		RequestSerialization();
-	}
-	private void SetBlock()
-	{
-		var pos = new Vector3Int(intArray[0], intArray[1], intArray[2]);
-		var to = intArray[3];
-		var from = intArray[4];
-		worldController.SetBlockNet(pos, to, from, playerName);
-	}
-	#endregion
-	#region public owner
-	public void PublicOwnerSignal(string displayName, Vector3Int pos, int to, int from)//+ set block
-	{
-		var position = new Vector2Int(pos.x >> 4, pos.z >> 4);
-		Reset();
-		type = (int)SignalType.PublicOwner;
-		stringData = displayName;
-		intArray = new int[] { pos.x, pos.y, pos.z, to, from };
-		RequestSerialization();
-		worldController.SetOwner(position, displayName);
-	}
-	public void PublicOwnerSignal(int x, int z, string playerName)
-	{
-		debugConsole.Message($"{playerName} is now owner of chunk ({x}, {z})");
-		Reset();
-		type = (int)SignalType.PublicOwner;
-		stringData = playerName;
-		intArray = new int[] { x, z };
-		RequestSerialization();
-		worldController.SetOwner(new Vector2Int(x, z), playerName);
-	}
-	public void PublicOwner()
-	{
-		if (intArray.Length == 5)
-		{
-			var pos = new Vector2Int(intArray[0] >> 4, intArray[2] >> 4);
-			worldController.SetOwner(pos, stringData);
-			SetBlock();
-			return;
-		}
-		worldController.SetOwner(new Vector2Int(intArray[0], intArray[1]), stringData);
-	}
-	#endregion
-	#region want owner
-	public void WantOwnerSignal(Vector3Int pos, int to, int from)
-	{
-		Reset();
-		type = (int)SignalType.WantOwner;
-		intArray = new int[] { pos.x, pos.y, pos.z, to, from };
-		RequestSerialization();
-	}
-	private void WantOwner()
-	{
-		if (Networking.LocalPlayer.isMaster)
-		{
-			debugConsole.Message($"{playerName} wants owner of chunk ({intArray[0] >> 4}, {intArray[2] >> 4})");
-			var pos = new Vector2Int(intArray[0] >> 4, intArray[2] >> 4);
-			if (!worldData.HasOwner(pos))
-				networkManager.PublicOwner(pos.x, pos.y, playerName);
-		}
-		SetBlock();
-	}
-	#endregion
-	#region fix back
-	public void FixBackSignal(Vector3Int pos, int oldTo, int fix, string playerName)
-	{
-		Reset();
-		type = (int)SignalType.FixBack;
-		intArray = new int[] { pos.x, pos.y, pos.z, oldTo, fix };
-		stringData = playerName;
 		RequestSerialization();
 	}
 
-	public void FixBackSignal(Vector3Int[] fixPositions, int[] fixOldToBlocks, int[] fixBlocks, string[] fixOwners)
+	public void SendNetworkData(
+		int[] _block, bool[] _blockFix,
+		string[] _owners, int[] _ownersX, int[] _ownersZ,
+		string[] _data, int[] _dataX, int[] _dataZ,
+		int[] _requestX, int[] _requestZ, string[] _requestOwner)
 	{
-		Reset();
-		type = (int)SignalType.FixBack;
-		stringArray = fixOwners;
-		intArray = new int[fixPositions.Length * 5];
-		for (int i = 0; i < fixPositions.Length; i++)
-		{
-			intArray[i * 5] = fixPositions[i].x;
-			intArray[i * 5 + 1] = fixPositions[i].y;
-			intArray[i * 5 + 2] = fixPositions[i].z;
-			intArray[i * 5 + 3] = fixOldToBlocks[i];
-			intArray[i * 5 + 4] = fixBlocks[i];
-		}
-		RequestSerialization();
+		block = _block;
+		blockFix = _blockFix;
+		owners = _owners;
+		ownersX = _ownersX;
+		ownersZ = _ownersZ;
+		data = _data;
+		dataX = _dataX;
+		dataZ = _dataZ;
+		requestX = _requestX;
+		requestZ = _requestZ;
+		requestOwner = _requestOwner;
+		RequestSerializationLog();
 	}
-
-	private void FixBack()
-	{
-		if (stringArray.Length != 0)
-		{
-			var fixPositions = new Vector3Int[stringArray.Length];
-			var fixOldToBlocks = new int[stringArray.Length];
-			var fixBlocks = new int[stringArray.Length];
-			for (int i = 0; i < stringArray.Length; i++)
-			{
-				fixPositions[i] = new Vector3Int(intArray[i * 5], intArray[i * 5 + 1], intArray[i * 5 + 2]);
-				fixOldToBlocks[i] = intArray[i * 5 + 3];
-				fixBlocks[i] = intArray[i * 5 + 4];
-			}
-
-			worldController.FixBack(fixPositions, fixOldToBlocks, fixBlocks, stringArray);
-
-			return;
-		}
-
-		var pos = new Vector3Int(intArray[0], intArray[1], intArray[2]);
-		var oldTo = intArray[3];
-		var fix = intArray[4];
-		var playerName = stringData;
-
-		worldController.FixBack(pos, oldTo, fix, playerName);
-	}
-
-	#endregion
-	#region global request
-	public void GlobalRequestSignal(Vector2Int[] wantChunks, Vector2Int[] requestedChunks, string[] requestedOwners, Vector2Int[] discardedChunks, string[] discardedData)
-	{
-		Reset();
-		type = (int)SignalType.GlobalRequest;
-		if (discardedChunks == null)
-		{
-			discardedChunks = new Vector2Int[0];
-			discardedData = new string[0];
-		}
-
-		intData = requestedChunks.Length;
-		stringArray = new string[discardedData.Length + requestedOwners.Length];
-		Array.Copy(discardedData, 0, stringArray, 0, discardedData.Length);
-		Array.Copy(requestedOwners, 0, stringArray, discardedData.Length, requestedOwners.Length);
-		intArray = new int[(wantChunks.Length + requestedChunks.Length + discardedChunks.Length) * 2];
-		var counter = 0;
-		//wantChunks
-		for (int i = 0; i < wantChunks.Length; i++)
-		{
-			intArray[counter++] = wantChunks[i].x;
-			intArray[counter++] = wantChunks[i].y;
-		}
-		//requestedChunks
-		for (int i = 0; i < requestedChunks.Length; i++)
-		{
-			intArray[counter++] = requestedChunks[i].x;
-			intArray[counter++] = requestedChunks[i].y;
-		}
-		//discardedData
-		for (int i = 0; i < discardedChunks.Length; i++)
-		{
-			intArray[counter++] = discardedChunks[i].x;
-			intArray[counter++] = discardedChunks[i].y;
-		}
-
-		RequestSerialization();
-	}
-
-	public void GlobalRequest()
-	{
-		debugConsole.Message($"{playerName} is requesting {intData} chunks");
-		var counter = 0;
-
-		int discardedCount = stringArray.Length - intData;
-		int wantCount = intArray.Length / 2 - stringArray.Length;
-
-		var wantChunks = new Vector2Int[wantCount];
-		for (int i = 0; i < wantCount; i++)
-			wantChunks[i] = new Vector2Int(intArray[counter++], intArray[counter++]);
-
-		var requestedChunks = new Vector2Int[intData];
-		for (int i = 0; i < intData; i++)
-			requestedChunks[i] = new Vector2Int(intArray[counter++], intArray[counter++]);
-
-		var discardedChunks = new Vector2Int[discardedCount];
-		for (int i = 0; i < discardedCount; i++)
-			discardedChunks[i] = new Vector2Int(intArray[counter++], intArray[counter++]);
-
-		var requestedOwners = new string[intData];
-		var discardedData = new string[discardedCount];
-
-		Array.Copy(stringArray, 0, requestedOwners, 0, intData);
-		Array.Copy(stringArray, intData, discardedData, 0, discardedCount);
-
-		worldController.GlobalRequest(wantChunks, requestedChunks, requestedOwners, discardedData, discardedChunks, playerName);
-	}
-
-	#endregion
-	#region answer to global request
-	public void AnswerGlobalRequestSignal(string[] requestedData, Vector2Int[] requestedPositions, string playerName)
-	{
-		Reset();
-		type = (int)SignalType.AnswerGlobalRequest;
-		stringData = playerName;
-		stringArray = requestedData;
-		intArray = new int[requestedPositions.Length * 2];
-		var counter = 0;
-		for (int i = 0; i < requestedPositions.Length; i++)
-		{
-			intArray[counter++] = requestedPositions[i].x;
-			intArray[counter++] = requestedPositions[i].y;
-		}
-		RequestSerialization();
-	}
-
-	public void AnswerGlobalRequest()
-	{
-		if (stringData != Networking.LocalPlayer.displayName) return;
-		debugConsole.Message($"{playerName} answered your global request with {stringArray.Length} chunks");
-		worldController.AnswerGlobalRequest(stringArray, intArray);
-	}
-	#endregion
-}
-
-public enum SignalType
-{
-	SetBlock,
-	WantOwner,
-	PublicOwner,
-	FixBack,
-	GlobalRequest,
-	WantsOwner,
-	StartData,
-	AnswerGlobalRequest
 }
