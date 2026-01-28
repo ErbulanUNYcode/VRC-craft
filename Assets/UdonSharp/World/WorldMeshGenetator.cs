@@ -1,6 +1,6 @@
 ﻿using UdonSharp;
 using UnityEngine;
-
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class WorldMeshGenetator : UdonSharpBehaviour
 {
 	[SerializeField] private MeshFilter xMesh;

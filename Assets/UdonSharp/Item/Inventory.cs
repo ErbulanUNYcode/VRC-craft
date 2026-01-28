@@ -1,10 +1,12 @@
 ﻿
 using System;
+using TMPro;
 using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon.Common;
 
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class Inventory : UdonSharpBehaviour
 {
 	[SerializeField] private CellController[] cells;
@@ -15,6 +17,16 @@ public class Inventory : UdonSharpBehaviour
 	[SerializeField] private Transform order;
 	[SerializeField] private NetworkManager net;
 	[SerializeField] private WorldController worldController;
+	[SerializeField] private ItemDataManager itemData;
+
+	[SerializeField] private Transform used;
+
+	[SerializeField] private DebugConsole debugConsole;
+
+	[SerializeField] private ItemMeshGenerator itemMesh;
+	[SerializeField] private MeshFilter itemInHand;
+	[SerializeField] private MeshFilter blockInHand;
+	[SerializeField] private TextMeshProUGUI itemCountInHand;
 
 	public Vector3 OrderOffset
 	{
@@ -26,11 +38,6 @@ public class Inventory : UdonSharpBehaviour
 				return order.position - localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).position;
 		}
 	}
-
-	[SerializeField] private Transform used;
-	[SerializeField] private CellController usedCell;
-
-	[SerializeField] private DebugConsole debugConsole;
 	public int usedID = 0;
 
 	private DateTime lastClickTime = DateTime.MinValue;
@@ -149,9 +156,47 @@ public class Inventory : UdonSharpBehaviour
 		used.localPosition = new Vector3(usedID * 18 - 72, 0, 0);
 	}
 
+	private void ItemUpdate()
+	{
+		var cell = cells[usedID];
+
+		if (cell.Count == 0)
+		{
+			itemInHand.mesh = null;
+			blockInHand.mesh = null;
+			if (itemCountInHand != null)
+				itemCountInHand.text = "";
+
+			if (itemSync != null) itemSync.ChangeItem(0, true);
+
+			return;
+		}
+
+		var item = itemData[cell.Id];
+		if (item.isBlockItem)
+		{
+			blockInHand.mesh = itemMesh.GetMesh(item.iconId);
+			itemInHand.mesh = null;
+		}
+		else
+		{
+			itemInHand.mesh = itemMesh.GetMesh(item.iconId);
+			blockInHand.mesh = null;
+		}
+
+		if (itemCountInHand != null)
+			itemCountInHand.text = cell.Count.ToString();
+
+		if (itemSync != null)
+		{
+			itemSync.ChangeItem(item.iconId, item.isBlockItem);
+		}
+	}
+
 	private void Update()
 	{
-		usedCell.Sync(cells[usedID]);
+		ItemUpdate();
+
 		used.localPosition = new Vector3(usedID * 18 - 72, 0, 0);
 
 		if (inVR) return;
@@ -206,5 +251,11 @@ public class Inventory : UdonSharpBehaviour
 		if (trying == null) return;
 		var pos = trying[0] == (int)SetPosition.selected ? selected : air;
 		worldController.SetBlockLocal(pos, trying[1]);
+	}
+
+	private ItemSync itemSync = null;
+	public void AddItemSync(ItemSync itemSync)
+	{
+		this.itemSync = itemSync;
 	}
 }

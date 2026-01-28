@@ -8,7 +8,6 @@ public class ItemDataManager : UdonSharpBehaviour
 {
 	[SerializeField] private Item[] items;
 	[SerializeField] private GameObject itemsData;
-	[SerializeField] private Sprite[] icons;
 	[SerializeField] private DebugConsole debugConsole;
 	private string language = "";
 
@@ -35,11 +34,6 @@ public class ItemDataManager : UdonSharpBehaviour
 			}
 			return items[id];
 		}
-	}
-
-	public Sprite Icon(int id)
-	{
-		return icons[items[id].iconId];
 	}
 
 	public void ResetItems()

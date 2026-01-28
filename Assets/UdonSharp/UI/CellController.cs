@@ -21,8 +21,10 @@ public class CellController : UdonSharpBehaviour
 
 	private int count = 0;
 	private int id = 0;
-	private bool isVR = false;
 	private bool isDragging = false;
+
+	public int Count => count;
+	public int Id => id;
 
 	private void Start()
 	{
@@ -129,7 +131,7 @@ public class CellController : UdonSharpBehaviour
 		UpdateVisuals();
 	}
 
-	public int _TryGive(int id, int count)
+	private int _TryGive(int id, int count)
 	{
 		if (this.count == 0)
 		{
@@ -191,7 +193,7 @@ public class CellController : UdonSharpBehaviour
 			countText.text = count.ToString();
 			countText.gameObject.SetActive(count != 1);
 			simpleItem.gameObject.SetActive(true);
-			simpleItem.sprite = itemData.Icon(id);
+			simpleItem.color = new Color32(0, 0, 0, (byte)itemData[id].iconId);
 		}
 	}
 

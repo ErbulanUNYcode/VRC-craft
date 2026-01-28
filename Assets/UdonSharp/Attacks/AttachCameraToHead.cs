@@ -1,7 +1,7 @@
 ﻿using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
-
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class AttachCameraToHead : UdonSharpBehaviour
 {
 	private VRCPlayerApi player;

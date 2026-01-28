@@ -3,7 +3,7 @@ using System;
 using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
-
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class AttachToUser : UdonSharpBehaviour
 {
 	[SerializeField] private bool attachPosition;

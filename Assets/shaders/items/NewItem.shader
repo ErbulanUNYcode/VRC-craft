@@ -1,14 +1,15 @@
-Shader "Unlit/NewItem"
+Shader "Unlit/NewItem_Atlas"
 {
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
-		_LightTex ("Light", 2D) = "white" {}
-		_InputTime ("ImputTime", Float) = 0
+        _LightTex ("Light", 2D) = "white" {}
+        _InputTime ("InputTime", Float) = 0
+        _InputIndex ("InputIndex", Float) = 0
     }
     SubShader
     {
-        Tags { "RenderType"="Transparent" "Queue"="Transparent" }
+        Tags {"DisableBatching" = "True" "RenderType"="Transparent" "Queue"="Transparent" }
         LOD 100
 
         Pass
@@ -22,14 +23,15 @@ Shader "Unlit/NewItem"
             #pragma multi_compile _ UNITY_SINGLE_PASS_STEREO
             #include "UnityCG.cginc"
 
-
             sampler2D _MainTex;
-			sampler2D _LightTex;
-			float _InputTime;
+            sampler2D _LightTex;
+            float _InputTime;
+            float _InputIndex;
 
             struct appdata
             {
                 float4 vertex : POSITION;
+                float4 color : COLOR; // добавили цвет вершин
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -37,6 +39,7 @@ Shader "Unlit/NewItem"
             {
                 float4 pos : SV_POSITION;
                 float3 worldPos : TEXCOORD0;
+                float tileIndex : TEXCOORD1; // индекс тайла
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -47,6 +50,10 @@ Shader "Unlit/NewItem"
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+
+                // получаем индекс тайла из красного канала цвета вершин
+                o.tileIndex = round(v.color.a * 255);
+
                 return o;
             }
 
@@ -69,7 +76,7 @@ Shader "Unlit/NewItem"
                 float3 pos = mul(unity_WorldToObject, float4(i.worldPos, 1.0)).xyz;
 
                 float3 orig = pos;
-                orig.z *= 0.99;
+                orig.z *= 0.9;
                 orig.z += 0.5;
                 orig.xy *= 15.99;
                 orig.xy += 8;
@@ -92,8 +99,6 @@ Shader "Unlit/NewItem"
                     abs(1 / dir.z)
                 );
 
-                fixed4 c = fixed4(0,0,1,1);
-
                 float3 normals = 0;
                 float3 absPos = abs(pos);
                 if(absPos.x>absPos.y && absPos.x>absPos.z) normals.x = step.x;
@@ -107,7 +112,15 @@ Shader "Unlit/NewItem"
                          current.z != 0))
                         break;
 
-                    fixed4 col = tex2D(_MainTex, (current.xy+0.5) / 16);
+                    // --- новый блок для атласа ---
+                    float tileIndex = i.tileIndex;
+                    //float tileIndex = _InputIndex;
+                    float tileX = fmod(tileIndex, 16); // колонка
+                    float tileY = floor(tileIndex / 16); // ряд сверху вниз
+                    float2 tileUV = (current.xy + 0.5) / 16; // локальные UV 16x16
+                    float2 atlasUV = (tileUV + float2(tileX, tileY)) / 16; // в атлас 256x256
+                    fixed4 col = tex2D(_MainTex, atlasUV);
+                    // -------------------------------
 
                     if(col.a > 0.5)
                     {
@@ -126,14 +139,12 @@ Shader "Unlit/NewItem"
                     {
                         tMax.x += tDelta.x;
                         current.x += step.x;
-                        c = fixed4(1,0,0,1);
                         normals = float3(step.x,0,0);
                     }
                     else if (tMax.y < tMax.z)
                     {
                         tMax.y += tDelta.y;
                         current.y += step.y;
-                        c = fixed4(0,1,0,1);
                         normals = float3(0,step.y,0);
                     }
                     else

@@ -3,8 +3,10 @@ using System;
 using UdonSharp;
 using UnityEngine;
 
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class Item : UdonSharpBehaviour
 {
+	//internal int spriteId;
 	[SerializeField] private string _nameEN;
 	[SerializeField] private string _nameRU;
 	[SerializeField] private int _count = 64;
@@ -17,8 +19,6 @@ public class Item : UdonSharpBehaviour
 	[SerializeField] private SetType _setType = SetType.symple;
 	[SerializeField] private int[] _sets = new int[1];
 	[SerializeField] private ItemDataManager itemDataManager;
-
-	private Mesh _mesh;
 
 	public string _name
 	{
@@ -37,17 +37,6 @@ public class Item : UdonSharpBehaviour
 	public Vector2Int[] alternateItems { get { return _alternateItems; } }
 	public SetType setType { get { return _setType; } }
 	public int[] sets { get { return _sets; } }
-	public Mesh mesh
-	{
-		get
-		{
-			if (_mesh == null)
-			{
-
-			}
-			return _mesh;
-		}
-	}
 
 }
 

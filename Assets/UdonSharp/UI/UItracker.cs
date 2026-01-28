@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using VRC.SDKBase;
 using VRC.Udon.Common;
 
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class UItracker : UdonSharpBehaviour
 {
 	[SerializeField] private GameObject ghost;
@@ -284,19 +285,5 @@ public class UItracker : UdonSharpBehaviour
 			if (cell != null) selectedCell.Shuffle(cell);
 			selectedCell = null;
 		}
-	}
-
-	[UdonSynced] private int syncedValue;
-
-	public void ApplyChange()
-	{
-		syncedValue++;
-		debugText.text = syncedValue.ToString();
-		RequestSerialization();
-	}
-
-	public override void OnDeserialization()
-	{
-		debugText.text = syncedValue.ToString();
 	}
 }

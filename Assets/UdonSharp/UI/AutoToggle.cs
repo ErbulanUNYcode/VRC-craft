@@ -1,6 +1,7 @@
 ﻿using UdonSharp;
 using UnityEngine;
 
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class AutoToggle : UdonSharpBehaviour
 {
 	[SerializeField]
