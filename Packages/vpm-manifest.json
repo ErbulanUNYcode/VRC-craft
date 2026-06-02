@@ -12,8 +12,11 @@
     "vrchat.jordo.easyquestswitch": {
       "version": "1.4.0"
     },
+    "com.llealloo.audiolink": {
+      "version": "3.1.0"
+    },
     "dev.onevr.vrworldtoolkit": {
-      "version": "3.2.1"
+      "version": "3.3.2"
     }
   },
   "locked": {
@@ -35,8 +38,12 @@
       "version": "1.4.0",
       "dependencies": {}
     },
+    "com.llealloo.audiolink": {
+      "version": "3.1.0",
+      "dependencies": {}
+    },
     "dev.onevr.vrworldtoolkit": {
-      "version": "3.2.1",
+      "version": "3.3.2",
       "dependencies": {}
     }
   }

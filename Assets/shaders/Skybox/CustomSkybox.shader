@@ -49,12 +49,26 @@ Shader "Unlit/CustomSkybox"
             fixed4 _SunLightCol;
             float _Angle;
             float _TimePower;
-
+            float2 rotate(float2 p, float angle)
+            {
+                float s;
+                float c;
+                sincos(angle, s, c);
+                return float2(
+                    c * p.x - s * p.y,
+                    s * p.x + c * p.y
+                );
+            }
             struct v2f
             {
                 float4 pos : SV_POSITION;
                 float3 viewDir : TEXCOORD0;
+                float3 viewDirRot : TEXCOORD1;
+                nointerpolation float time : TEXCOORD2;
+                nointerpolation float r : TEXCOORD3;
             };
+            
+            
 
             v2f vert (float4 vertex : POSITION)
             {
@@ -64,29 +78,19 @@ Shader "Unlit/CustomSkybox"
                 float4 worldPos = mul(unity_ObjectToWorld, vertex);
                 float3 viewDirection = normalize(worldPos.xyz - _WorldSpaceCameraPos.xyz);
                 o.viewDir = viewDirection;
-
+                o.viewDirRot = viewDirection;
+                o.viewDirRot.xy = rotate(o.viewDirRot.xy,radians(_Angle));
+                o.r = radians(_TimePower*360);
+                o.viewDirRot.yz = rotate(o.viewDirRot.yz,o.r);
+                o.time = sin(o.r)*cos(radians(_Angle));
                 return o;
-            }
-
-            float2 rotate(float2 p, float angle)
-            {
-                float s = sin(angle);
-                float c = cos(angle);
-                return float2(
-                    c * p.x - s * p.y,
-                    s * p.x + c * p.y
-                );
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
-                float3 dir = i.viewDir;
-
-                dir.xy = rotate(dir.xy,radians(_Angle));
-                float r = radians(_TimePower*360);
-                dir.yz = rotate(dir.yz,r);
-
-                float time = sin(r)*cos(radians(_Angle));
+                float3 dir = i.viewDirRot;
+                float r = i.r;
+                float time = i.time;
 
                 //top
                 float alphaGradient = smoothstep(1-smoothstep(-0.3,0.5,time)*5, 5, dir.z);

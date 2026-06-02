@@ -7,6 +7,7 @@ public class ItemSync : UdonSharpBehaviour
 {
 	[SerializeField]
 	private ItemMeshGenerator itemMeshGenerator;
+	[SerializeField] private VRC_Pickup pickup;
 
 	[SerializeField]
 	private MeshFilter item;
@@ -57,8 +58,6 @@ public class ItemSync : UdonSharpBehaviour
 	{
 		if (owner == null) return;
 		var tracking = owner.GetTrackingData(VRCPlayerApi.TrackingDataType.RightHand);
-		transform.position = tracking.position;
-		transform.rotation = tracking.rotation;
 	}
 
 	public override void OnAvatarEyeHeightChanged(VRCPlayerApi player, float prevEyeHeightAsMeters)
