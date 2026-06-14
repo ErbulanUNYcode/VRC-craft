@@ -42,11 +42,11 @@ Shader "Custom/UV_Write"
                 return o;
             }
 
-            float hash(float3 p)
+            float hash31(int3 p)
             {
-                p = frac(p * float3(123.34, 456.21, 789.12));
-                p += dot(p, p.yzx + 45.32);
-                return frac(p.x * p.y * p.z);
+                int n = p.x * 374761393 + p.y * 668265263 + p.z * 1446658333;
+                n = (n ^ (n >> 13)) * 1274126177;
+                return frac(n * 0.00000000023283064365386963); // 1/2^32
             }
 
             float lerp1(float a, float b, float t){return a + t * (b - a);}
@@ -55,30 +55,30 @@ Shader "Custom/UV_Write"
 
             float noise(float3 p)
             {
-                float3 i = floor(p);
+                int3 i = (int3)floor(p);
                 float3 f = frac(p);
 
-                float a = hash(i);
-                float b = hash(i + float3(1, 0, 0));
-                float c = hash(i + float3(0, 1, 0));
-                float d = hash(i + float3(1, 1, 0));
+                float a = hash31(i);
+                float b = hash31(i + int3(1, 0, 0));
+                float c = hash31(i + int3(0, 1, 0));
+                float d = hash31(i + int3(1, 1, 0));
 
-                float e = hash(i + float3(0, 0, 1));
-                float f1 = hash(i + float3(1, 0, 1));
-                float g = hash(i + float3(0, 1, 1));
-                float h = hash(i + float3(1, 1, 1));
+                float e = hash31(i + int3(0, 0, 1));
+                float f1 = hash31(i + int3(1, 0, 1));
+                float g = hash31(i + int3(0, 1, 1));
+                float h = hash31(i + int3(1, 1, 1));
 
                 float3 u = float3(fade(f.x), fade(f.y), fade(f.z));
 
-                float x00 = lerp1(a, b, u.x);
-                float x10 = lerp1(c, d, u.x);
-                float x01 = lerp1(e, f1, u.x);
-                float x11 = lerp1(g, h, u.x);
+                float x00 = lerp(a, b, u.x);
+                float x10 = lerp(c, d, u.x);
+                float x01 = lerp(e, f1, u.x);
+                float x11 = lerp(g, h, u.x);
 
-                float y0 = lerp1(x00, x10, u.y);
-                float y1 = lerp1(x01, x11, u.y);
+                float y0 = lerp(x00, x10, u.y);
+                float y1 = lerp(x01, x11, u.y);
 
-                return lerp1(y0, y1, u.z);
+                return lerp(y0, y1, u.z);
             }
 
             float fbm3D(float3 p, int o)
@@ -102,22 +102,23 @@ Shader "Custom/UV_Write"
 
                 return value / 0.75;
             }
-            
-            float hash(float2 p)
+
+            float hash21(int2 p)
             {
-                p = frac(p * float2(123.34, 456.21));
-                p += dot(p, p + 45.32);
-                return frac(p.x * p.y);
+                int n = p.x * 374761393 + p.y * 668265263;
+                n = (n ^ (n >> 13)) * 1274126177;
+                return frac(n * 0.00000000023283064365386963); // 1/2^32
             }
+
             float noise(float2 p)
             {
                 float2 i = floor(p);
                 float2 f = frac(p);
 
-                float a = hash(i);
-                float b = hash(i + float2(1, 0));
-                float c = hash(i + float2(0, 1));
-                float d = hash(i + float2(1, 1));
+                float a = hash21(i);
+                float b = hash21(i + float2(1, 0));
+                float c = hash21(i + float2(0, 1));
+                float d = hash21(i + float2(1, 1));
 
                 float2 u = float2(fade(f.x), fade(f.y));
 
@@ -126,6 +127,7 @@ Shader "Custom/UV_Write"
 
                 return lerp1(x1, x2, u.y);
             }
+
             float fbm(float2 p,int o)
             {
                 float value = 0;
@@ -141,11 +143,18 @@ Shader "Custom/UV_Write"
             {
                 int2 uv = i.uv;
                 int3 pos = int3((uv.x&15)+(_ChunkPosX<<4), uv.y, (uv.x>>4)+(_ChunkPosY<<4));
-                float h = fbm(float2(pos.xz)/100,4)*32+32;
+                if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16.0/255;
+                float h = fbm(float2(pos.xz)/100,4)*20+40;
+                if(h<pos.y) return 0;
 
-                float x = h<pos.y?0:fbmCave(float3(pos)/25)<0.5?0:h-3<pos.y?0.5:1;
+                float3 cavePos = pos;
+                cavePos.y*=1.5;
+                float cave1 = (fbmCave(cavePos/40)-0.5)*30;
+                float cave2 = (fbmCave((cavePos+220)/40)-0.5)*30;
+                bool cave = cave1<1&&cave1>-1&&cave2<1&&cave2>-1;
+                fixed x = h<pos.y?0:cave?0:h-1<pos.y?19:h-3<pos.y?18:17;
 
-                return x;
+                return x/255;
             }
 
             ENDHLSL
