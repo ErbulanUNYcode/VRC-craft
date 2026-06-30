@@ -17,8 +17,13 @@ public class WorldGenerator : UdonSharpBehaviour
 	[SerializeField] private Vector2Int[] chunksQueueData;
 
 	[SerializeField] private Material worldMaterial;
+	[SerializeField] private Material worldShadowMaterial;
 	[SerializeField] private Material optimizatorMaterial;
 	[SerializeField] private Material chunkGeneratorMaterial;
+	[SerializeField] private Transform shadowControl;
+	[SerializeField] private Camera shadowCam;
+	[SerializeField] private Camera shadowCam1;
+	[SerializeField] private Shader replacementShader;
 
 	private VRCPlayerApi localPlayer;
 	private MeshFilter[] meshFilters = new MeshFilter[256];
@@ -42,6 +47,14 @@ public class WorldGenerator : UdonSharpBehaviour
 
 	void Start()
 	{
+		shadowCam.SetReplacementShader(replacementShader, "RenderType");
+		shadowCam1.SetReplacementShader(replacementShader, "RenderType");
+		var cam = VRCCameraSettings.ScreenCamera;
+		var masks = cam.CullingMask;
+		masks.value ^= 1 << 27;
+		cam.CullingMask = masks.value;
+		cam.FarClipPlane = 300;
+
 		for (int i = 0; i < 1024; i++) initPositions[i] = Vector2Int.one * 10_000_000;
 		chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.Realtime;
 		optimizator.initializationSource = CustomRenderTextureInitializationSource.TextureAndColor;
@@ -87,6 +100,7 @@ public class WorldGenerator : UdonSharpBehaviour
 		worldTexture.LoadRawTextureData(new byte[worldTexture.width * worldTexture.height]);
 		worldTexture.Apply();
 		worldMaterial.SetTexture("_MainTex", worldTexture);
+		worldShadowMaterial.SetTexture("_MainTex", worldTexture);
 		optimizatorMaterial.SetTexture("_WorldTex", worldTexture);
 		clearChunksTexture = new Texture2D(16, 16, TextureFormat.R8, false);
 		clearChunksTexture.LoadRawTextureData(new byte[clearChunksTexture.width * clearChunksTexture.height]);
@@ -143,7 +157,10 @@ public class WorldGenerator : UdonSharpBehaviour
 		miniTex.LoadRawTextureData(px);
 		miniTex.Apply();
 		pos = chunksQueueData[preIndex] + worldPos;
-		worldTexture.SetPixels((pos.x * 256) & (worldTexture.width - 1), (pos.y * 128) & (worldTexture.height - 1), 256, 128, miniTex.GetPixels());
+		var data = miniTex.GetPixels();
+		if (pos == Vector2Int.zero)
+			data[10496] = new Color32(25, 0, 0, 0);
+		worldTexture.SetPixels((pos.x * 256) & (worldTexture.width - 1), (pos.y * 128) & (worldTexture.height - 1), 256, 128, data);
 		worldTexture.Apply();
 		optimizatorMaterial.SetInt("_ChunkX", pos.x);
 		optimizatorMaterial.SetInt("_ChunkY", pos.y);
@@ -182,9 +199,16 @@ public class WorldGenerator : UdonSharpBehaviour
 
 	private void Update()
 	{
+		shadowCam1.enabled = false;
+		var frame = Time.frameCount;
+		if (preIndex < chunksQueueData.Length / 4 && (frame & 31) == 0) shadowCam1.enabled = true;
 		var pos = Vector3Int.FloorToInt(localPlayer.GetPosition() + Vector3.up * 0.5f);
 		if (oldPos == pos) return;
+		shadowControl.transform.localPosition = pos;
+		worldMaterial.SetMatrix("_ShadowMatrix", shadowCam.projectionMatrix * shadowCam.worldToCameraMatrix);
+		shadowCam1.enabled = true;
 		oldPos = pos - oldPos;
+
 
 		#region Colliders
 		if (Mathf.Abs(oldPos.x) > 2 || Mathf.Abs(oldPos.z) > 2 || Mathf.Abs(oldPos.y) > 3)

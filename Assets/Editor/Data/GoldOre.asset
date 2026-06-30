@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 308259b427290d54d85ab2a59c9e69e6, type: 3}
+  m_Name: GoldOre
+  m_EditorClassIdentifier: 
+  sides:
+  - texture: {fileID: 2800000, guid: ed6c457a2f7b66f46acc872850174911, type: 3}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 1
+    randomFlipVertical: 1
+  - texture: {fileID: 2800000, guid: ed6c457a2f7b66f46acc872850174911, type: 3}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 1
+    randomFlipVertical: 1
+  - texture: {fileID: 2800000, guid: ed6c457a2f7b66f46acc872850174911, type: 3}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 1
+    randomFlipVertical: 1
+  - texture: {fileID: 2800000, guid: ed6c457a2f7b66f46acc872850174911, type: 3}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 1
+    randomFlipVertical: 1
+  - texture: {fileID: 2800000, guid: ed6c457a2f7b66f46acc872850174911, type: 3}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 1
+    randomFlipVertical: 1
+  - texture: {fileID: 2800000, guid: ed6c457a2f7b66f46acc872850174911, type: 3}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 1
+    randomFlipVertical: 1

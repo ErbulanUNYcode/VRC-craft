@@ -1,4 +1,4 @@
-Shader "Custom/UV_Write"
+Shader "VRC_MINE/WorldGenerator"
 {
     Properties
     {
@@ -53,7 +53,7 @@ Shader "Custom/UV_Write"
 
             float fade(float t){return t * t * (3.0 - 2.0 * t);}
 
-            float noise(float3 p)
+            float noise3D(float3 p)
             {
                 int3 i = (int3)floor(p);
                 float3 f = frac(p);
@@ -87,7 +87,7 @@ Shader "Custom/UV_Write"
 
                 for(int i = 0; i < o; i++)
                 {
-                    value += noise(p * (1 << i)) / (1 << (i + 1));
+                    value += noise3D(p * (1 << i)) / (1 << (i + 1));
                 }
 
                 return value / (1.0 - 1.0 / (1 << o));
@@ -97,8 +97,8 @@ Shader "Custom/UV_Write"
             {
                 float value = 0;
 
-                value += noise(p) * 0.5;
-                value += noise(p * 2.0) * 0.25;
+                value += noise3D(p) * 0.5;
+                value += noise3D(p * 2.0) * 0.25;
 
                 return value / 0.75;
             }
@@ -110,7 +110,7 @@ Shader "Custom/UV_Write"
                 return frac(n * 0.00000000023283064365386963); // 1/2^32
             }
 
-            float noise(float2 p)
+            float noise2D(float2 p)
             {
                 float2 i = floor(p);
                 float2 f = frac(p);
@@ -133,7 +133,7 @@ Shader "Custom/UV_Write"
                 float value = 0;
                 for(int i = 0; i < o; i++)
                 {
-                    value+=noise(p*(1<<i))/(1<<(i+1));
+                    value+=noise2D(p*(1<<i))/(1<<(i+1));
                 }
 
                 return value/(1.0-1.0/(1<<o));
@@ -152,8 +152,25 @@ Shader "Custom/UV_Write"
                 float cave1 = (fbmCave(cavePos/40)-0.5)*30;
                 float cave2 = (fbmCave((cavePos+220)/40)-0.5)*30;
                 bool cave = cave1<1&&cave1>-1&&cave2<1&&cave2>-1;
-                fixed x = h<pos.y?0:cave?0:h-1<pos.y?19:h-3<pos.y?18:17;
-
+                fixed x = 
+                h<pos.y?0://air
+                cave?0://cave
+                h-1<pos.y?19://grass
+                h-3<pos.y?18://dirt
+                17;//stone
+                if(x==17)
+                {
+                    float sp =hash31(pos);
+                    if((hash31(pos>>2)>0.985||hash31((pos+222)>>2)>0.985)&&sp>0.3) x=20;//coal ore
+                    else
+                    {
+                        float sp1 = hash31(pos>>1);
+                        float sp2 = hash31((pos+111)>>1);
+                        if((sp1>0.996||sp2>0.996)&&sp>0.2) x=21;//iron ore
+                        else if(pos.y<15&&(sp1>0.994||sp2>0.994)&&sp>0.5) x=22;//gold ore
+                        else if(pos.y<15&&(sp1>0.993||sp2>0.993)&&sp>0.5) x=23;//diamond ore
+                    }
+                }
                 return x/255;
             }
 

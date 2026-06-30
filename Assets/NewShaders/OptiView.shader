@@ -19,6 +19,7 @@ Shader "VRC_MINE/Editor/OptimizatorView"
             #include "UnityCG.cginc"
 
             Texture2D<uint4> _MainTex;
+            sampler2D _CameraDepthTexture;
             float _Scale;
 
             struct appdata
@@ -49,7 +50,7 @@ Shader "VRC_MINE/Editor/OptimizatorView"
 
                 float4 d = float4(_MainTex.Load(int3(p, 0)))/255;
 
-                return d;
+                return fixed4(d.xyz, 1);
             }
 
             ENDCG
