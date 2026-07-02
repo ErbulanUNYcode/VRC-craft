@@ -121,6 +121,7 @@ Shader "VRC_MINE/WorldShow"
                 o.shadow= mul(_ShadowMatrix, float4(o.inter, 1)).xyz/2+0.5;
                 else
                 o.shadow.xy= mul(_ShadowMatrix, float4(o.inter, 1)).xy/2+0.5;
+                o.shadow.z-=0.0004;
                 o.fog = dot(camOffset, camOffset);
                 float3 objectPos = round(unity_ObjectToWorld._m03_m13_m23);
 
@@ -169,12 +170,37 @@ o.vertex = mul(UNITY_MATRIX_P, float4(viewPos, 1.0));
                 if ((b1>0&&b2>0) || (i.face?b1:b2)==0)discard;
                 b1 = i.face?b1:b2;
                 float2 uv = i.offset.x?frac(p.zy):i.offset.y?frac(p.xz):frac(p.xy);
-                fixed dv1=block(pos-(i.face?i.offset:0) + (i.offset.x?int3(0,1,0):i.offset.y?int3(0,0,1):int3(0,1,0)))==0;
-                fixed dv2=block(pos-(i.face?i.offset:0) + (i.offset.x?int3(0,-1,0):i.offset.y?int3(0,0,-1):int3(0,-1,0)))==0;
-                fixed dh1=block(pos-(i.face?i.offset:0) + (i.offset.x?int3(0,0,1):i.offset.y?int3(1,0,0):int3(1,0,0)))==0;
-                fixed dh2=block(pos-(i.face?i.offset:0) + (i.offset.x?int3(0,0,-1):i.offset.y?int3(-1,0,0):int3(-1,0,0)))==0;
-                float ao = (dv1*uv.y+dv2*(1-uv.y))*(dh1*uv.x+dh2*(1-uv.x));
-                ao = ao*0.8+0.2;
+                int3 os1 = (uv.y>0.5?1:-1)*(i.offset.x?int3(0,1,0):i.offset.y?int3(0,0,1):int3(0,1,0));
+                int3 os2 = (uv.x>0.5?1:-1)*(i.offset.x?int3(0,0,1):i.offset.y?int3(1,0,0):int3(1,0,0));
+                if(i.face)
+                pos-=i.offset;
+                bool d1=block(pos + os1)>15;
+                bool d2=block(pos + os2)>15;
+                float ao = 0;
+                fixed2 duv=abs(uv*2-1);
+                duv*=duv;
+                if(d1)
+                {
+                    if(d2)
+                        ao = duv.y+duv.x;
+                    else
+                    {
+                        d2 = block(pos + os1 + os2)>15;
+                        if(d2)
+                            ao = duv.y;
+                        else
+                            ao = duv.y*(1-duv.x);
+                    }
+                }
+                else if(d2)
+                {
+                    d1 = block(pos + os1 + os2)>15;
+                    if(d1)
+                        ao = duv.x;
+                    else
+                        ao = (1-duv.y)*duv.x;
+                }
+
                 float2 uvOffset = i.offset.x?0:i.offset.y?int2(0,1):int2(0,2);
                 uvOffset.x+=i.face + (b1&15)*2;
                 uvOffset.y+=(b1>>4)*3;
@@ -187,7 +213,7 @@ o.vertex = mul(UNITY_MATRIX_P, float4(viewPos, 1.0));
                 uv/=32;
                 fixed4 c = tex2D(_Atlas, uv);
                 float shadow;
-                if(i.shadow.z>9.9) shadow = 0.4;
+                if(i.shadow.z>9.9) shadow = 0.2;
                 else
                 {
                     shadow = i.shadow.x<0||i.shadow.x>1||i.shadow.y<0||i.shadow.y>1||i.shadow.z<0.05||i.shadow.z>0.95;
@@ -199,7 +225,10 @@ o.vertex = mul(UNITY_MATRIX_P, float4(viewPos, 1.0));
                         if(!shadow) shadow = 1-clamp(i.shadow.z-tex2D(_ShadowMap1, i.shadow.xy).r,0,0.002)*400;
                     }
                 }
-                c.rgb = (c.rgb*ao*(1-i.fog)*shadow+_FogColor*i.fog);
+                
+                shadow -= ao*(0.4-shadow)/3;
+
+                c.rgb = c.rgb*(1-i.fog)*shadow+_FogColor*i.fog;
                 return c;
             }
 

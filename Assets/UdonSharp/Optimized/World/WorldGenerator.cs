@@ -197,8 +197,19 @@ public class WorldGenerator : UdonSharpBehaviour
 		return ((Color32)worldTexture.GetPixel(ch.x + (pos.x & 15) + ((pos.z & 15) << 4), ch.y + pos.y)).r;
 	}
 
+	public void PEnter()
+	{
+		Debug.Log("Pointer enter");
+	}
+
+	public void PExit()
+	{
+		Debug.Log("Pointer exit");
+	}
+
 	private void Update()
 	{
+
 		shadowCam1.enabled = false;
 		var frame = Time.frameCount;
 		if (preIndex < chunksQueueData.Length / 4 && (frame & 31) == 0) shadowCam1.enabled = true;

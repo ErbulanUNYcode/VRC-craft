@@ -11,7 +11,7 @@ Shader "Unlit/VoxelView_UI_UV"
     }
     SubShader
     {
-        Tags { "RenderType"="TransparentCutout" "Queue"="AlphaTest" }
+        Tags { "RenderType"="TransparentCutout" "Queue"="AlphaTest" "DisableBatching" = "True"}
         LOD 100
 
         Pass
