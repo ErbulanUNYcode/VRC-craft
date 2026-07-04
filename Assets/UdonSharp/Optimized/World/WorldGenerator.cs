@@ -1,17 +1,20 @@
-﻿using System;
-using UdonSharp;
+﻿using UdonSharp;
 using UnityEditor;
 using UnityEngine;
 using VRC.SDK3.Rendering;
 using VRC.SDKBase;
-using VRC.Udon.Common.Interfaces;
 
 [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class WorldGenerator : UdonSharpBehaviour
 {
+	[SerializeField] private Material afterGPUReadback;
+
+	[SerializeField] private Gradient up;
+
 	[SerializeField] private GameObject chunkRendererPrefab;
 	[SerializeField] private GameObject colliderPrefab;
 	[SerializeField] private Transform collidersParent;
+	[SerializeField] private Material debugMaterial;
 
 	[HideInInspector]
 	[SerializeField] private Vector2Int[] chunksQueueData;
@@ -25,10 +28,15 @@ public class WorldGenerator : UdonSharpBehaviour
 	[SerializeField] private Camera shadowCam1;
 	[SerializeField] private Shader replacementShader;
 
+	[HideInInspector]
+	[SerializeField]
+	private ChunkMeshType[] chunkMeshTypes = new ChunkMeshType[256];
+
 	private VRCPlayerApi localPlayer;
 	private MeshFilter[] meshFilters = new MeshFilter[256];
 	private Texture2D worldTexture;
-	private Texture2D clearChunksTexture;
+	[SerializeField]
+	private Texture2D clearTexture;
 	private Texture2D miniTex;
 	private Collider[] colliders = new Collider[36];
 	private Vector3Int oldPos = Vector3Int.down;
@@ -38,15 +46,16 @@ public class WorldGenerator : UdonSharpBehaviour
 
 	[SerializeField] private ChunkMeshGenerator chunkMeshGenerator;
 
-	[NonSerialized]
-	public int preIndex = 0;
-	[NonSerialized]
-	public int chunkIndex = 0;
-	private Vector2Int[] initPositions = new Vector2Int[1024];
+	private int preIndex;
+	private int chunkIndex;
+	private Vector2Int[] initPositions = new Vector2Int[1_024];
 	private Vector2Int worldPos;
+	private Color[] clearChunkColor = new Color[32_768];
+	private Color[] clearOptimizatorColor = new Color[16];
 
 	void Start()
 	{
+		for (int i = 0; i < 16; i++) clearOptimizatorColor[i] = Color.red;
 		shadowCam.SetReplacementShader(replacementShader, "RenderType");
 		shadowCam1.SetReplacementShader(replacementShader, "RenderType");
 		var cam = VRCCameraSettings.ScreenCamera;
@@ -66,7 +75,8 @@ public class WorldGenerator : UdonSharpBehaviour
 
 		if (miniTex != null) Destroy(worldTexture);
 		miniTex = new Texture2D(256, 128, TextureFormat.R8, false);
-
+		miniTex.filterMode = FilterMode.Point;
+		afterGPUReadback.SetTexture("_MainTex", miniTex);
 		for (int i = 0; i < 36; i++)
 		{
 			colliders[i] = Instantiate(colliderPrefab, collidersParent).GetComponent<Collider>();
@@ -81,16 +91,17 @@ public class WorldGenerator : UdonSharpBehaviour
 
 	private void InitWorld()
 	{
-		#region create/recreate + position   meshFilters
+		#region create + position meshFilters
 		for (int i = 0; i < 16; i++)
 		{
 			for (int j = 0; j < 16; j++)
 			{
-				if (new Vector2(-7.5f + i, -7.5f + j).sqrMagnitude > 64) continue;
+				var mesh = chunkMeshGenerator.GetMesh(chunkMeshTypes[i + j * 16]);
+				if (mesh == null) continue;
 				var chunk = Instantiate(chunkRendererPrefab, transform).transform;
 				chunk.localPosition = new Vector3(-256 + i * 32, 0, -256 + j * 32);
 				meshFilters[i * 16 + j] = chunk.GetComponent<MeshFilter>();
-				meshFilters[i * 16 + j].mesh = chunkMeshGenerator.GetMesh(0);
+				meshFilters[i * 16 + j].mesh = mesh;
 			}
 		}
 		#endregion
@@ -102,10 +113,12 @@ public class WorldGenerator : UdonSharpBehaviour
 		worldMaterial.SetTexture("_MainTex", worldTexture);
 		worldShadowMaterial.SetTexture("_MainTex", worldTexture);
 		optimizatorMaterial.SetTexture("_WorldTex", worldTexture);
-		clearChunksTexture = new Texture2D(16, 16, TextureFormat.R8, false);
-		clearChunksTexture.LoadRawTextureData(new byte[clearChunksTexture.width * clearChunksTexture.height]);
-		clearChunksTexture.Apply();
-		optimizatorMaterial.SetTexture("_ClearChunksTex", clearChunksTexture);
+		clearTexture = new Texture2D(16, 16, TextureFormat.R8, false);
+		clearTexture.filterMode = FilterMode.Point;
+		clearTexture.LoadRawTextureData(new byte[clearTexture.width * clearTexture.height]);
+		clearTexture.Apply();
+		debugMaterial.SetTexture("_MainTex", clearTexture);
+		optimizatorMaterial.SetTexture("_ClearTex", clearTexture);
 		#endregion
 	}
 
@@ -114,14 +127,14 @@ public class WorldGenerator : UdonSharpBehaviour
 		var pos = chunksQueueData[chunkIndex] + new Vector2Int((int)transform.position.x / 16, (int)transform.position.z / 16);
 		chunkGeneratorMaterial.SetInt("_ChunkPosX", pos.x);
 		chunkGeneratorMaterial.SetInt("_ChunkPosY", pos.y);
-		VRCAsyncGPUReadback.Request(chunkGenerator, 0, (IUdonEventReceiver)this);
+		VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
 	}
 	public override void OnAsyncGpuReadbackComplete(VRCAsyncGPUReadbackRequest request)
 	{
 		if (request.hasError)
 		{
 			Debug.LogError("GPU readback error!");
-			VRCAsyncGPUReadback.Request(chunkGenerator, 0, (IUdonEventReceiver)this);
+			VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
 			return;
 		}
 
@@ -158,12 +171,31 @@ public class WorldGenerator : UdonSharpBehaviour
 		miniTex.Apply();
 		pos = chunksQueueData[preIndex] + worldPos;
 		var data = miniTex.GetPixels();
-		if (pos == Vector2Int.zero)
-			data[10496] = new Color32(25, 0, 0, 0);
-		worldTexture.SetPixels((pos.x * 256) & (worldTexture.width - 1), (pos.y * 128) & (worldTexture.height - 1), 256, 128, data);
+		/*
+		if (pos == Vector2Int.down)
+			data[11000] = new Color32(15, 0, 0, 0);*/
+		var mpx = pos.x >> 1 & 15;
+		var mpy = pos.y >> 1 & 15;
+		if (clearTexture.GetPixel(mpx, mpy).r == 1)
+		{
+			clearTexture.SetPixel(pos.x >> 1 & 15, pos.y >> 1 & 15, Color.clear);
+			clearTexture.Apply();
+			if ((pos.x & 31) != mpx << 1 || (pos.y & 31) != mpy << 1)
+				worldTexture.SetPixels(mpx << 9, mpy << 8, 256, 128, clearChunkColor);
+
+			if ((pos.x & 31) != (mpx << 1) + 1 || (pos.y & 31) != mpy << 1)
+				worldTexture.SetPixels((mpx << 9) + 256, mpy << 8, 256, 128, clearChunkColor);
+
+			if ((pos.x & 31) != mpx << 1 || (pos.y & 31) != (mpy << 1) + 1)
+				worldTexture.SetPixels(mpx << 9, (mpy << 8) + 128, 256, 128, clearChunkColor);
+
+			if ((pos.x & 31) != (mpx << 1) + 1 || (pos.y & 31) != (mpy << 1) + 1)
+				worldTexture.SetPixels((mpx << 9) + 256, (mpy << 8) + 128, 256, 128, clearChunkColor);
+		}
+		worldTexture.SetPixels(pos.x << 8 & 8191, pos.y << 7 & 4095, 256, 128, data);
 		worldTexture.Apply();
-		optimizatorMaterial.SetInt("_ChunkX", pos.x);
-		optimizatorMaterial.SetInt("_ChunkY", pos.y);
+		optimizatorMaterial.SetInt("_ChunkX", pos.x & 31);
+		optimizatorMaterial.SetInt("_ChunkY", pos.y & 31);
 		initPositions[(pos.x & 31) + ((pos.y & 31) << 5)] = pos;
 
 
@@ -180,7 +212,7 @@ public class WorldGenerator : UdonSharpBehaviour
 		if (chunkIndex + 1 == chunksQueueData.Length)
 		{
 			chunkIndex++;
-			VRCAsyncGPUReadback.Request(chunkGenerator, 0, (IUdonEventReceiver)this);
+			VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
 			return;
 		}
 		do
@@ -190,6 +222,7 @@ public class WorldGenerator : UdonSharpBehaviour
 		} while (initPositions[(pos.x & 31) + ((pos.y & 31) << 5)] == pos && chunkIndex < chunksQueueData.Length - 1);
 		GenerateChunk();
 	}
+
 	private byte GetBlock(Vector3Int pos)
 	{
 		if (pos.y > 127 || pos.y < 0) return 0;
@@ -197,23 +230,12 @@ public class WorldGenerator : UdonSharpBehaviour
 		return ((Color32)worldTexture.GetPixel(ch.x + (pos.x & 15) + ((pos.z & 15) << 4), ch.y + pos.y)).r;
 	}
 
-	public void PEnter()
-	{
-		Debug.Log("Pointer enter");
-	}
-
-	public void PExit()
-	{
-		Debug.Log("Pointer exit");
-	}
-
 	private void Update()
 	{
-
 		shadowCam1.enabled = false;
 		var frame = Time.frameCount;
 		if (preIndex < chunksQueueData.Length / 4 && (frame & 31) == 0) shadowCam1.enabled = true;
-		var pos = Vector3Int.FloorToInt(localPlayer.GetPosition() + Vector3.up * 0.5f);
+		var pos = Vector3Int.FloorToInt(localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime + Vector3.up * 0.5f);
 		if (oldPos == pos) return;
 		shadowControl.transform.localPosition = pos;
 		worldMaterial.SetMatrix("_ShadowMatrix", shadowCam.projectionMatrix * shadowCam.worldToCameraMatrix);
@@ -252,6 +274,7 @@ public class WorldGenerator : UdonSharpBehaviour
 
 		#region chunk step
 		var p = Vector3Int.RoundToInt(transform.position);
+		var oldP = p;
 		if (pos.x > p.x + 32)
 		{
 
@@ -286,7 +309,8 @@ public class WorldGenerator : UdonSharpBehaviour
 			else if (pos.x < p.x - 16)
 				p.x = pos.x >> 5 << 5;
 		}
-		if (p != Vector3Int.RoundToInt(transform.position))
+
+		if (p != oldP)
 		{
 			transform.position = p;
 			worldPos = new Vector2Int((int)transform.position.x >> 4, (int)transform.position.z >> 4);
@@ -296,6 +320,68 @@ public class WorldGenerator : UdonSharpBehaviour
 			}
 			else
 				chunkIndex = -1;
+
+			var changed = false;
+			int id1, id2;
+			if (p.x != oldP.x)
+			{
+				changed = true;
+				p.x = (p.x >> 5) - 8;
+				oldP.x = (oldP.x >> 5) - 8;
+				for (int i = 0; i < 16; i++)
+				{
+					id1 = i;
+					if (i < (p.x & 15)) id1 += 16;
+					id1 += p.x >> 4 << 4;
+
+					id2 = i;
+					if (i < (oldP.x & 15)) id2 += 16;
+					id2 += oldP.x >> 4 << 4;
+
+					if (id1 != id2)
+					{
+						clearTexture.SetPixels(i, 0, 1, 16, clearOptimizatorColor);
+						for (int j = 0; j < 32; j++)
+						{
+							initPositions[i * 2 + j * 32].x++;
+							initPositions[i * 2 + j * 32 + 1].x++;
+						}
+					}
+				}
+			}
+
+			if (p.z != oldP.z)
+			{
+				changed = true;
+				p.z = (p.z >> 5) - 8;
+				oldP.z = (oldP.z >> 5) - 8;
+				for (int i = 0; i < 16; i++)
+				{
+					id1 = i;
+					if (i < (p.z & 15)) id1 += 16;
+					id1 += p.z >> 4 << 4;
+
+					id2 = i;
+					if (i < (oldP.z & 15)) id2 += 16;
+					id2 += oldP.z >> 4 << 4;
+
+					if (id1 != id2)
+					{
+						clearTexture.SetPixels(0, i, 16, 1, clearOptimizatorColor);
+						for (int j = 0; j < 32; j++)
+						{
+							initPositions[j + i * 64].y++;
+							initPositions[j + i * 64 + 32].y++;
+						}
+					}
+				}
+			}
+
+			if (changed)
+			{
+				clearTexture.Apply();
+				optimizator.initializationMode = CustomRenderTextureUpdateMode.Realtime;
+			}
 		}
 
 		#endregion
@@ -342,18 +428,78 @@ public class WorldGenerator : UdonSharpBehaviour
 	}*/
 }
 
-#if UNITY_EDITOR
-//show info in inspector
-[CustomEditor(typeof(WorldGenerator))]
-public class WorldGeneratorEditor : Editor
+public enum ChunkMeshType
 {
+	PP, MP, PM, MM, EP, PE, EM, ME, EE, NN
+}
+
+//show chunkMeshTypes grid 16x16
+#if UNITY_EDITOR
+[CustomEditor(typeof(WorldGenerator))]
+public class ChunkMeshGeneratorEditor : Editor
+{
+	Color GetColor(ChunkMeshType type)
+	{
+		switch (type)
+		{
+			case ChunkMeshType.PP: return new Color(1.0f, 1.0f, 1.0f);
+			case ChunkMeshType.MP: return new Color(0.7f, 1.0f, 1.0f);
+			case ChunkMeshType.PM: return new Color(1.0f, 0.7f, 1.0f);
+			case ChunkMeshType.MM: return new Color(0.7f, 0.7f, 1.0f);
+
+			case ChunkMeshType.EP: return new Color(0.0f, 1.0f, 1.0f);
+			case ChunkMeshType.PE: return new Color(1.0f, 0.0f, 1.0f);
+			case ChunkMeshType.EM: return new Color(0.0f, 0.7f, 1.0f);
+			case ChunkMeshType.ME: return new Color(0.7f, 0.0f, 1.0f);
+
+			case ChunkMeshType.EE: return new Color(0.0f, 0.0f, 1.0f);
+		}
+
+		return Color.black;
+	}
+
 	public override void OnInspectorGUI()
 	{
-		var target = (WorldGenerator)serializedObject.targetObject;
-		DrawDefaultInspector();
-		GUILayout.Space(5);
-		GUILayout.Label("chunkIndex/" + target.chunkIndex.ToString());
-		GUILayout.Label("preIndex" + target.preIndex.ToString());
+		base.OnInspectorGUI();
+
+		serializedObject.Update();
+
+		SerializedProperty array = serializedObject.FindProperty("chunkMeshTypes");
+
+		if (array != null)
+		{
+			const int size = 16;
+
+			if (array.arraySize != size * size)
+				array.arraySize = size * size;
+
+			for (int y = size - 1; y > -1; y--)
+			{
+				EditorGUILayout.BeginHorizontal();
+
+				for (int x = 0; x < size; x++)
+				{
+					int index = x + y * size;
+					SerializedProperty element = array.GetArrayElementAtIndex(index);
+
+					ChunkMeshType type = (ChunkMeshType)element.enumValueIndex;
+
+					Color oldColor = GUI.backgroundColor;
+					GUI.backgroundColor = GetColor(type);
+
+					element.enumValueIndex = (int)(ChunkMeshType)EditorGUILayout.EnumPopup(
+						type,
+						GUILayout.Width(55)
+					);
+
+					GUI.backgroundColor = oldColor;
+				}
+
+				EditorGUILayout.EndHorizontal();
+			}
+		}
+
+		serializedObject.ApplyModifiedProperties();
 	}
 }
 #endif

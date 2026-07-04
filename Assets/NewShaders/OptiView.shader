@@ -18,9 +18,7 @@ Shader "VRC_MINE/Editor/OptimizatorView"
 
             #include "UnityCG.cginc"
 
-            Texture2D<uint4> _MainTex;
-            sampler2D _CameraDepthTexture;
-            float _Scale;
+            sampler2D _MainTex;
 
             struct appdata
             {
@@ -38,19 +36,14 @@ Shader "VRC_MINE/Editor/OptimizatorView"
             {
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
-                int2 size;
-                _MainTex.GetDimensions(size.x, size.y);
-                o.uv = v.uv*size;
+                o.uv = v.uv;
                 return o;
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
-                int2 p = int2(i.uv);
 
-                float4 d = float4(_MainTex.Load(int3(p, 0)))/255;
-
-                return fixed4(d.xyz, 1);
+                return fixed4(tex2D(_MainTex, i.uv).r,0,0, 1.0);
             }
 
             ENDCG

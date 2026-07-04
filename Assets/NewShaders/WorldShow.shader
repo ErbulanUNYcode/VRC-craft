@@ -115,7 +115,7 @@ Shader "VRC_MINE/WorldShow"
                 {
                     o.face =_WorldSpaceCameraPos.y<unity_ObjectToWorld._m13+v.vertex.y;
                 }
-                o.inter = unity_ObjectToWorld._m03_m13_m23+v.vertex.xyz;
+                o.inter = v.vertex.xyz + unity_ObjectToWorld._m03_m13_m23;
                 float3 camOffset = (_WorldSpaceCameraPos - o.inter)/280;
                 if(o.shadow.z==0)
                 o.shadow= mul(_ShadowMatrix, float4(o.inter, 1)).xyz/2+0.5;
@@ -123,13 +123,11 @@ Shader "VRC_MINE/WorldShow"
                 o.shadow.xy= mul(_ShadowMatrix, float4(o.inter, 1)).xy/2+0.5;
                 o.shadow.z-=0.0004;
                 o.fog = dot(camOffset, camOffset);
+
                 float3 objectPos = round(unity_ObjectToWorld._m03_m13_m23);
-
-float3 relativePos = v.vertex.xyz + objectPos - _WorldSpaceCameraPos;
-
-float3 viewPos = mul((float3x3)UNITY_MATRIX_V, relativePos);
-
-o.vertex = mul(UNITY_MATRIX_P, float4(viewPos, 1.0));
+                float3 relativePos = v.vertex.xyz + objectPos - _WorldSpaceCameraPos;
+                float3 viewPos = mul((float3x3)UNITY_MATRIX_V, relativePos);
+                o.vertex = mul(UNITY_MATRIX_P, float4(viewPos, 1.0));
                 
                 int3 p = o.inter*v.color.xyz;
                 o.placeCoord = p.x+p.y+p.z;

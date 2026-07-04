@@ -3,6 +3,7 @@ Shader "VRC_MINE/WorldOptimizator"
     Properties
     {
         _WorldTex ("Generated Texture", 2D) = "white" {}
+        _ClearTex ("Initial Texture", 2D) = "white" {}
         _ChunkX ("Chunk X", Int) = 0
         _ChunkY ("Chunk Y", Int) = 0
     }
@@ -32,8 +33,9 @@ Shader "VRC_MINE/WorldOptimizator"
                 float4 pos : SV_POSITION;
                 noperspective float2 uv : TEXCOORD0;
             };
-
+            
             texture2D<fixed> _WorldTex;
+            texture2D<fixed> _ClearTex;
             int _ChunkX;
             int _ChunkY;
 
@@ -68,11 +70,13 @@ Shader "VRC_MINE/WorldOptimizator"
                 bool face = uv.y>191;
                 uv.y%=192;
                 int2 ch = uv/int2(32,12)*32;
+                if(_ClearTex.Load(int3(ch.x>>5,ch.y>>5,0))==1) return 0;
                 uv%=int2(32,12);
                 if(uv.y<4)
                 {
                     int3 pos = int3(ch.x+uv.x,uv.y*32,ch.y);
-                    if(((pos.x>>4)!=(_ChunkX&31)&&(((pos.x+511)&511)>>4)!=(_ChunkX&31))||pos.z>>5!=(_ChunkY&31)/2)discard;
+                    if(_ClearTex.Load(int3(((pos.x-1)&511)>>5,ch.y>>5,0))==1) return 0;
+                    if(((pos.x>>4)!=_ChunkX&&(((pos.x-1)&511)>>4)!=_ChunkX)||pos.z>>5!=_ChunkY/2)discard;
                     uint4 mm = uint4(32,0,32,0);
                     for(int y=0;y<32;y++)
                     {
@@ -94,7 +98,8 @@ Shader "VRC_MINE/WorldOptimizator"
                 {
                     uv.y-=4;
                     int3 pos = int3(ch.x,uv.y*32,ch.y+uv.x);
-                    if(((pos.z>>4)!=(_ChunkY&31)&&(((pos.z+511)&511)>>4)!=(_ChunkY&31))||pos.x>>5!=(_ChunkX&31)/2)discard;
+                if(_ClearTex.Load(int3(ch.x>>5,((pos.z-1)&511)>>5,0))==1) return 0;
+                    if(((pos.z>>4)!=_ChunkY&&(((pos.z-1)&511)>>4)!=_ChunkY)||pos.x>>5!=_ChunkX/2)discard;
                     uint4 mm = uint4(32,0,32,0);
                     for(int y=0;y<32;y++)
                     {
@@ -116,7 +121,7 @@ Shader "VRC_MINE/WorldOptimizator"
                 {
                     uv.y-=8;
                     int3 pos = int3(ch.x,uv.x+uv.y*32+1,ch.y);
-                    if(pos.x>>5!=(_ChunkX&31)/2||pos.z>>5!=(_ChunkY&31)/2)discard;
+                    if(pos.x>>5!=_ChunkX/2||pos.z>>5!=_ChunkY/2)discard;
                     uint4 mm = uint4(32,0,32,0);
                     for(int z=0;z<32;z++)
                     {
