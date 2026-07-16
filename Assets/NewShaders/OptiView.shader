@@ -18,7 +18,7 @@ Shader "VRC_MINE/Editor/OptimizatorView"
 
             #include "UnityCG.cginc"
 
-            sampler2D _MainTex;
+            Texture2D<uint2> _MainTex;
 
             struct appdata
             {
@@ -42,8 +42,10 @@ Shader "VRC_MINE/Editor/OptimizatorView"
 
             fixed4 frag (v2f i) : SV_Target
             {
-
-                return fixed4(tex2D(_MainTex, i.uv).r,0,0, 1.0);
+                uint2 col = _MainTex.Load(int3(i.uv*16,0));
+                col.x-=50;
+                col.x*=4;
+                return fixed4(float2(col)/255,0,1);
             }
 
             ENDCG

@@ -7,10 +7,6 @@ using VRC.SDKBase;
 [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class WorldGenerator : UdonSharpBehaviour
 {
-	[SerializeField] private Material afterGPUReadback;
-
-	[SerializeField] private Gradient up;
-
 	[SerializeField] private GameObject chunkRendererPrefab;
 	[SerializeField] private GameObject colliderPrefab;
 	[SerializeField] private Transform collidersParent;
@@ -23,6 +19,7 @@ public class WorldGenerator : UdonSharpBehaviour
 	[SerializeField] private Material worldShadowMaterial;
 	[SerializeField] private Material optimizatorMaterial;
 	[SerializeField] private Material chunkGeneratorMaterial;
+	[SerializeField] private Material chunkTerrainGeneratorMaterial;
 	[SerializeField] private Transform shadowControl;
 	[SerializeField] private Camera shadowCam;
 	[SerializeField] private Camera shadowCam1;
@@ -35,6 +32,7 @@ public class WorldGenerator : UdonSharpBehaviour
 	private VRCPlayerApi localPlayer;
 	private MeshFilter[] meshFilters = new MeshFilter[256];
 	private Texture2D worldTexture;
+	private Texture2D lightTexture;
 	[SerializeField]
 	private Texture2D clearTexture;
 	private Texture2D miniTex;
@@ -43,6 +41,7 @@ public class WorldGenerator : UdonSharpBehaviour
 
 	[SerializeField] private CustomRenderTexture optimizator;
 	[SerializeField] private CustomRenderTexture chunkGenerator;
+	[SerializeField] private CustomRenderTexture chunkTerrainGenerator;
 
 	[SerializeField] private ChunkMeshGenerator chunkMeshGenerator;
 
@@ -65,7 +64,6 @@ public class WorldGenerator : UdonSharpBehaviour
 		cam.FarClipPlane = 300;
 
 		for (int i = 0; i < 1024; i++) initPositions[i] = Vector2Int.one * 10_000_000;
-		chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.Realtime;
 		optimizator.initializationSource = CustomRenderTextureInitializationSource.TextureAndColor;
 		optimizator.initializationColor = Color.clear;
 		optimizator.Initialize();
@@ -73,10 +71,8 @@ public class WorldGenerator : UdonSharpBehaviour
 		localPlayer = Networking.LocalPlayer;
 		localPlayer.SetGravityStrength(3);
 
-		if (miniTex != null) Destroy(worldTexture);
-		miniTex = new Texture2D(256, 128, TextureFormat.R8, false);
+		miniTex = new Texture2D(256, 128, TextureFormat.R8, false, true);
 		miniTex.filterMode = FilterMode.Point;
-		afterGPUReadback.SetTexture("_MainTex", miniTex);
 		for (int i = 0; i < 36; i++)
 		{
 			colliders[i] = Instantiate(colliderPrefab, collidersParent).GetComponent<Collider>();
@@ -107,13 +103,20 @@ public class WorldGenerator : UdonSharpBehaviour
 		#endregion
 		#region textures
 		if (worldTexture != null) Destroy(worldTexture);
-		worldTexture = new Texture2D(8192, 4096, TextureFormat.R8, false);
+
+		lightTexture = new Texture2D(8192, 4096, TextureFormat.RG16, false, true);
+		lightTexture.LoadRawTextureData(new byte[lightTexture.width * lightTexture.height * 2]);
+		lightTexture.Apply();
+		worldMaterial.SetTexture("_LightTex", lightTexture);
+
+		worldTexture = new Texture2D(8192, 4096, TextureFormat.R8, false, true);
 		worldTexture.LoadRawTextureData(new byte[worldTexture.width * worldTexture.height]);
 		worldTexture.Apply();
 		worldMaterial.SetTexture("_MainTex", worldTexture);
+		worldMaterial.SetTexture("_MainTex2", worldTexture);
 		worldShadowMaterial.SetTexture("_MainTex", worldTexture);
 		optimizatorMaterial.SetTexture("_WorldTex", worldTexture);
-		clearTexture = new Texture2D(16, 16, TextureFormat.R8, false);
+		clearTexture = new Texture2D(16, 16, TextureFormat.R8, false, true);
 		clearTexture.filterMode = FilterMode.Point;
 		clearTexture.LoadRawTextureData(new byte[clearTexture.width * clearTexture.height]);
 		clearTexture.Apply();
@@ -121,19 +124,48 @@ public class WorldGenerator : UdonSharpBehaviour
 		optimizatorMaterial.SetTexture("_ClearTex", clearTexture);
 		#endregion
 	}
-
+	int lastFrameCount = 0;
 	private void GenerateChunk()
 	{
 		var pos = chunksQueueData[chunkIndex] + new Vector2Int((int)transform.position.x / 16, (int)transform.position.z / 16);
+		lastFrameCount = Time.frameCount;
+		VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
 		chunkGeneratorMaterial.SetInt("_ChunkPosX", pos.x);
 		chunkGeneratorMaterial.SetInt("_ChunkPosY", pos.y);
-		VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
+		chunkTerrainGeneratorMaterial.SetInt("_ChunkPosX", pos.x);
+		chunkTerrainGeneratorMaterial.SetInt("_ChunkPosY", pos.y);
+		chunkTerrainGenerator.Initialize();
+		SendCustomEventDelayedFrames(nameof(GenerateChunkB), 1);
 	}
+	public void GenerateChunkB()
+	{
+		chunkGenerator.Initialize();
+	}
+
+	private byte[] px = new byte[65536];
 	public override void OnAsyncGpuReadbackComplete(VRCAsyncGPUReadbackRequest request)
 	{
+		ManualOnAsyncGpuReadbackComplete(request);
+	}
+	private VRCAsyncGPUReadbackRequest lastRequest;
+	public void ManualOnAsyncGpuReadbackCompleteDelay()
+	{
+		Debug.Log("<<<SUPER CRAFT>>> GPU readback complete delay");
+		ManualOnAsyncGpuReadbackComplete(lastRequest);
+	}
+	private void ManualOnAsyncGpuReadbackComplete(VRCAsyncGPUReadbackRequest request)
+	{
+		if (Time.frameCount - lastFrameCount < 2)
+		{
+			lastRequest = request;
+			SendCustomEventDelayedFrames(nameof(ManualOnAsyncGpuReadbackCompleteDelay), 1);
+			return;
+		}
+
 		if (request.hasError)
 		{
 			Debug.LogError("GPU readback error!");
+			lastFrameCount = Time.frameCount;
 			VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
 			return;
 		}
@@ -164,16 +196,15 @@ public class WorldGenerator : UdonSharpBehaviour
 			return;
 		}
 
-		var px = new byte[chunkGenerator.width * chunkGenerator.height];
 		if (!request.TryGetData(px)) return;
 
 		miniTex.LoadRawTextureData(px);
-		miniTex.Apply();
+		//miniTex.Apply();
 		pos = chunksQueueData[preIndex] + worldPos;
 		var data = miniTex.GetPixels();
-		/*
-		if (pos == Vector2Int.down)
-			data[11000] = new Color32(15, 0, 0, 0);*/
+
+		if (pos == new Vector2Int(-6, -1))
+			data[14669] = new Color32(15, 100, 200, 0);
 		var mpx = pos.x >> 1 & 15;
 		var mpy = pos.y >> 1 & 15;
 		if (clearTexture.GetPixel(mpx, mpy).r == 1)
@@ -204,8 +235,9 @@ public class WorldGenerator : UdonSharpBehaviour
 		if (preIndex == chunksQueueData.Length)
 		{
 			Debug.Log("<<<SUPER CRAFT>>> World generation complete!");
-			chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
-			optimizator.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
+			/*chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
+			chunkTerrainGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;*/
+			optimizator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
 			return;
 		}
 
@@ -237,7 +269,21 @@ public class WorldGenerator : UdonSharpBehaviour
 		if (preIndex < chunksQueueData.Length / 4 && (frame & 31) == 0) shadowCam1.enabled = true;
 		var pos = Vector3Int.FloorToInt(localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime + Vector3.up * 0.5f);
 		if (oldPos == pos) return;
+
+		var oldCamPos = shadowCam.transform.position;
+		var oldCamPos1 = shadowCam1.transform.position;
+
 		shadowControl.transform.localPosition = pos;
+
+		shadowCam.transform.position = oldCamPos;
+		shadowCam.transform.position = shadowCam.transform.TransformPoint(Vector3Int.RoundToInt(shadowCam.transform.InverseTransformPoint(shadowControl.transform.TransformPoint(new Vector3(0, 0, -327.68f)))));
+		shadowCam1.transform.position = oldCamPos1;
+		shadowCam1.transform.position = shadowCam1.transform.TransformPoint(Vector3Int.RoundToInt(shadowCam1.transform.InverseTransformPoint(shadowControl.transform.TransformPoint(new Vector3(0, 0, -327.68f)))));
+		var shadowCam1Offset = shadowCam.transform.InverseTransformPoint(shadowCam1.transform.position);
+		shadowCam1Offset.x /= 1000;
+		shadowCam1Offset.y /= 1000;
+		shadowCam1Offset.z /= 65536;
+		worldMaterial.SetVector("_ShadowLodOffset", shadowCam1Offset);
 		worldMaterial.SetMatrix("_ShadowMatrix", shadowCam.projectionMatrix * shadowCam.worldToCameraMatrix);
 		shadowCam1.enabled = true;
 		oldPos = pos - oldPos;
@@ -396,7 +442,8 @@ public class WorldGenerator : UdonSharpBehaviour
 			chunkIndex++;
 			pos = chunksQueueData[chunkIndex] + worldPos;
 		}
-		chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.Realtime;
+		/*chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
+		chunkTerrainGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;*/
 		preIndex = -1;
 		GenerateChunk();
 	}

@@ -63,6 +63,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _MainTex2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -114,7 +118,13 @@ Material:
     - _ZWrite: 1
     - _Zoom: 1
     m_Colors:
+    - _BackLightColor: {r: 0.84284824, g: 0.8358243, b: 0.81710494, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _DownLightColor: {r: 0.6801466, g: 0.6793245, b: 0.67984927, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _FogColor: {r: 0.1990477, g: 0.4364763, b: 0.6698113, a: 1}
+    - _FrontLightColor: {r: 1, g: 0.99973136, b: 1, a: 0.37564623}
+    - _LeftLightColor: {r: 0.85571766, g: 0.8521192, b: 0.88278586, a: 0}
+    - _RightLightColor: {r: 0.8585828, g: 0.85104936, b: 0.8842409, a: 0.6243843}
+    - _UpLightColor: {r: 1, g: 1, b: 1, a: 0.79921174}
   m_BuildTextureStacks: []

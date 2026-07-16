@@ -2,6 +2,7 @@ Shader "VRC_MINE/WorldGenerator"
 {
     Properties
     {
+        _Data ("Data", 2D) = "white" {}
     }
 
     SubShader
@@ -17,6 +18,10 @@ Shader "VRC_MINE/WorldGenerator"
 
             #include "UnityCG.cginc"
 
+            Texture2D<uint2> _Data;
+            int _ChunkPosX;
+            int _ChunkPosY;
+
             struct appdata
             {
                 float4 vertex : POSITION;
@@ -28,9 +33,6 @@ Shader "VRC_MINE/WorldGenerator"
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
             };
-
-            int _ChunkPosX;
-            int _ChunkPosY;
 
             v2f vert(appdata v)
             {
@@ -128,47 +130,41 @@ Shader "VRC_MINE/WorldGenerator"
                 return lerp1(x1, x2, u.y);
             }
 
-            float fbm(float2 p,int o)
-            {
-                float value = 0;
-                for(int i = 0; i < o; i++)
-                {
-                    value+=noise2D(p*(1<<i))/(1<<(i+1));
-                }
-
-                return value/(1.0-1.0/(1<<o));
-            }
-
             fixed frag(v2f i) : SV_Target
             {
                 int2 uv = i.uv;
                 int3 pos = int3((uv.x&15)+(_ChunkPosX<<4), uv.y, (uv.x>>4)+(_ChunkPosY<<4));
+                int2 h = _Data.Load(int3(pos.xz&15,0));
+                if(pos.y==0) return float(h.x)/255;
+                if(h.y==3||h.y==4)h.x=40;
                 if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16.0/255;
-                float h = fbm(float2(pos.xz)/100,4)*20+40;
-                if(h<pos.y) return 0;
-
+                if(h.x<pos.y) return 0;
+                if(h.y==3||h.y==4) return 2;
                 float3 cavePos = pos;
                 cavePos.y*=1.5;
                 float cave1 = (fbmCave(cavePos/40)-0.5)*30;
                 float cave2 = (fbmCave((cavePos+220)/40)-0.5)*30;
                 bool cave = cave1<1&&cave1>-1&&cave2<1&&cave2>-1;
                 fixed x = 
-                h<pos.y?0://air
+                h.x<pos.y?0://air
                 cave?0://cave
-                h-1<pos.y?19://grass
-                h-3<pos.y?18://dirt
-                17;//stone
+                (h.y<2)?
+                (
+                    h.x-1<pos.y?19://grass
+                    h.x-(h.y==0?3:0)<pos.y?18://dirt
+                    17//stone
+                ):17;//stone
                 if(x==17)
                 {
                     float sp =hash31(pos);
-                    if((hash31(pos>>2)>0.985||hash31((pos+222)>>2)>0.985)&&sp>0.3) x=20;//coal ore
-                    else
+                    if((hash31(pos>>2)>0.99||hash31((pos+222)>>2)>0.99)&&sp>0.3) x=20;//coal ore
+                    else if(h.x-3<pos.y||hash21(pos.xz>>1)>0.3)
                     {
                         float sp1 = hash31(pos>>1);
                         float sp2 = hash31((pos+111)>>1);
-                        if((sp1>0.996||sp2>0.996)&&sp>0.2) x=21;//iron ore
-                        else if(pos.y<15&&(sp1>0.994||sp2>0.994)&&sp>0.5) x=22;//gold ore
-                        else if(pos.y<15&&(sp1>0.993||sp2>0.993)&&sp>0.5) x=23;//diamond ore
+                        if((sp1>0.997||sp2>0.997)&&sp>0.2) x=21;//iron ore
+                        else if(pos.y<15&&(sp1>0.996||sp2>0.996)&&sp>0.5) x=22;//gold ore
+                        else if(pos.y<15&&(sp1>0.994||sp2>0.994)&&sp>0.5) x=23;//diamond ore
                     }
                 }
                 return x/255;

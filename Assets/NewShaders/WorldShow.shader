@@ -7,8 +7,13 @@ Shader "VRC_MINE/WorldShow"
         _Optimizer ("Optimizer", 2D) = "white" {}
         _Atlas ("Atlas", 2D) = "white" {}
         _AtlasFlipMap ("AtlasFlipMap", 2D) = "white" {}
-        _Light ("Light", 2D) = "white" {}
-        _FogColor ("FogColor", Color) = (0,0,0,0)
+        _FogColor ("FogColor", Color) = (1,1,1,1)
+        _UpLightColor ("UpLightColor", Color) = (1,1,1,1)
+        _DownLightColor ("DownLightColor", Color) = (1,1,1,1)
+        _RightLightColor ("RightLightColor", Color) = (1,1,1,1)
+        _LeftLightColor ("LeftLightColor", Color) = (1,1,1,1)
+        _FrontLightColor ("FrontLightColor", Color) = (1,1,1,1)
+        _BackLightColor ("BackLightColor", Color) = (1,1,1,1)
         _ShadowMap ("ShadowMap", 2D) = "white" {}
         _ShadowMap1 ("ShadowMap", 2D) = "white" {}
         _Special ("Special", Float) = 0
@@ -28,13 +33,20 @@ Shader "VRC_MINE/WorldShow"
             #pragma fragment frag
             
             Texture2D<fixed> _MainTex;
+            Texture2D<fixed2> _LightTex;
             Texture2D<fixed4> _InitChunks;
             Texture2D<uint4> _Optimizer;
             sampler2D _Atlas;
             Texture2D<fixed4> _AtlasFlipMap;
-            sampler2D _Light;
             fixed4 _FogColor;
+            fixed4 _UpLightColor;
+            fixed4 _DownLightColor;
+            fixed4 _RightLightColor;
+            fixed4 _LeftLightColor;
+            fixed4 _FrontLightColor;
+            fixed4 _BackLightColor;
             float4x4 _ShadowMatrix;
+            float4 _ShadowLodOffset;
             sampler2D _ShadowMap;
             sampler2D _ShadowMap1;
 
@@ -54,6 +66,7 @@ Shader "VRC_MINE/WorldShow"
                 nointerpolation int placeCoord : TEXCOORD3;
                 nointerpolation bool3 offset : TEXCOORD4;
                 nointerpolation bool face : TEXCOORD5;
+                nointerpolation fixed4 light : TEXCOORD6;
             };
 
             v2f vert(appdata v)
@@ -76,7 +89,7 @@ Shader "VRC_MINE/WorldShow"
                             o.vertex = float4(0,0,-1,0);
                             return o;
                         }
-                        o.shadow.z=(_ShadowMatrix._m20<0)==o.face?10:0;
+                        o.light=o.face?_LeftLightColor:_RightLightColor;
                         v.vertex.y-=(v.color.a%1)==0?0:32;
                         v.vertex.y+=v.color.a%1==0?t.x:t.y;
                         v.vertex.z=v.color.a>0.5?t.z:t.w;
@@ -91,7 +104,7 @@ Shader "VRC_MINE/WorldShow"
                             o.vertex = float4(0,0,-1,0);
                             return o;
                         }
-                        o.shadow.z=(_ShadowMatrix._m22<0)==o.face?10:0;
+                        o.light=o.face?_BackLightColor:_FrontLightColor;
                         v.vertex.y-=v.color.a%1==0?0:32;
                         v.vertex.y+=v.color.a%1==0?t.x:t.y;
                         v.vertex.x=v.color.a>0.5?t.z:t.w;
@@ -106,7 +119,7 @@ Shader "VRC_MINE/WorldShow"
                             o.vertex = float4(0,0,-1,0);
                             return o;
                         }
-                        o.shadow.z=(_ShadowMatrix._m21<0)==o.face?10:0;
+                        o.light=o.face?_DownLightColor:_UpLightColor;
                         v.vertex.z=v.color.a%1==0?t.x:t.y;
                         v.vertex.x=v.color.a>0.5?t.z:t.w;
                     }
@@ -114,15 +127,16 @@ Shader "VRC_MINE/WorldShow"
                 else
                 {
                     o.face =_WorldSpaceCameraPos.y<unity_ObjectToWorld._m13+v.vertex.y;
+                    o.light=_DownLightColor;
                 }
                 o.inter = v.vertex.xyz + unity_ObjectToWorld._m03_m13_m23;
                 float3 camOffset = (_WorldSpaceCameraPos - o.inter)/280;
-                if(o.shadow.z==0)
+                if(o.light.a>0)
                 o.shadow= mul(_ShadowMatrix, float4(o.inter, 1)).xyz/2+0.5;
                 else
                 o.shadow.xy= mul(_ShadowMatrix, float4(o.inter, 1)).xy/2+0.5;
                 o.shadow.z-=0.0004;
-                o.fog = dot(camOffset, camOffset);
+                o.fog = dot(camOffset.xz, camOffset.xz);
 
                 float3 objectPos = round(unity_ObjectToWorld._m03_m13_m23);
                 float3 relativePos = v.vertex.xyz + objectPos - _WorldSpaceCameraPos;
@@ -209,22 +223,23 @@ Shader "VRC_MINE/WorldShow"
                 if(flip.z && (fliper>>2)&1)uv.y=1-uv.y;
                 uv+=uvOffset;
                 uv/=32;
-                fixed4 c = tex2D(_Atlas, uv);
+                fixed4 c = tex2D(_Atlas, uv)*i.light;
                 float shadow;
-                if(i.shadow.z>9.9) shadow = 0.2;
+                if(i.light.a==0) shadow = 0.2;
                 else
                 {
                     shadow = i.shadow.x<0||i.shadow.x>1||i.shadow.y<0||i.shadow.y>1||i.shadow.z<0.05||i.shadow.z>0.95;
                     if(!shadow) shadow = 1-clamp(i.shadow.z-tex2D(_ShadowMap, i.shadow.xy).r,0,0.002)*400;
                     else
                     {
+                        i.shadow-=_ShadowLodOffset.xyz;
                         i.shadow.xy=(i.shadow.xy-0.5)/10+0.5;
                         shadow = i.shadow.x<0||i.shadow.x>1||i.shadow.y<0||i.shadow.y>1||i.shadow.z<0.05||i.shadow.z>0.95;
                         if(!shadow) shadow = 1-clamp(i.shadow.z-tex2D(_ShadowMap1, i.shadow.xy).r,0,0.002)*400;
                     }
                 }
-                
-                shadow -= ao*(0.4-shadow)/3;
+                shadow = lerp(0.2,shadow,i.light.a);
+                shadow -= ao*(0.4-shadow)/2.5;
 
                 c.rgb = c.rgb*(1-i.fog)*shadow+_FogColor*i.fog;
                 return c;
