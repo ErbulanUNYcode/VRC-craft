@@ -61,7 +61,7 @@ public class WorldGenerator : UdonSharpBehaviour
 		var masks = cam.CullingMask;
 		masks.value ^= 1 << 27;
 		cam.CullingMask = masks.value;
-		cam.FarClipPlane = 300;
+		cam.FarClipPlane = 400;
 
 		for (int i = 0; i < 1024; i++) initPositions[i] = Vector2Int.one * 10_000_000;
 		optimizator.initializationSource = CustomRenderTextureInitializationSource.TextureAndColor;

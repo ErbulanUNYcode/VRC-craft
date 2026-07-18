@@ -25,7 +25,7 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _ChunkPosX: 7
-    - _ChunkPosY: 77
+    - _ChunkPosX: 5
+    - _ChunkPosY: -4
     m_Colors: []
   m_BuildTextureStacks: []

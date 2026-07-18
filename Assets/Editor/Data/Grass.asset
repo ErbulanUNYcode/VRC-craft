@@ -18,14 +18,14 @@ MonoBehaviour:
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
-    randomFlipHorizontal: 1
+    randomFlipHorizontal: 0
     randomFlipVertical: 0
   - texture: {fileID: 2800000, guid: ed88c34b5f78a93418b689af726711df, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
-    randomFlipHorizontal: 1
+    randomFlipHorizontal: 0
     randomFlipVertical: 0
   - texture: {fileID: 2800000, guid: de4ef0aa8fafaa242a39f5004df154e0, type: 3}
     flipDiagonal: 0
@@ -46,12 +46,12 @@ MonoBehaviour:
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
-    randomFlipHorizontal: 1
+    randomFlipHorizontal: 0
     randomFlipVertical: 0
   - texture: {fileID: 2800000, guid: ed88c34b5f78a93418b689af726711df, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
-    randomFlipHorizontal: 1
+    randomFlipHorizontal: 0
     randomFlipVertical: 0

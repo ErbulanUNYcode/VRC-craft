@@ -24,6 +24,7 @@ public class TextureColorizer : ScriptableObject
 		for (int i = 0; i < pixels.Length; i++)
 		{
 			pixels[i] *= tint;
+			pixels[i] += Color.white * 0.2f;
 		}
 
 		tex.SetPixels(pixels);

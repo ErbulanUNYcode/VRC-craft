@@ -157,6 +157,7 @@ Shader "VRC_MINE/WorldGenerator"
                 if(x==17)
                 {
                     float sp =hash31(pos);
+                    if(pos.y==h.x-1||sp>0.9)
                     if((hash31(pos>>2)>0.99||hash31((pos+222)>>2)>0.99)&&sp>0.3) x=20;//coal ore
                     else if(h.x-3<pos.y||hash21(pos.xz>>1)>0.3)
                     {

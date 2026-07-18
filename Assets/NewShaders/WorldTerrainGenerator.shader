@@ -160,9 +160,9 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 c.y*=c.y;
                 d.y*=d.y;
                 float r = a.x;
-                r=lerp(b.x,r,b.y*b.y);
-                r=lerp(c.x,r,c.y*c.y);
-                r=lerp(d.x,r,d.y*d.y);
+                r=lerp(b.x,r,max(b.y-0.2,0)*1.25);
+                r=lerp(c.x,r,max(c.y-0.2,0)*1.25);
+                r=lerp(d.x,r,max(d.y-0.2,0)*1.25);
 
                 return r;
             }
@@ -195,33 +195,42 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 int2 pos = int2(uv.x+(_ChunkPosX<<4), uv.y+(_ChunkPosY<<4));
                 float h1 = fbm(float2(pos.xy)/100,4)*20;
                 uint b = 0;//classic
-                bool br = fbm(float2(pos.xy-200)/10,4)>0.7;
-
-                float h2 = fbmm(float2(pos.xy+1024)/150,3)*250-150+h1;
+                bool br = fbm(float2(pos.xy-200)/10,4)>0.5;
+                
+                float h2 = fbmm(float2(pos.xy+1024)/150,3)*230-150+h1*2;
+                float m = h2;
                 h1+=40;
                 float wom = h1;
-                if(h2>=h1)
+                if(h2>=h1)//mouuntain
                 {
                     h1=h2;
                     b=br?1:2;
                 }
 
-                
-                
-                h2 = pow(fbm(float2(pos.xy-1024)/300,5),2)*200+10;
+                h2 = pow(fbm(float2(pos.xy-1024)/300,5),2)*400+10;
+
                 if(h2>wom)
                 {
                     h2-=wom;
                     h2*=h2;
                     h2+=wom;
                 }
-                if(h2<h1)
+
+                if(h2<h1)//lake
                 {
                     h1=h2;
                     if(h2<40)
                     {
                         b=br?3:4;
                     }
+                }
+
+                h2 = pow(abs(fbm(float2(pos.xy+1024)/150,3)-0.4)*(h2-40)/(450-m),2)+max(38,m);
+                if(h2<h1)//river
+                {
+                    h1=h2;
+                    if(h2<40)
+                    b=br?3:4;
                 }
 
                 return uint2(h1,b);
