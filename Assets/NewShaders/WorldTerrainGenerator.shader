@@ -44,66 +44,9 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 return o;
             }
 
-            float hash31(int3 p)
-            {
-                int n = p.x * 374761393 + p.y * 668265263 + p.z * 1446658333;
-                n = (n ^ (n >> 13)) * 1274126177;
-                return frac(n * 0.00000000023283064365386963); // 1/2^32
-            }
-
             float lerp1(float a, float b, float t){return a + t * (b - a);}
 
             float fade(float t){return t * t * (3.0 - 2.0 * t);}
-
-            float noise3D(float3 p)
-            {
-                int3 i = (int3)floor(p);
-                float3 f = frac(p);
-
-                float a = hash31(i);
-                float b = hash31(i + int3(1, 0, 0));
-                float c = hash31(i + int3(0, 1, 0));
-                float d = hash31(i + int3(1, 1, 0));
-
-                float e = hash31(i + int3(0, 0, 1));
-                float f1 = hash31(i + int3(1, 0, 1));
-                float g = hash31(i + int3(0, 1, 1));
-                float h = hash31(i + int3(1, 1, 1));
-
-                float3 u = float3(fade(f.x), fade(f.y), fade(f.z));
-
-                float x00 = lerp(a, b, u.x);
-                float x10 = lerp(c, d, u.x);
-                float x01 = lerp(e, f1, u.x);
-                float x11 = lerp(g, h, u.x);
-
-                float y0 = lerp(x00, x10, u.y);
-                float y1 = lerp(x01, x11, u.y);
-
-                return lerp(y0, y1, u.z);
-            }
-
-            float fbm3D(float3 p, int o)
-            {
-                float value = 0;
-
-                for(int i = 0; i < o; i++)
-                {
-                    value += noise3D(p * (1 << i)) / (1 << (i + 1));
-                }
-
-                return value / (1.0 - 1.0 / (1 << o));
-            }
-
-            float fbmCave(float3 p)
-            {
-                float value = 0;
-
-                value += noise3D(p) * 0.5;
-                value += noise3D(p * 2.0) * 0.25;
-
-                return value / 0.75;
-            }
 
             float hash21(int2 p)
             {
@@ -121,6 +64,24 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 float b = hash21(i + float2(1, 0));
                 float c = hash21(i + float2(0, 1));
                 float d = hash21(i + float2(1, 1));
+
+                float2 u = float2(fade(f.x), fade(f.y));
+
+                float x1 = lerp1(a, b, u.x);
+                float x2 = lerp1(c, d, u.x);
+
+                return lerp1(x1, x2, u.y);
+            }
+
+            float noise01(float2 p, float ch)
+            {
+                float2 i = floor(p);
+                float2 f = frac(p);
+
+                float a = hash21(i)>ch;
+                float b = hash21(i + float2(1, 0))>ch;
+                float c = hash21(i + float2(0, 1))>ch;
+                float d = hash21(i + float2(1, 1))>ch;
 
                 float2 u = float2(fade(f.x), fade(f.y));
 
@@ -192,48 +153,68 @@ Shader "VRC_MINE/WorldTerrainGenerator"
             uint2 frag(v2f i) : SV_Target
             {
                 int2 uv = i.uv;
-                int2 pos = int2(uv.x+(_ChunkPosX<<4), uv.y+(_ChunkPosY<<4));
-                float h1 = fbm(float2(pos.xy)/100,4)*20;
+                float2 pos = int2(uv.x+(_ChunkPosX<<4), uv.y+(_ChunkPosY<<4));
+                float height = fbm((pos.xy)/100,4);
                 uint b = 0;//classic
-                bool br = fbm(float2(pos.xy-200)/10,4)>0.5;
                 
-                float h2 = fbmm(float2(pos.xy+1024)/150,3)*230-150+h1*2;
-                float m = h2;
-                h1+=40;
-                float wom = h1;
-                if(h2>=h1)//mouuntain
+                float desert=fbm((pos.xy-1204)/1024,5)+height/4;
+
+                if(desert<0.8)
                 {
-                    h1=h2;
-                    b=br?1:2;
+                    desert-=0.8;
+                    desert=desert*10;
+                    desert+=0.8;
+                    desert=max(desert,0);
+                }
+                else
+                {
+                    b=8;
+                }
+                height*=20;
+                float m = fbmm((pos.xy+1024)/150,3)*(230-desert*25)-150+height*2;
+                height+=40;
+                float wom = height;
+                if(m>=height)//mountain
+                {
+                    height=m;
+                    if(b!=8) b=fbm((pos.xy-200)/10,4)>0.5?1:2;
                 }
 
-                h2 = pow(fbm(float2(pos.xy-1024)/300,5),2)*400+10;
+                float l = pow(fbm((pos.xy-1524)/300+desert/2,5)*6,4)+15;//lake
 
-                if(h2>wom)
+                float lr = max(pow(fbm((pos.xy-1324)/1550,3),6)*2,(m-35)/6)+desert*desert*5;
+                if(lr>5)
                 {
-                    h2-=wom;
-                    h2*=h2;
-                    h2+=wom;
+                    lr-=5;
+                    lr*=lr;
+                    lr*=lr;
+                    lr+=5;
                 }
-
-                if(h2<h1)//lake
+                l = min(pow(abs(fbm((pos.xy+1024)/512,5)-0.5)*(120-(50-clamp(l,30,50))*10),2)+34+lr,l);//river
+                if(l>40)
                 {
-                    h1=h2;
-                    if(h2<40)
+                    l-=40;
+                    l/=3;
+                    l+=40;
+                }
+                l+=fbm((pos.xy+124)/30,3)*6-3;
+                if(l>wom)
+                {
+                    l-=wom;
+                    l*=l;
+                    l+=wom;
+                }
+                if(l<height+1)//water
+                {
+                    height=min(l,height);
+                    float r=fbm((pos.xy-124)/15,2);
+                    if(l<44+r*4-desert*5)
                     {
-                        b=br?3:4;
+                        b = abs(l-40)<(r*7-3)?3:l>40?4:l>37?5:noise01(pos.xy/7.3,0.98)>0.6||noise01(pos.xy/7.3+1594.5,0.98)>0.6?6:7;
                     }
                 }
 
-                h2 = pow(abs(fbm(float2(pos.xy+1024)/150,3)-0.4)*(h2-40)/(450-m),2)+max(38,m);
-                if(h2<h1)//river
-                {
-                    h1=h2;
-                    if(h2<40)
-                    b=br?3:4;
-                }
-
-                return uint2(h1,b);
+                return uint2(height,b);
             }
 
             ENDHLSL

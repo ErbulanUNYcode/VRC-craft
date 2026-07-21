@@ -130,12 +130,12 @@ Shader "VRC_MINE/WorldShow"
                     o.light=_DownLightColor;
                 }
                 o.inter = v.vertex.xyz + unity_ObjectToWorld._m03_m13_m23;
-                float3 camOffset = (_WorldSpaceCameraPos - o.inter)/280;
                 if(o.light.a>0)
                 o.shadow= mul(_ShadowMatrix, float4(o.inter, 1)).xyz/2+0.5;
                 else
                 o.shadow.xy= mul(_ShadowMatrix, float4(o.inter, 1)).xy/2+0.5;
                 o.shadow.z-=0.0004;
+                float3 camOffset = (_WorldSpaceCameraPos - o.inter)/300;
                 o.fog = dot(camOffset.xz, camOffset.xz);
 
                 float3 objectPos = round(unity_ObjectToWorld._m03_m13_m23);
@@ -152,7 +152,7 @@ Shader "VRC_MINE/WorldShow"
 
             uint block(int3 pos)
             {
-                if(pos.y>127&&pos.y<0) return 0;
+                if(pos.y>127||pos.y<0) return 0;
                 int2 ch = ((pos.xz>>4)&31)*int2(256,128);
                 pos&=int3(15,127,15);
                 pos.x+=pos.z*16;
