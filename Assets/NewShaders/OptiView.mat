@@ -72,12 +72,35 @@ Material:
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
+    - _ShowDetails: 0
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
+    - _BrichForestColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _ColdColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _ContinentColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _DarkForestColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _DenseForestColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _DesertColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _ForestColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _JungleColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _OceanColor: {r: 0, g: 0.5, b: 1, a: 1}
+    - _PlainColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _PolarColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _SakuraForestColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _SavannaColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _SnowForestColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _SnowPlainColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _SnowTaigaColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _SwampColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _TaigaColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _TempColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _TundraColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _WarmColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _WastelandColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   m_BuildTextureStacks: []
