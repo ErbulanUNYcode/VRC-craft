@@ -110,7 +110,7 @@ Material:
     - _SavannaColor: {r: 1, g: 0.55655974, b: 0, a: 1}
     - _SnowForestColor: {r: 0.6084906, g: 1, b: 0.6358052, a: 1}
     - _SnowPlainColor: {r: 1, g: 1, b: 1, a: 1}
-    - _SnowTaigaColor: {r: 0.41553932, g: 0.5471698, b: 0.4424027, a: 1}
+    - _SnowTaigaColor: {r: 0.5036935, g: 0.7264151, b: 0.6618002, a: 1}
     - _SwampColor: {r: 0.26650554, g: 0.3301887, b: 0.1759968, a: 1}
     - _TaigaColor: {r: 0.08957815, g: 0.5754717, b: 0.32994238, a: 1}
     - _TempColor: {r: 0.62352943, g: 0, b: 0.29803923, a: 1}

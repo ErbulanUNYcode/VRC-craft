@@ -58,12 +58,7 @@ Shader "VRC_MINE/WorldBiomesGenerator"
 
             uint frag(v2f i) : SV_Target
             {
-                int2 pos = (int2)i.uv;
-
-                if(hash3DUint(pos) % 9 == 0)
-                    return 1;
-
-                return 0;
+                return (hash3DUint((int2)i.uv) % 9 == 0)?21:0;
             }
 
             ENDHLSL

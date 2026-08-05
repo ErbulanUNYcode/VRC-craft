@@ -6,7 +6,7 @@ CustomRenderTexture:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: BiomeGenerator 10
+  m_Name: BiomeGeneratorRTS 3
   m_ImageContentsHash:
     serializedVersion: 2
     Hash: 00000000000000000000000000000000
@@ -14,8 +14,8 @@ CustomRenderTexture:
   m_DownscaleFallback: 0
   m_IsAlphaChannelOptional: 0
   serializedVersion: 5
-  m_Width: 127
-  m_Height: 127
+  m_Width: 5121
+  m_Height: 5121
   m_AntiAliasing: 1
   m_MipCount: -1
   m_DepthStencilFormat: 0
@@ -38,13 +38,13 @@ CustomRenderTexture:
   m_Dimension: 2
   m_VolumeDepth: 1
   m_ShadowSamplingMode: 2
-  m_Material: {fileID: 2100000, guid: 1571e5c6e46fd4943a330d8f782c3e69, type: 2}
+  m_Material: {fileID: 2100000, guid: 37f423041fba8644c9f05e0e0d79dfdf, type: 2}
   m_InitSource: 1
-  m_InitMaterial: {fileID: 2100000, guid: 1571e5c6e46fd4943a330d8f782c3e69, type: 2}
+  m_InitMaterial: {fileID: 2100000, guid: 37f423041fba8644c9f05e0e0d79dfdf, type: 2}
   m_InitColor: {r: 1, g: 1, b: 1, a: 1}
   m_InitTexture: {fileID: 0}
   m_UpdateMode: 0
-  m_InitializationMode: 1
+  m_InitializationMode: 2
   m_UpdateZoneSpace: 0
   m_CurrentUpdateZoneSpace: 0
   m_UpdateZones: []

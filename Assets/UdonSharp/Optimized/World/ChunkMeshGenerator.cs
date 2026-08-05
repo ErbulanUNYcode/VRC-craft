@@ -1,7 +1,7 @@
 ﻿using UdonSharp;
 using UnityEngine;
 
-namespace Optimized.World
+namespace VRC_MINE.World
 {
 	[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 	public class ChunkMeshGenerator : UdonSharpBehaviour

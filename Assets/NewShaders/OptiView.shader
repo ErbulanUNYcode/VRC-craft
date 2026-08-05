@@ -94,7 +94,7 @@ Shader "VRC_MINE/Editor/UintTexView"
             {
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
-                o.uv = v.uv * _MainTex_TexelSize.zw;
+                o.uv = v.uv * _MainTex_TexelSize.z;
                 return o;
             }
 
@@ -107,6 +107,8 @@ Shader "VRC_MINE/Editor/UintTexView"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                if(dot(i.uv-_MainTex_TexelSize.z/2,i.uv-_MainTex_TexelSize.z/2)<_MainTex_TexelSize.z*_MainTex_TexelSize.z/400000) return fixed4(1,0,0,1);
+
                 uint r = _MainTex.Load(int3(i.uv, 0));
 
                 if(_ShowDetails)
@@ -116,46 +118,51 @@ Shader "VRC_MINE/Editor/UintTexView"
                     uint rl = _MainTex.Load(int3(i.uv+int2(-1,0), 0));
                     uint ru = _MainTex.Load(int3(i.uv+int2(0,1), 0));
                     uint rd = _MainTex.Load(int3(i.uv+int2(0,-1), 0));
-
-                    if (r == 0 && (rr != 0 || rl != 0 || ru != 0 || rd != 0)) r=18;
-                    rc>>=6;
-                    rr>>=6;
-                    rl>>=6;
-                    ru>>=6;
-                    rd>>=6;
-                    if (rc)
+                    
+                    //if ((r&63) == 0 && ((rr&63) != 0 || (rl&63) != 0 || (ru&63) != 0 || (rd&63) != 0)) r=13;
+                    if ((r) <2 && ((rr) > 1 || (rl) > 1 || (ru) > 1 || (rd) > 1)) r=13;
+                    else
                     {
-                        if(rr&&rr!=rc) r=0;
-                        if(rl&&rl!=rc) r=0;
-                        if(ru&&ru!=rc) r=0;
-                        if(rd&&rd!=rc) r=0;
+                        rc>>=6;
+                        rr>>=6;
+                        rl>>=6;
+                        ru>>=6;
+                        rd>>=6;
+
+                        if(rc!=0)
+                        {
+                            if(rr!=rc) r=0;
+                            if(rl!=rc) r=0;
+                            if(ru!=rc) r=0;
+                            if(rd!=rc) r=0;
+                        }
                     }
                 }
 
                 switch (r&63)
                 {
                     case 0: return _OceanColor;
-                    case 1: return _ContinentColor;
-                    case 2: return _PolarColor;
-                    case 3: return _ColdColor;
-                    case 4: return _TempColor;
-                    case 5: return _WarmColor;
-                    case 6: return _TundraColor;
-                    case 7: return _SnowForestColor;
-                    case 8: return _SnowTaigaColor;
-                    case 9: return _SnowPlainColor;
-                    case 10: return _TaigaColor;
-                    case 11: return _DarkForestColor;
-                    case 12: return _SwampColor;
-                    case 13: return _DenseForestColor;
-                    case 14: return _PlainColor;
-                    case 15: return _ForestColor;
-                    case 16: return _BrichForestColor;
-                    case 17: return _SakuraForestColor;
-                    case 18: return _DesertColor;
-                    case 19: return _SavannaColor;
-                    case 20: return _JungleColor;
-                    case 21: return _WastelandColor;
+                    case 1: return _TundraColor;
+                    case 2: return _SnowForestColor;
+                    case 3: return _SnowTaigaColor;
+                    case 4: return _SnowPlainColor;
+                    case 5: return _TaigaColor;
+                    case 6: return _DarkForestColor;
+                    case 7: return _SwampColor;
+                    case 8: return _DenseForestColor;
+                    case 9: return _PlainColor;
+                    case 10: return _ForestColor;
+                    case 11: return _BrichForestColor;
+                    case 12: return _SakuraForestColor;
+                    case 13: return _DesertColor;
+                    case 14: return _SavannaColor;
+                    case 15: return _JungleColor;
+                    case 16: return _WastelandColor;
+                    case 17: return _PolarColor;
+                    case 18: return _ColdColor;
+                    case 19: return _TempColor;
+                    case 20: return _WarmColor;
+                    case 21: return _ContinentColor;
                 }
 
                 return 0;

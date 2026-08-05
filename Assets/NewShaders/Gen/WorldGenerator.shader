@@ -3,6 +3,8 @@ Shader "VRC_MINE/WorldGenerator"
 	Properties
 	{
 		_Data ("Data", 2D) = "white" {}
+		_ChunkPosX ("ChunkPosX", Int) = 0
+		_ChunkPosY ("ChunkPosY", Int) = 0
 	}
 	
 	SubShader
@@ -133,7 +135,7 @@ Shader "VRC_MINE/WorldGenerator"
 			fixed frag(v2f i) : SV_Target
 			{
 				int2 uv = i.uv;
-				int3 pos = int3((uv.x&15)+(_ChunkPosX<<4), uv.y, (uv.x>>4)+(_ChunkPosY<<4));
+				int3 pos = int3((uv.x&15)+(_ChunkPosX), uv.y, (uv.x>>4)+(_ChunkPosY));
 				
 				if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16.0/255;//bedrock
 				int2 h = _Data.Load(int3(pos.xz&15,0));

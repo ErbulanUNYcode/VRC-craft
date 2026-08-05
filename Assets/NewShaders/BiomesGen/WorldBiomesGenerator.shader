@@ -10,6 +10,7 @@ Shader "VRC_MINE/WorldBiomesGenerator"
         _SetBiomes ("Set Biomes", Int) = 0
         _SetMiniBiomes ("Set Mini Biomes", Int) = 0
         _InitRivers ("Init Rivers", Int) = 0
+        _CheckSpawn ("Check Spawn", Int) = 0
         _OffsetX ("Offset X", Int) = 0
         _OffsetY ("Offset Y", Int) = 0
     }
@@ -47,9 +48,28 @@ Shader "VRC_MINE/WorldBiomesGenerator"
             bool _SetBiomes;
             bool _SetMiniBiomes;
             bool _InitRivers;
-            int _ClimateProbabilities[4];
-            int _BiomeProbabilities[16];
-            int _Weights[22];
+            bool _CheckSpawn;
+            //int _ClimateProbabilities[4];
+            static const int _ClimateProbabilities[4] = {10, 25, 45, 20};
+            //int _BiomeProbabilities[16];
+            static const int _BiomeProbabilities[16] = 
+            {
+                40,15,30,15,
+                30,20,10,40,
+                35,30,20,2,
+                35,30,25,10
+            };
+            //int _Weights[22];
+            static const int _Weights[22] =
+            {
+                0,
+                12,60,80,45,
+                90,55,35,100,
+                100,90,75,10,
+                100,80,100,35,
+                35,80,100,70,
+                1
+            };
             int _OffsetX;
             int _OffsetY;
 
@@ -65,13 +85,15 @@ Shader "VRC_MINE/WorldBiomesGenerator"
 
             uint hash2D(int2 p)
             {
-                uint h = asuint(p.x) * 374761393u;
-                h ^= asuint(p.y) * 668265263u;
-                h ^= asuint(_Seed) * 1446658333u;
+                uint h = asuint(p.x);
+                h ^= asuint(p.y) * 0x9E3779B9u;
+                h ^= asuint(_Seed) * 0x85EBCA6Bu;
 
-                h ^= (h >> 13);
-                h *= 1274126177u;
-                h ^= (p.x + p.y);
+                h ^= h >> 16;
+                h *= 0x7FEB352Du;
+                h ^= h >> 15;
+                h *= 0x846CA68Bu;
+                h ^= h >> 16;
 
                 return h;
             }
@@ -180,76 +202,74 @@ Shader "VRC_MINE/WorldBiomesGenerator"
                     }
                 }
 
-                bool isIsland = false;
+                bool isIsland = !_SetMiniBiomes;
                 if(result==0 && _AddIslands)
                 {
-                    result = h%9==0;
+                    result = ((h%9==0)||(_CheckSpawn&&pos.x==((_Size-1)>>1)&&pos.y==((_Size-1)>>1)));
+                    result*=21;
                     isIsland = true;
                 }
 
-                if(result==1 && _SetClimateZones)
+                if(result==21 && _SetClimateZones)
                 {
                     uint hh = h%(_ClimateProbabilities[0]+_ClimateProbabilities[1]+_ClimateProbabilities[2]+_ClimateProbabilities[3]);
 
-                    if(hh<_ClimateProbabilities[0]) result = 2;
+                    if(hh<_ClimateProbabilities[0]) result = 17;
                     else hh-=_ClimateProbabilities[0];
 
-                    if(result == 1)
+                    if(result == 21)
                     {
-                        if(hh<_ClimateProbabilities[1]) result = 3;
+                        if(hh<_ClimateProbabilities[1]) result = 18;
                         else hh-=_ClimateProbabilities[1];
                     }
 
-                    if(result == 1)
+                    if(result == 21)
                     {
-                        if(hh<_ClimateProbabilities[2]) result = 4;
+                        if(hh<_ClimateProbabilities[2]) result = 19;
                         else hh-=_ClimateProbabilities[2];
                     }
 
-                    if(result == 1) result = 5;
+                    if(result == 21) result = 20;
                 }
 
-                if(result>5 &&_SetMiniBiomes && ((h>>2)&15))
+                if(result!=0 && result<17 &&_SetMiniBiomes && ((h>>2)&15))
                 {
-                    result-=6;
+                    result--;
                     result>>=2;
-                    result+=2;
+                    result+=17;
                 }
 
-                if(result>1 && result < 6 && _SetBiomes)
+                if(result>16 && result < 21 && _SetBiomes)
                 {
-                    int i0 = (result-2)<<2;
-                    int i1 = i0+1;
-                    int i2 = i0+2;
-                    int i3 = i0+3;
-                    int p0 = _BiomeProbabilities[i0];
-                    int p1 = _BiomeProbabilities[i1];
-                    int p2 = _BiomeProbabilities[i2];
-                    int p3 = _BiomeProbabilities[i3];
+                    int i = (result-17)<<2;
+                    int p0 = _BiomeProbabilities[i];
+                    int p1 = _BiomeProbabilities[i+1];
+                    int p2 = _BiomeProbabilities[i+2];
+                    int p3 = _BiomeProbabilities[i+3];
                     uint r=result;
                     uint hh = h%(p0+p1+p2+p3);
 
-                    if(hh<p0) result = 6+i0;
+                    if(hh<p0) result = 1+i;
                     else hh-=p0;
 
                     if(result == r)
                     {
-                        if(hh<p1) result = 7+i0;
+                        if(hh<p1) result = 2+i;
                         else hh-=p1;
                     }
 
                     if(result == r)
                     {
-                        if(hh<p2) result = 8+i0;
+                        if(hh<p2) result = 3+i;
                         else hh-=p2;
                     }
 
-                    if(result == r) result = 9+i0;
+                    if(result == r) result = 4+i;
                 }
 
-                if(isIsland && result== 17) result-=h%3+1;
+                if(isIsland && result== 12) result-=(h%3)+1;
 
-                if(result!=0 && _InitRivers) result+=((h&1)<<6)+64;
+                if(_InitRivers && result>1 && result<64) result+=((h&1)<<6)+64;
 
                 return result;
             }

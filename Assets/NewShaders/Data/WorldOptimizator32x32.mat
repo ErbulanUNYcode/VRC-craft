@@ -78,8 +78,8 @@ Material:
     m_Ints: []
     m_Floats:
     - _BumpScale: 1
-    - _ChunkX: 31
-    - _ChunkY: 6
+    - _ChunkX: 17
+    - _ChunkY: 29
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _DstBlend: 0

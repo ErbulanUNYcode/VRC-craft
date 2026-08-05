@@ -22,10 +22,19 @@ Material:
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs: []
+    m_TexEnvs:
+    - _BiomesData:
+        m_Texture: {fileID: 8600000, guid: acb7cb914182f42438b67f48fda2e794, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _ChunkPosX: 3
-    - _ChunkPosY: -6
+    - _ChunkPosX: 272
+    - _ChunkPosY: 464
+    - _ReadOffsetX: 240
+    - _ReadOffsetY: 240
+    - _Seed: -865380400
+    - _TestDiv: 4
+    - _TestViewIndex: 17
     m_Colors: []
   m_BuildTextureStacks: []
