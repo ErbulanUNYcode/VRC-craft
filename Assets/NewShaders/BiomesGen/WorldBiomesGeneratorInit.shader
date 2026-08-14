@@ -1,4 +1,4 @@
-Shader "VRC_MINE/WorldBiomesGenerator"
+Shader "VRC_MINE/WorldBiomesGenerator/InitContinents"
 {
     Properties
     {

@@ -224,25 +224,25 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 return value/(1.0-1.0/(1<<o));
             }
 
-            int4 biomesClear[17]=
+            float4 biomesClear[17]=
             {
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0),
-                int4(0,0,0,0)
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0),
+                float4(0,0,0,0)
             };
 
             uint2 frag(v2f i) : SV_Target
@@ -263,7 +263,7 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 int2 r2 = 0;
                 int2 r3 = 0;
                 int2 r4 = 0;
-                int4 biomesWeights[17] = biomesClear;
+                float4 biomesWeights[17] = biomesClear;
                 uint bb;
 
                 for(int x = 0; x < 7; x++)
@@ -315,7 +315,7 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 height=max(height,m);
                 float r = lerp(height,31+fbm(float2(pos.x,pos.y)/128+815,4)*5,river/255);   
                 height=min(height,r);
-                return uint2(round(height),0);
+                return uint2(floor(height),0);
             }
 
             ENDHLSL

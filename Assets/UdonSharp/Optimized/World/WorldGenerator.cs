@@ -11,7 +11,10 @@ namespace VRC_MINE.World
 	[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 	public class WorldGenerator : UdonSharpBehaviour
 	{
-		#region biomes
+		#region biomes	
+		[SerializeField] private GameObject dataGameObject;
+		private MineBiome[] biomes;
+		private MineStructure[] structures;
 		[SerializeField] private Material[] genLayers;
 		[SerializeField] private Material continentsLayer;
 		[SerializeField] private CustomRenderTexture[] genTextures;
@@ -76,11 +79,16 @@ namespace VRC_MINE.World
 		private Vector2Int worldPos;
 		private Color[] clearChunkColor = new Color[32_768];
 		private Color[] clearOptimizatorColor = new Color[16];
-
+		private const string debugLogo = "<color=#00ff00><<<</color><color=#0000ff>MCGE</color><color=#00ff00>>>></color>  ";
+		private const string debugWarningLogo = "<color=#00ff00><<<</color><color=#ff0000>MCGE</color><color=#00ff00>>>></color>  ";
 		[UdonSynced] int seed = int.MinValue;
 
 		private void Start()
 		{
+			biomes = dataGameObject.GetComponents<MineBiome>();
+			Debug.LogWarning(debugLogo + biomes.Length + " biomes found");
+			structures = dataGameObject.GetComponentsInChildren<MineStructure>();
+			Debug.LogWarning(debugLogo + structures.Length + " structures found");
 			enabled = false;
 			localPlayer = Networking.LocalPlayer;
 			InitWorld();
@@ -102,6 +110,7 @@ namespace VRC_MINE.World
 
 		private void StartBiomeGenerator()
 		{
+			Debug.Log(debugLogo + "seed is " + seed);
 			Random.InitState(seed);
 			continentsLayer.SetInt("_Seed", seed);
 			chunkTerrainGeneratorMaterial.SetInt("_Seed", seed);
@@ -132,7 +141,7 @@ namespace VRC_MINE.World
 		void StartSystem()
 		{
 
-			Debug.Log("<<<SUPER CRAFT>>> World generator with " + 32 + "x" + 32 + " chunks started!");
+			Debug.Log(debugLogo + "World generator with " + 32 + "x" + 32 + " chunks started!");
 		}
 
 		private void InitWorld()
@@ -226,7 +235,7 @@ namespace VRC_MINE.World
 		private VRCAsyncGPUReadbackRequest lastRequest;
 		public void ManualOnAsyncGpuReadbackCompleteDelay()
 		{
-			Debug.Log("<<<SUPER CRAFT>>> GPU readback complete delay");
+			Debug.Log(debugLogo + "GPU readback complete delay");
 			ManualOnAsyncGpuReadbackComplete(lastRequest);
 		}
 		private void ManualOnAsyncGpuReadbackComplete(VRCAsyncGPUReadbackRequest request)
@@ -240,7 +249,7 @@ namespace VRC_MINE.World
 
 			if (request.hasError)
 			{
-				Debug.LogError("GPU readback error!");
+				Debug.LogError(debugLogo + "GPU readback error!");
 				lastFrameCount = Time.frameCount;
 				VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
 				return;
@@ -311,7 +320,7 @@ namespace VRC_MINE.World
 
 			if (prevChunk == chunksQueueData.Length)
 			{
-				Debug.Log("<<<SUPER CRAFT>>> World generation complete!");
+				Debug.Log(debugLogo + "World generation complete!");
 				/*chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
 				chunkTerrainGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;*/
 				optimizator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
@@ -591,6 +600,7 @@ public class ChunkMeshGeneratorEditor : Editor
 	private void OnEnable()
 	{
 		var group = new FolderGrup() { name = "BiomeGenerator", properties = new List<SerializedProperty>() };
+		group.properties.Add(serializedObject.FindProperty("dataGameObject"));
 		group.properties.Add(serializedObject.FindProperty("genLayers"));
 		group.properties.Add(serializedObject.FindProperty("continentsLayer"));
 		group.properties.Add(serializedObject.FindProperty("genTextures"));

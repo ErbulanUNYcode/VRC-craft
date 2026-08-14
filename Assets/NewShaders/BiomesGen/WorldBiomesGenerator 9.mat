@@ -34,9 +34,9 @@ Material:
     - _ChunkPosX: 0
     - _ChunkPosY: 0
     - _InitRivers: 0
-    - _OffsetX: 5061
-    - _OffsetY: 5109
-    - _Seed: 1.3379502e+9
+    - _OffsetX: 5053
+    - _OffsetY: 5053
+    - _Seed: 629368640
     - _SetBiomes: 0
     - _SetClimateZones: 0
     - _SetMiniBiomes: 0

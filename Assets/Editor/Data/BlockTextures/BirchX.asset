@@ -10,9 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 308259b427290d54d85ab2a59c9e69e6, type: 3}
-  m_Name: BrichZ
+  m_Name: BirchX
   m_EditorClassIdentifier: 
   sides:
+  - texture: {fileID: 2800000, guid: d3783ef774952234e90a4d9663b48059, type: 3}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 1
+    randomFlipHorizontal: 1
+    randomFlipVertical: 1
+  - texture: {fileID: 2800000, guid: d3783ef774952234e90a4d9663b48059, type: 3}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 1
+    randomFlipHorizontal: 1
+    randomFlipVertical: 1
   - texture: {fileID: 2800000, guid: 7e1b6cc2f92446a46b2ccb11a482c820, type: 3}
     flipDiagonal: 1
     flipHorizontal: 0
@@ -28,30 +42,16 @@ MonoBehaviour:
     randomFlipHorizontal: 1
     randomFlipVertical: 1
   - texture: {fileID: 2800000, guid: 7e1b6cc2f92446a46b2ccb11a482c820, type: 3}
-    flipDiagonal: 0
+    flipDiagonal: 1
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 1
     randomFlipVertical: 1
   - texture: {fileID: 2800000, guid: 7e1b6cc2f92446a46b2ccb11a482c820, type: 3}
-    flipDiagonal: 0
+    flipDiagonal: 1
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
-    randomFlipHorizontal: 1
-    randomFlipVertical: 1
-  - texture: {fileID: 2800000, guid: d3783ef774952234e90a4d9663b48059, type: 3}
-    flipDiagonal: 0
-    flipHorizontal: 0
-    flipVertical: 0
-    randomFlipDiagonal: 1
-    randomFlipHorizontal: 1
-    randomFlipVertical: 1
-  - texture: {fileID: 2800000, guid: d3783ef774952234e90a4d9663b48059, type: 3}
-    flipDiagonal: 0
-    flipHorizontal: 0
-    flipVertical: 0
-    randomFlipDiagonal: 1
     randomFlipHorizontal: 1
     randomFlipVertical: 1
