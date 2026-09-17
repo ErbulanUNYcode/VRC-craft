@@ -1,4 +1,5 @@
 ﻿
+using System;
 using System.Collections.Generic;
 using UdonSharp;
 using UnityEditor;
@@ -10,6 +11,14 @@ namespace VRC_MINE.World
 	public class MineBiome : UdonSharpBehaviour
 	{
 		[SerializeField] private MineStructure[] structures;
+
+		public MineStructure[] SplitThis(MineStructure[] mineStructures)
+		{
+			var result = new MineStructure[mineStructures.Length + structures.Length];
+			Array.Copy(mineStructures, result, mineStructures.Length);
+			Array.Copy(structures, 0, result, mineStructures.Length, structures.Length);
+			return result;
+		}
 #if UNITY_EDITOR
 		[SerializeField] public string biomeName = "Biome";
 

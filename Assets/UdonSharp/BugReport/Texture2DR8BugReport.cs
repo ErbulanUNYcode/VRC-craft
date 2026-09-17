@@ -1,16 +1,21 @@
 ﻿
+using TMPro;
 using UdonSharp;
 using UnityEngine;
+using VRC.SDK3.Rendering;
 
 namespace VRC.BugReport
 {
 	[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 	public class Texture2DR8BugReport : UdonSharpBehaviour
 	{
+		[SerializeField] private TextMeshProUGUI text;
 		[SerializeField] private Material material;
 
 		void Start()
 		{
+			var c = VRCCameraSettings.ScreenCamera;
+			text.text = c.PixelWidth.ToString() + "/" + c.PixelHeight.ToString();
 			var textureR8 = new Texture2D(8, 8, TextureFormat.R8, false);
 			textureR8.filterMode = FilterMode.Point;
 

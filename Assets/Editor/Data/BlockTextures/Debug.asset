@@ -12,28 +12,47 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 308259b427290d54d85ab2a59c9e69e6, type: 3}
   m_Name: Debug
   m_EditorClassIdentifier: 
+  previewColor: {r: 1, g: 0, b: 1, a: 1}
   sides:
   - texture: {fileID: 2800000, guid: 29533fbc3e0530f4c88e1e031eb44659, type: 3}
+    flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    flipDiagonal: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
   - texture: {fileID: 2800000, guid: 14ccf4be77fa7064489f0574382a4ca7, type: 3}
+    flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    flipDiagonal: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
   - texture: {fileID: 2800000, guid: 17bf8df80d8175b4e8b33b3f4fdcbb1d, type: 3}
+    flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    flipDiagonal: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
   - texture: {fileID: 2800000, guid: 5dee3293d4443e9469c974bff898296b, type: 3}
+    flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    flipDiagonal: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
   - texture: {fileID: 2800000, guid: 0e99a401f009a104daee1f1cbc95d3b9, type: 3}
+    flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    flipDiagonal: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
   - texture: {fileID: 2800000, guid: 45be279a20650b54d8c4dd8a863e2cc7, type: 3}
+    flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    flipDiagonal: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0

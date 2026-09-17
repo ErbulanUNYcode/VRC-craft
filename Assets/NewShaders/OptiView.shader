@@ -113,15 +113,24 @@ Shader "VRC_MINE/Editor/UintTexView"
 
                 if(_ShowDetails)
                 {
+
                     uint rc = r;
                     uint rr = _MainTex.Load(int3(i.uv+int2(1,0), 0));
                     uint rl = _MainTex.Load(int3(i.uv+int2(-1,0), 0));
                     uint ru = _MainTex.Load(int3(i.uv+int2(0,1), 0));
                     uint rd = _MainTex.Load(int3(i.uv+int2(0,-1), 0));
                     
-                    //if ((r&63) == 0 && ((rr&63) != 0 || (rl&63) != 0 || (ru&63) != 0 || (rd&63) != 0)) r=13;
-                    if ((r) <2 && ((rr) > 1 || (rl) > 1 || (ru) > 1 || (rd) > 1)) r=13;
-                    else
+                    if((r&63)<2)
+                    {
+                        rc=(rc&63)>1;
+                        rr=(rr&63)>1;
+                        rl=(rl&63)>1;
+                        ru=(ru&63)>1;
+                        rd=(rd&63)>1;
+                        if(rc+rr+rl+ru+rd>0) return _DesertColor;
+                        else return (r&63)==0?_OceanColor:_TundraColor;
+                    }
+
                     {
                         rc>>=6;
                         rr>>=6;
@@ -139,30 +148,32 @@ Shader "VRC_MINE/Editor/UintTexView"
                     }
                 }
 
-                switch (r&63)
+                float shoreline = (r&63)>>5?0.5:1;
+
+                switch (r&31)
                 {
                     case 0: return _OceanColor;
-                    case 1: return _TundraColor;
-                    case 2: return _SnowForestColor;
-                    case 3: return _SnowTaigaColor;
-                    case 4: return _SnowPlainColor;
-                    case 5: return _TaigaColor;
-                    case 6: return _DarkForestColor;
-                    case 7: return _SwampColor;
-                    case 8: return _DenseForestColor;
-                    case 9: return _PlainColor;
-                    case 10: return _ForestColor;
-                    case 11: return _BrichForestColor;
-                    case 12: return _SakuraForestColor;
-                    case 13: return _DesertColor;
-                    case 14: return _SavannaColor;
-                    case 15: return _JungleColor;
-                    case 16: return _WastelandColor;
-                    case 17: return _PolarColor;
-                    case 18: return _ColdColor;
-                    case 19: return _TempColor;
-                    case 20: return _WarmColor;
-                    case 21: return _ContinentColor;
+                    case 1: return _TundraColor*shoreline;
+                    case 2: return _SnowForestColor*shoreline;
+                    case 3: return _SnowTaigaColor*shoreline;
+                    case 4: return _SnowPlainColor*shoreline;
+                    case 5: return _TaigaColor*shoreline;
+                    case 6: return _DarkForestColor*shoreline;
+                    case 7: return _SwampColor*shoreline;
+                    case 8: return _DenseForestColor*shoreline;
+                    case 9: return _PlainColor*shoreline;
+                    case 10: return _ForestColor*shoreline;
+                    case 11: return _BrichForestColor*shoreline;
+                    case 12: return _SakuraForestColor*shoreline;
+                    case 13: return _DesertColor*shoreline;
+                    case 14: return _SavannaColor*shoreline;
+                    case 15: return _JungleColor*shoreline;
+                    case 16: return _WastelandColor*shoreline;
+                    case 17: return _ShowDetails?fixed4(_WastelandColor.rgb/2,1):_PolarColor*shoreline;
+                    case 18: return _ColdColor*shoreline;
+                    case 19: return _TempColor*shoreline;
+                    case 20: return _WarmColor*shoreline;
+                    case 21: return _ContinentColor*shoreline;
                 }
 
                 return 0;

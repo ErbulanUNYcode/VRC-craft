@@ -135,7 +135,7 @@ Shader "VRC_MINE/WorldShow"
                 else
                 o.shadow.xy= mul(_ShadowMatrix, float4(o.inter, 1)).xy/2+0.5;
                 o.shadow.z-=0.0004;
-                float3 camOffset = (_WorldSpaceCameraPos - o.inter)/300;
+                float3 camOffset = (_WorldSpaceCameraPos - o.inter)/333;
                 o.fog = dot(camOffset.xz, camOffset.xz);
 
                 float3 objectPos = round(unity_ObjectToWorld._m03_m13_m23);
@@ -143,6 +143,7 @@ Shader "VRC_MINE/WorldShow"
                 float3 viewPos = mul((float3x3)UNITY_MATRIX_V, relativePos);
                 o.vertex = mul(UNITY_MATRIX_P, float4(viewPos, 1.0));
                 
+                o.inter.xz = v.vertex.xz + (int2(unity_ObjectToWorld._m03_m23)&511);
                 int3 p = o.inter*v.color.xyz;
                 o.placeCoord = p.x+p.y+p.z;
                 o.offset = v.color.xyz;
@@ -186,8 +187,8 @@ Shader "VRC_MINE/WorldShow"
                 int3 os2 = (uv.x>0.5?1:-1)*(i.offset.x?int3(0,0,1):i.offset.y?int3(1,0,0):int3(1,0,0));
                 if(i.face)
                 pos-=i.offset;
-                bool d1=block(pos + os1)>15;
-                bool d2=block(pos + os2)>15;
+                bool d1=block(pos + os1)>13;
+                bool d2=block(pos + os2)>13;
                 float ao = 0;
                 fixed2 duv=abs(uv*2-1);
                 duv*=duv;
@@ -197,7 +198,7 @@ Shader "VRC_MINE/WorldShow"
                         ao = duv.y+duv.x;
                     else
                     {
-                        d2 = block(pos + os1 + os2)>15;
+                        d2 = block(pos + os1 + os2)>13;
                         if(d2)
                             ao = duv.y;
                         else
@@ -206,7 +207,7 @@ Shader "VRC_MINE/WorldShow"
                 }
                 else if(d2)
                 {
-                    d1 = block(pos + os1 + os2)>15;
+                    d1 = block(pos + os1 + os2)>13;
                     if(d1)
                         ao = duv.x;
                     else
@@ -239,7 +240,7 @@ Shader "VRC_MINE/WorldShow"
                     }
                 }
                 shadow = lerp(0.2,shadow,i.light.a);
-                shadow -= ao*(0.4-shadow)/2.5;
+                shadow *= 1-pow(ao,0.5)*0.5;
 
                 c.rgb = c.rgb*(1-i.fog)*shadow+_FogColor*i.fog;
                 return c;

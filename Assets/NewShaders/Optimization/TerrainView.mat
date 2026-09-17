@@ -1,0 +1,120 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: TerrainView
+  m_Shader: {fileID: 4800000, guid: 3a3dd673c65a9ab4c8babc0ae997ec8f, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _CameraDepthTextur:
+        m_Texture: {fileID: 8400000, guid: c82cdf2e6c268da419d626a6182096a1, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _CameraDepthTexture:
+        m_Texture: {fileID: 8400000, guid: c82cdf2e6c268da419d626a6182096a1, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailAlbedoMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailMask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailNormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EmissionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 8600000, guid: d65bda60d484dd44d954f3efbb995118, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MetallicGlossMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _OcclusionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ParallaxMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Tex:
+        m_Texture: {fileID: 8600000, guid: 0104be39487595c4f905829aca0649bb, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _BumpScale: 1
+    - _Cutoff: 0.5
+    - _DetailNormalMapScale: 1
+    - _DstBlend: 0
+    - _GlossMapScale: 1
+    - _Glossiness: 0.5
+    - _GlossyReflections: 1
+    - _Metallic: 0
+    - _Mode: 0
+    - _OcclusionStrength: 1
+    - _Parallax: 0.02
+    - _Scale: 255
+    - _ShowDetails: 0
+    - _SmoothnessTextureChannel: 0
+    - _SpecularHighlights: 1
+    - _SrcBlend: 1
+    - _UVSec: 0
+    - _ZWrite: 1
+    - _Zoom: 1
+    m_Colors:
+    - _BrichForestColor: {r: 0, g: 0.8113208, b: 0.5024658, a: 1}
+    - _ColdColor: {r: 0.53333336, g: 0, b: 0.9019608, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _ContinentColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _DarkForestColor: {r: 0, g: 0.31132078, b: 0.008894861, a: 1}
+    - _DenseForestColor: {r: 0.1852401, g: 0.41509432, b: 0.0763617, a: 1}
+    - _DesertColor: {r: 0.9433962, g: 0.92364377, b: 0.3693485, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _ForestColor: {r: 0.4745098, g: 0.88235295, b: 0, a: 1}
+    - _JungleColor: {r: 0, g: 1, b: 0, a: 1}
+    - _OceanColor: {r: 0, g: 0.5, b: 1, a: 1}
+    - _PlainColor: {r: 0, g: 0.6603774, b: 0, a: 1}
+    - _PolarColor: {r: 0, g: 0, b: 1, a: 1}
+    - _SakuraForestColor: {r: 1, g: 0.40392157, b: 0.5803922, a: 1}
+    - _SavannaColor: {r: 1, g: 0.55655974, b: 0, a: 1}
+    - _SnowForestColor: {r: 0.6084906, g: 1, b: 0.6358052, a: 1}
+    - _SnowPlainColor: {r: 1, g: 1, b: 1, a: 1}
+    - _SnowTaigaColor: {r: 0.5036935, g: 0.7264151, b: 0.6618002, a: 1}
+    - _SwampColor: {r: 0.26650554, g: 0.3301887, b: 0.1759968, a: 1}
+    - _TaigaColor: {r: 0.08957815, g: 0.5754717, b: 0.32994238, a: 1}
+    - _TempColor: {r: 0.62352943, g: 0, b: 0.29803923, a: 1}
+    - _TundraColor: {r: 0.39716092, g: 0.41731593, b: 0.7075472, a: 1}
+    - _WarmColor: {r: 1, g: 0, b: 0, a: 1}
+    - _WastelandColor: {r: 1, g: 0.38475227, b: 0, a: 1}
+  m_BuildTextureStacks: []

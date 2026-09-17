@@ -31,7 +31,7 @@ namespace VRC_MINE.World
 			if (type == ChunkMeshType.NN) return null;
 			return meshes[(int)type];
 		}
-		public void CustomStart()
+		public void Generate()
 		{
 			SendCustomEventDelayedFrames(nameof(StartBiomeGeneration), 1);
 			meshes[0] = CreateTypePP();

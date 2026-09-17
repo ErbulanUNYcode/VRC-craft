@@ -94,7 +94,7 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 Wasteland
             */
 
-            static const float4 Terrain[17] =
+            static const float4 Terrain[18] =
             // x = average terrain height
             // y = octave 1 amplitude          (scale 128)
             // z = octaves 2-3 amplitude       (scales 64, 32)
@@ -109,7 +109,7 @@ Shader "VRC_MINE/WorldTerrainGenerator"
 
                 float4(46, 10, 6, 3), // Taiga
                 float4(45,  9, 6, 3), // DarkForest
-                float4(39,  0, 0, 3), // Swamp
+                float4(37,  0, 0, 4), // Swamp
                 float4(45, 10, 7, 4), // DenseForest
 
                 float4(43,  6, 3, 1), // Plain
@@ -120,10 +120,11 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 float4(42,  7, 5, 3), // Desert
                 float4(44,  8, 5, 2), // Savanna
                 float4(45, 11, 8, 5), // Jungle
-                float4(46,  8, 5, 2)  // Wasteland
+                float4(46,  8, 5, 2), // Wasteland
+                float4(46,  8, 5, 2)  // Wasteland2
             };
 
-            static const float4 Mountain[17] =
+            static const float4 Mountain[18] =
             // x = average mountain height
             // y = mountain surface noise amplitude
             // z = mountain appearance threshold
@@ -150,8 +151,60 @@ Shader "VRC_MINE/WorldTerrainGenerator"
 
                 float4(61,  9, 0.80, 0.13), // Desert
                 float4(65, 11, 0.74, 0.16), // Savanna
-                float4(75, 17, 0.63, 0.18), // Jungle
-                float4(86, 10, 0.40, 0.07)  // Wasteland
+                float4(75, 17, 0.63, 0.18), // Jungle   
+                float4(75, 30, 0.50, 0.04), // Wasteland
+                float4(45,  0, 0.50, 0.04)  // Wasteland2
+            };
+            
+            static const float ShoreType[18] =
+            {
+                0, // Ocean
+                0, // Tundra
+
+                0.4, // SnowForest
+                0.3, // SnowTaiga
+                0.4, // SnowPlain
+
+                0.3, // Taiga
+                0.3, // DarkForest
+                0.2, // Swamp
+                0.4, // DenseForest
+
+                0.4, // Plain
+                0.4, // Forest
+                0.3, // BrichForest
+                0.2, // SakuraForest
+
+                0.7, // Desert
+                0.6, // Savanna
+                0.5, // Jungle   
+                0, // Wasteland
+                0  // Wasteland2
+            };
+            static const float ShoreScale[18] =
+            {
+                0.6, // Ocean
+                0.6, // Tundra
+
+                0.4, // SnowForest
+                0.4, // SnowTaiga
+                0.4, // SnowPlain
+
+                0.55, // Taiga
+                0.55, // DarkForest
+                0.2, // Swamp
+                0.55, // DenseForest
+
+                0.55, // Plain
+                0.55, // Forest
+                0.55, // BrichForest
+                0.55, // SakuraForest
+
+                0.6, // Desert
+                0.65, // Savanna
+                0.6, // Jungle   
+                0, // Wasteland
+                0  // Wasteland2
             };
 
             float lerp1(float a, float b, float t){return a + t * (b - a);}
@@ -160,10 +213,6 @@ Shader "VRC_MINE/WorldTerrainGenerator"
 
             float hash21(int2 p)
             {
-                /*int n = p.x * 374761393 + p.y * 668265263;
-                n = (n ^ (n >> 13)) * 1274126177;
-                return frac(n * 0.00000000023283064365386963); // 1/2^32*/
-
                 uint h = asuint(p.x);
                 h ^= asuint(p.y) * 0x9E3779B9u;
                 h ^= asuint(_Seed) * 0x85EBCA6Bu;
@@ -224,8 +273,10 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 return value/(1.0-1.0/(1<<o));
             }
 
-            float4 biomesClear[17]=
+            float4 biomesClear[19]=
             {
+                float4(0,0,0,0),
+                float4(0,0,0,0),
                 float4(0,0,0,0),
                 float4(0,0,0,0),
                 float4(0,0,0,0),
@@ -245,7 +296,7 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 float4(0,0,0,0)
             };
 
-            uint2 frag(v2f i) : SV_Target
+            uint4 frag(v2f i) : SV_Target
             {
                 int2 uv = i.uv;
                 int2 pos = int2(uv.x+(_ChunkPosX), uv.y+(_ChunkPosY));
@@ -263,7 +314,7 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 int2 r2 = 0;
                 int2 r3 = 0;
                 int2 r4 = 0;
-                float4 biomesWeights[17] = biomesClear;
+                float4 biomesWeights[19] = biomesClear;
                 uint bb;
 
                 for(int x = 0; x < 7; x++)
@@ -273,25 +324,29 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                         bb = b[x+y*8];
                         int i7 = x+y*7;
                         r1 += Sobel7[i7]*(bb>>6);
-                        biomesWeights[bb&63].x += Distance7[i7];
+                        biomesWeights[bb&31].x += Distance7[i7];
+                        if((bb&63)>>5) biomesWeights[18].x+= Distance7[i7];
 
                         bb = b[x+1+y*8];
                         r2 += Sobel7[i7]*(bb>>6);
-                        biomesWeights[bb&63].y += Distance7[i7];
+                        biomesWeights[bb&31].y += Distance7[i7];
+                        if((bb&63)>>5) biomesWeights[18].y+= Distance7[i7];
 
                         bb = b[x+8+y*8];
                         r3 += Sobel7[i7]*(bb>>6);
-                        biomesWeights[bb&63].z += Distance7[i7];
-
+                        biomesWeights[bb&31].z += Distance7[i7];
+                        if((bb&63)>>5) biomesWeights[18].z+= Distance7[i7];
+                        
                         bb = b[x+9+y*8];
                         r4 += Sobel7[i7]*(bb>>6);
-                        biomesWeights[bb&63].w += Distance7[i7];
+                        biomesWeights[bb&31].w += Distance7[i7];
+                        if((bb&63)>>5) biomesWeights[18].w+= Distance7[i7];
                     }
                 }
 
                 r1 = lerp(lerp(r1,r2,float(pos.x&3)/4),lerp(r3,r4 ,float(pos.x&3)/4),float(pos.y&3)/4);
 
-                for(int i = 0; i < 17; i++)
+                for(int i = 0; i < 19; i++)
                 {
                     biomesWeights[i].x = lerp(lerp(biomesWeights[i].x,biomesWeights[i].y,float(pos.x&3)/4),lerp(biomesWeights[i].z,biomesWeights[i].w ,float(pos.x&3)/4),float(pos.y&3)/4);
                 }
@@ -300,8 +355,8 @@ Shader "VRC_MINE/WorldTerrainGenerator"
                 
                 float4 terrain = 0; //terrain
                 float4 mountain = 0; //mountain
-
-                for(int i = 0; i < 17; i++)
+                
+                for(int i = 0; i < 18; i++)
                 {
                     terrain+= biomesWeights[i].x*Terrain[i];
                     mountain+= biomesWeights[i].x*Mountain[i];
@@ -309,13 +364,57 @@ Shader "VRC_MINE/WorldTerrainGenerator"
 
                 terrain/=256;
                 mountain/=256;
+                terrain.x = lerp(terrain.x,37,biomesWeights[18].x/256);
+                terrain.y = lerp(terrain.y,0,biomesWeights[18].x/256);
 
-                float height = terrain.x+fbm(float2(pos.x,pos.y)/128,1)*terrain.y+fbm(float2(pos.x,pos.y)/64,2)*terrain.z+fbm(float2(pos.x,pos.y)/16,3)*terrain.w;
-                float m = lerp(height,mountain.x+fbm(float2(pos.x,pos.y)/128+651,5)*mountain.y,smoothstep(mountain.z,mountain.z+mountain.w,fbm(float2(pos.x,pos.y)/256+372,5)));
+                float height = terrain.x+fbm(0.0078125*pos,1)*terrain.y+fbm(0.015625*pos,2)*terrain.z+fbm(0.0625*pos,3)*terrain.w;
+                float tHeight = height;
+                float m = lerp(height,mountain.x+fbm(0.0078125*pos+651,5)*mountain.y,smoothstep(mountain.z,mountain.z+mountain.w,fbm(0.00390625*pos+372,5)));
                 height=max(height,m);
-                float r = lerp(height,31+fbm(float2(pos.x,pos.y)/128+815,4)*5,river/255);   
+                float r = lerp(height,31+fbm(0.0078125*pos+815,4)*5,river/256);
                 height=min(height,r);
-                return uint2(floor(height),0);
+
+
+                float oceanW = biomesWeights[0].x+biomesWeights[1].x;
+                float shore = abs(saturate(oceanW/256+(river/256*(1-oceanW/256)))*2-1);
+                float h = hash21(pos)*(height<39&&oceanW>0?oceanW:(256.0-oceanW));
+                int resultB;
+                if(height<39&&(oceanW>0||(oceanW<0.9&&river>0))) resultB = h<biomesWeights[1].x;
+                else
+                {
+                    for(int i = 2; i < 18; i++)
+                    {
+                        if(h<biomesWeights[i].x)
+                        {
+                            resultB=i;
+                            break;
+                        }
+                        
+                        h-=biomesWeights[i].x;
+                    }
+                }
+                float type = 0;
+                float scale = 0;
+                for(int i = 2; i < 18; i++)
+                {
+                    type+=ShoreType[i]*biomesWeights[i].x;
+                    scale+=ShoreScale[i]*biomesWeights[i].x;
+                }
+                scale/=256-oceanW;
+
+                if(scale+fbm(0.0625*pos+6846,3)*0.5>shore)
+                {
+                    type/=256-oceanW;
+                    resultB+=32+((fbm(0.125*pos+686,3)<type)*64)+((noise01(0.13*pos,0.9)>0.8)*128);
+                }
+
+                if(height>tHeight-2+fbm(0.0625*pos+954,3)*10)
+                {
+                    height+=128;
+                    if(biomesWeights[17].x>0.2) resultB = 17+(resultB>>5<<5);
+                }
+
+                return uint4(height,resultB,0,0);
             }
 
             ENDHLSL

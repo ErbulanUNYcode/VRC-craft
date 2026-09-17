@@ -118,13 +118,13 @@ Material:
     - _ZWrite: 1
     - _Zoom: 1
     m_Colors:
-    - _BackLightColor: {r: 0.7440952, g: 0.73265743, b: 0.7021749, a: 0}
+    - _BackLightColor: {r: 0.8326551, g: 0.8251755, b: 0.80524194, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _DownLightColor: {r: 0.67390805, g: 0.6732867, b: 0.6738926, a: 0}
+    - _DownLightColor: {r: 0.67950267, g: 0.6787013, b: 0.67923445, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _FogColor: {r: 0.1990477, g: 0.4364763, b: 0.6698113, a: 1}
-    - _FrontLightColor: {r: 1, g: 0.99956256, b: 1, a: 0.61168015}
-    - _LeftLightColor: {r: 0.7650517, g: 0.7591921, b: 0.8091295, a: 0}
-    - _RightLightColor: {r: 0.76971734, g: 0.75745, b: 0.8114988, a: 0.38835037}
-    - _UpLightColor: {r: 1, g: 1, b: 1, a: 0.673038}
+    - _FrontLightColor: {r: 1, g: 0.9997139, b: 1, a: 0.40000916}
+    - _LeftLightColor: {r: 0.84635925, g: 0.8425275, b: 0.8751832, a: 0}
+    - _RightLightColor: {r: 0.8494103, g: 0.8413882, b: 0.8767326, a: 0.60002136}
+    - _UpLightColor: {r: 1, g: 1, b: 1, a: 0.78618836}
   m_BuildTextureStacks: []

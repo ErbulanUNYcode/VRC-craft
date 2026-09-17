@@ -151,6 +151,8 @@ public class GradientGenerator : UdonSharpBehaviour
 #endif
 		{
 			Networking.SetOwner(Networking.LocalPlayer, gameObject);
+			editModeToggle.isOn = true;
+			timeSlider.value = 0.15f;
 		}
 		else
 		{

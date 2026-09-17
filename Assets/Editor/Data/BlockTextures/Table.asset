@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 308259b427290d54d85ab2a59c9e69e6, type: 3}
   m_Name: Table
   m_EditorClassIdentifier: 
+  previewColor: {r: 0, g: 0, b: 0, a: 1}
   sides:
   - texture: {fileID: 2800000, guid: 694d3ca7202d21847bdda3cc63145f9f, type: 3}
     flipDiagonal: 0

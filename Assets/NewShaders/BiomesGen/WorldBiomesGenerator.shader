@@ -52,12 +52,12 @@ Shader "VRC_MINE/WorldBiomesGenerator"
             //int _ClimateProbabilities[4];
             static const int _ClimateProbabilities[4] = {10, 25, 45, 20};
             //int _BiomeProbabilities[16];
-            static const int _BiomeProbabilities[16] = 
+            static const int _BiomeProbabilities[17] = 
             {
                 40,15,30,15,
                 30,20,10,40,
                 35,30,20,2,
-                35,30,25,10
+                35,30,25,10,10
             };
             //int _Weights[22];
             static const int _Weights[22] =
@@ -70,6 +70,7 @@ Shader "VRC_MINE/WorldBiomesGenerator"
                 35,80,100,70,
                 1
             };
+
             int _OffsetX;
             int _OffsetY;
 
@@ -170,10 +171,10 @@ Shader "VRC_MINE/WorldBiomesGenerator"
                         }
                         else
                         {
-                            int a_=a&63;
-                            int b_=b&63;
-                            int c_=c&63;
-                            int d_=d&63;
+                            int a_=a&31;
+                            int b_=b&31;
+                            int c_=c&31;
+                            int d_=d&31;
                             a_=_Weights[a_]*(1+(a_==6?sumo*2:0));
                             b_=_Weights[b_]*(1+(b_==6?sumo*2:0));
                             c_=_Weights[c_]*(1+(c_==6?sumo*2:0));

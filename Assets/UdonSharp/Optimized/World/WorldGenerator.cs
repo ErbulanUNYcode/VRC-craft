@@ -6,6 +6,8 @@ using VRC.SDK3.Rendering;
 using VRC.SDKBase;
 using VRC_MINE.World;
 
+
+
 namespace VRC_MINE.World
 {
 	[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
@@ -13,10 +15,9 @@ namespace VRC_MINE.World
 	{
 		#region biomes	
 		[SerializeField] private GameObject dataGameObject;
-		private MineBiome[] biomes;
-		private MineStructure[] structures;
+		private MineStructure[] biomesData;
+		private Vector2Int[] biomesIndex;
 		[SerializeField] private Material[] genLayers;
-		[SerializeField] private Material continentsLayer;
 		[SerializeField] private CustomRenderTexture[] genTextures;
 		[SerializeField] private CustomRenderTexture miniGenTexture;
 		#endregion
@@ -48,6 +49,10 @@ namespace VRC_MINE.World
 		[SerializeField] private Shader replacementShader;
 		#endregion
 
+		#region systems
+		[SerializeField] private GamePlay.BlockSelector blockSelector;
+		#endregion
+
 		[HideInInspector]
 		[SerializeField]
 		private ChunkMeshType[] chunkMeshTypes = new ChunkMeshType[256];
@@ -58,11 +63,10 @@ namespace VRC_MINE.World
 		#region textures
 		private Texture2D worldTexture;
 		private Texture2D lightTexture;
-		private Texture2D clearTexture;
-		private Texture2D miniTex;
+		private Texture2D ctrlTexture;
+		private Texture2D convertor;
 		#endregion
 
-		private Collider[] colliders = new Collider[36];
 		private Vector3Int oldPos = Vector3Int.down;
 
 		#region generators
@@ -72,83 +76,70 @@ namespace VRC_MINE.World
 		[SerializeField] private ChunkMeshGenerator chunkMeshGenerator;
 		#endregion
 
-
-		private int prevChunk;
-		private int currentChunk;
-		private Vector2Int[] initPositions = new Vector2Int[1_024];
+		private int currentIndex;
+		int lastFrameCount = 0;
+		private Vector2Int readingChunk;
+		private Vector2Int renderingChunk;
+		private Vector2Int updateChunk = Vector2Int.left;
+		private bool chunkReading;
+		private bool chunkRendering;
 		private Vector2Int worldPos;
-		private Color[] clearChunkColor = new Color[32_768];
-		private Color[] clearOptimizatorColor = new Color[16];
+
 		private const string debugLogo = "<color=#00ff00><<<</color><color=#0000ff>MCGE</color><color=#00ff00>>>></color>  ";
 		private const string debugWarningLogo = "<color=#00ff00><<<</color><color=#ff0000>MCGE</color><color=#00ff00>>>></color>  ";
+
 		[UdonSynced] int seed = int.MinValue;
+
+		#region cache
+		private Collider[] colliders = new Collider[36];
+		private Vector2Int[] initPositions = new Vector2Int[1_024];
+		private Color[] clearColor = new Color[32_768];//0
+		private Color[] updateColor = new Color[384];//0.5
+		private Color[] ignoreColor = new Color[384];//1
+		private byte[] px = new byte[65536];
+		#endregion
 
 		private void Start()
 		{
-			biomes = dataGameObject.GetComponents<MineBiome>();
-			Debug.LogWarning(debugLogo + biomes.Length + " biomes found");
-			structures = dataGameObject.GetComponentsInChildren<MineStructure>();
-			Debug.LogWarning(debugLogo + structures.Length + " structures found");
-			enabled = false;
-			localPlayer = Networking.LocalPlayer;
 			InitWorld();
-			if (!Networking.IsOwner(gameObject)) return;
-
-
-			if (seed == int.MinValue)
+			enabled = false;
+			if (Networking.IsOwner(gameObject) && seed == int.MinValue)
 			{
-				seed = Random.Range(int.MinValue + 1, int.MaxValue);
+				seed = Random.Range(0, int.MaxValue);
 				RequestSerialization();
 				StartBiomeGenerator();
 			}
 		}
 
-		public override void OnDeserialization()
-		{
-			StartBiomeGenerator();
-		}
-
-		private void StartBiomeGenerator()
-		{
-			Debug.Log(debugLogo + "seed is " + seed);
-			Random.InitState(seed);
-			continentsLayer.SetInt("_Seed", seed);
-			chunkTerrainGeneratorMaterial.SetInt("_Seed", seed);
-			foreach (var genLayer in genLayers)
-			{
-				genLayer.SetInt("_Seed", Random.Range(0, int.MaxValue));
-			}
-
-			foreach (var texture in genTextures)
-			{
-				texture.initializationMode = CustomRenderTextureUpdateMode.Realtime;
-			}
-			SendCustomEventDelayedFrames(nameof(FinishBiomeGenerator), 2);
-		}
-
-		public void FinishBiomeGenerator()
-		{
-			foreach (var texture in genTextures)
-			{
-				texture.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
-			}
-
-			enabled = true;
-
-			ReStartGeneration();
-		}
-
-		void StartSystem()
-		{
-
-			Debug.Log(debugLogo + "World generator with " + 32 + "x" + 32 + " chunks started!");
-		}
-
 		private void InitWorld()
 		{
-			#region init
-			for (int i = 0; i < 16; i++) clearOptimizatorColor[i] = Color.red;
+			#region base
+			localPlayer = Networking.LocalPlayer;
+			localPlayer.SetGravityStrength(3);
+			for (int i = 0; i < 1024; i++) initPositions[i] = Vector2Int.one * 10_000_000;
+			for (int i = 0; i < 384; i++)
+			{
+				updateColor[i].r = 0.5f;
+				ignoreColor[i].r = 1;
+			}
+			#endregion
 
+			#region biomes/structures
+			var biomes = dataGameObject.GetComponents<MineBiome>();
+			Debug.LogWarning(debugLogo + biomes.Length + " biomes found");
+			var oldCount = 0;
+			biomesData = new MineStructure[0];
+			biomesIndex = new Vector2Int[biomes.Length];
+			for (int i = 0; i < biomes.Length; i++)
+			{
+				var biome = biomes[i];
+				biomesData = biome.SplitThis(biomesData);
+				biomesIndex[i] = new Vector2Int(oldCount, biomesData.Length - oldCount);
+				oldCount = biomesData.Length;
+			}
+			#endregion
+
+			#region cameras
 			shadowCam.SetReplacementShader(replacementShader, "RenderType");
 			shadowCam1.SetReplacementShader(replacementShader, "RenderType");
 			var cam = VRCCameraSettings.ScreenCamera;
@@ -156,23 +147,19 @@ namespace VRC_MINE.World
 			masks.value ^= 1 << 27;
 			cam.CullingMask = masks.value;*/
 			cam.FarClipPlane = 400;
+			cam.AllowMSAA = false;
+			#endregion
 
-			for (int i = 0; i < 1024; i++) initPositions[i] = Vector2Int.one * 10_000_000;
-
-			optimizator.initializationSource = CustomRenderTextureInitializationSource.TextureAndColor;
-			optimizator.initializationColor = Color.clear;
-			optimizator.Initialize();
-			chunkMeshGenerator.CustomStart();
-			localPlayer.SetGravityStrength(3);
-
-			miniTex = new Texture2D(256, 128, TextureFormat.R8, false, true);
-			miniTex.filterMode = FilterMode.Point;
+			#region colliders
 			for (int i = 0; i < 36; i++)
 			{
 				colliders[i] = Instantiate(colliderPrefab, collidersParent).GetComponent<Collider>();
 				colliders[i].transform.localPosition = new Vector3(i % 3 - 1, i / 9 - 1, (i / 3) % 3 - 1);
 			}
+			#endregion
 
+			#region meshes
+			chunkMeshGenerator.Generate();
 			for (int i = 0; i < 16; i++)
 			{
 				for (int j = 0; j < 16; j++)
@@ -185,115 +172,190 @@ namespace VRC_MINE.World
 					meshFilters[i * 16 + j].mesh = mesh;
 				}
 			}
+			#endregion
 
-			if (worldTexture != null) Destroy(worldTexture);
+			#region textures
+			convertor = new Texture2D(256, 128, TextureFormat.R8, false, true);
+			convertor.filterMode = FilterMode.Point;
 
-			lightTexture = new Texture2D(8192, 4096, TextureFormat.RG16, false, true);
-			lightTexture.LoadRawTextureData(new byte[lightTexture.width * lightTexture.height * 2]);
+			lightTexture = new Texture2D(8192, 4096, TextureFormat.R8, false, true);
+			lightTexture.LoadRawTextureData(new byte[lightTexture.width * lightTexture.height]);
 			lightTexture.Apply();
-			worldMaterial.SetTexture("_LightTex", lightTexture);
 
 			worldTexture = new Texture2D(8192, 4096, TextureFormat.R8, false, true);
 			worldTexture.LoadRawTextureData(new byte[worldTexture.width * worldTexture.height]);
 			worldTexture.Apply();
-			worldMaterial.SetTexture("_MainTex", worldTexture);
-			worldMaterial.SetTexture("_MainTex2", worldTexture);
+
+			ctrlTexture = new Texture2D(512, 192, TextureFormat.R8, false, true);
+			ctrlTexture.filterMode = FilterMode.Point;
+			ctrlTexture.LoadRawTextureData(new byte[ctrlTexture.width * ctrlTexture.height]);
+			ctrlTexture.Apply();
+			#endregion
+
+			#region materials
 			worldShadowMaterial.SetTexture("_MainTex", worldTexture);
 			optimizatorMaterial.SetTexture("_WorldTex", worldTexture);
-			clearTexture = new Texture2D(16, 16, TextureFormat.R8, false, true);
-			clearTexture.filterMode = FilterMode.Point;
-			clearTexture.LoadRawTextureData(new byte[clearTexture.width * clearTexture.height]);
-			clearTexture.Apply();
-			optimizatorMaterial.SetTexture("_ClearTex", clearTexture);
+			optimizatorMaterial.SetTexture("_CtrlTex", ctrlTexture);
+			worldMaterial.SetTexture("_LightTex", lightTexture);
+			worldMaterial.SetTexture("_MainTex", worldTexture);
 			#endregion
+
+			blockSelector.SetWorldTexture(worldTexture);
 		}
-		int lastFrameCount = 0;
-		private void GenerateChunk()
+
+		public override void OnDeserialization() { SendCustomEventDelayedFrames(nameof(StartBiomeGenerator), 2); }
+		private void StartBiomeGenerator()
 		{
-			var pos = chunksQueueData[currentChunk] * 16 + worldPos * 16;
-			lastFrameCount = Time.frameCount;
+			Debug.Log(debugLogo + "seed is " + seed);
+			Random.InitState(seed);
+			chunkTerrainGeneratorMaterial.SetInt("_Seed", seed);
+			chunkGeneratorMaterial.SetInt("_Seed", seed);
+			chunkGeneratorMaterial.SetVector("_CavesOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
+			chunkGeneratorMaterial.SetVector("_Ore1Offset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
+			chunkGeneratorMaterial.SetVector("_Ore2Offset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
+			chunkGeneratorMaterial.SetVector("_Ore3Offset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
+			chunkGeneratorMaterial.SetVector("_DirtOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
+			chunkGeneratorMaterial.SetVector("_GravelOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
+			chunkGeneratorMaterial.SetVector("_GraniteOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
+			chunkGeneratorMaterial.SetVector("_AndesiteOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
+			chunkGeneratorMaterial.SetVector("_DioriteOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
+			foreach (var genLayer in genLayers) genLayer.SetInt("_Seed", Random.Range(0, int.MaxValue));
+			foreach (var texture in genTextures) texture.Initialize();
+			SendCustomEventDelayedFrames(nameof(FinishBiomeGenerator), 2);
+		}
+		public void FinishBiomeGenerator()
+		{
+			enabled = true;
+
+			SetMatData();
 			VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
+		}
+
+		private void StartGeneration()
+		{
+			/*var pos = chunksQueueData[currentIndex] + worldPos;
+			while (initPositions[(pos.x & 31) + ((pos.y & 31) << 5)] == pos || renderingChunk == pos || readingChunk == pos)
+			{
+				currentIndex++;
+				pos = chunksQueueData[currentIndex] + worldPos;
+			}
+			chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
+			chunkTerrainGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
+			GenerateChunk();*/
+		}
+
+		private bool TryNext()
+		{
+			var pos = chunksQueueData[currentIndex] + worldPos;
+
+			while (currentIndex < chunksQueueData.Length)
+			{
+				pos = chunksQueueData[currentIndex] + worldPos;
+				if (initPositions[(pos.x & 31) + ((pos.y & 31) << 5)] == pos || renderingChunk == pos || readingChunk == pos)
+				{
+					currentIndex++;
+				}
+				else
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		private void SetMatData()
+		{
+			var queuePos = chunksQueueData[currentIndex];
+			var pos = queuePos + worldPos;
+			var miniGenMaterial = miniGenTexture.material;
+			renderingChunk = pos;
+			pos *= 16;
+			if (miniGenMaterial.GetInt("_OffsetX") != 5053 + worldPos.x * 4 || miniGenMaterial.GetInt("_OffsetY") != 5053 + worldPos.y * 4)
+			{
+				miniGenTexture.material.SetInt("_OffsetX", 5053 + worldPos.x * 4);
+				miniGenTexture.material.SetInt("_OffsetY", 5053 + worldPos.y * 4);
+				miniGenTexture.Initialize();
+			}
 			chunkGeneratorMaterial.SetInt("_ChunkPosX", pos.x);
 			chunkGeneratorMaterial.SetInt("_ChunkPosY", pos.y);
 			chunkTerrainGeneratorMaterial.SetInt("_ChunkPosX", pos.x);
 			chunkTerrainGeneratorMaterial.SetInt("_ChunkPosY", pos.y);
-			chunkTerrainGeneratorMaterial.SetInt("_ReadOffsetX", chunksQueueData[currentChunk].x << 4);
-			chunkTerrainGeneratorMaterial.SetInt("_ReadOffsetY", chunksQueueData[currentChunk].y << 4);
+			chunkTerrainGeneratorMaterial.SetInt("_ReadOffsetX", queuePos.x << 4);
+			chunkTerrainGeneratorMaterial.SetInt("_ReadOffsetY", queuePos.y << 4);
 			chunkTerrainGenerator.Initialize();
-			SendCustomEventDelayedFrames(nameof(GenerateChunkB), 1);
-		}
-		public void GenerateChunkB()
-		{
 			chunkGenerator.Initialize();
+			lastFrameCount = Time.frameCount;
+			chunkRendering = true;
 		}
 
-		private byte[] px = new byte[65536];
 		public override void OnAsyncGpuReadbackComplete(VRCAsyncGPUReadbackRequest request)
 		{
-			ManualOnAsyncGpuReadbackComplete(request);
-		}
-		private VRCAsyncGPUReadbackRequest lastRequest;
-		public void ManualOnAsyncGpuReadbackCompleteDelay()
-		{
-			Debug.Log(debugLogo + "GPU readback complete delay");
-			ManualOnAsyncGpuReadbackComplete(lastRequest);
-		}
-		private void ManualOnAsyncGpuReadbackComplete(VRCAsyncGPUReadbackRequest request)
-		{
-			if (Time.frameCount - lastFrameCount < 2)
-			{
-				lastRequest = request;
-				SendCustomEventDelayedFrames(nameof(ManualOnAsyncGpuReadbackCompleteDelay), 1);
-				return;
-			}
-
-			if (request.hasError)
+			/*if (request.hasError)
 			{
 				Debug.LogError(debugLogo + "GPU readback error!");
 				lastFrameCount = Time.frameCount;
 				VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
 				return;
+			}*/
+
+
+			if (chunkReading)
+			{
+				if (!request.TryGetData(px)) return;
+				convertor.LoadRawTextureData(px);
+				var data = convertor.GetPixels();
+				worldTexture.SetPixels(readingChunk.x << 8 & 8191, readingChunk.y << 7 & 4095, 256, 128, data);
+				worldTexture.Apply();
+				updateChunk = new Vector2Int(readingChunk.x & 31, readingChunk.y & 31);
 			}
 
-			Vector2Int pos;
-			if (prevChunk == -1)
+			if (chunkRendering)
+			{
+				chunkRendering = false;
+				readingChunk = renderingChunk;
+				chunkReading = true;
+				if (TryNext()) SetMatData();
+				VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
+			}
+
+
+
+
+
+
+			/*if (readingChunk == -1)
 			{
 				miniGenTexture.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
 				optimizator.initializationSource = CustomRenderTextureInitializationSource.Material;
 				optimizator.initializationMode = CustomRenderTextureUpdateMode.Realtime;
 
-				prevChunk = currentChunk;
+				readingChunk = renderingChunk;
 
 				do
 				{
-					currentChunk++;
-					if (currentChunk == chunksQueueData.Length) break;
-					pos = chunksQueueData[currentChunk] + worldPos;
-				} while (initPositions[(pos.x & 31) + ((pos.y & 31) << 5)] == pos && currentChunk < chunksQueueData.Length);
+					renderingChunk++;
+					if (renderingChunk == chunksQueueData.Length) break;
+					pos = chunksQueueData[renderingChunk] + worldPos;
+				} while (initPositions[(pos.x & 31) + ((pos.y & 31) << 5)] == pos && renderingChunk < chunksQueueData.Length);
 
-				GenerateChunk();
+				SetMatData();
 				return;
-			}
+			}*/
 
 
-			if (currentChunk == -1)
+			/*if (renderingChunk == -1)
 			{
-				ReStartGeneration();
+				StartGeneration();
 				return;
-			}
+			}*/
 
-			if (!request.TryGetData(px)) return;
 
-			miniTex.LoadRawTextureData(px);
+
+
 			//miniTex.Apply();
-			pos = chunksQueueData[prevChunk] + worldPos;
-			var data = miniTex.GetPixels();
-
-			if (pos == new Vector2Int(-6, -1))
-				data[14669] = new Color32(15, 100, 200, 0);
-			var mpx = pos.x >> 1 & 15;
-			var mpy = pos.y >> 1 & 15;
-			if (clearTexture.GetPixel(mpx, mpy).r == 1)
+			/*var mpx = pos.x >> 1 & 15;
+			var mpy = pos.y >> 1 & 15;*/
+			/*if (clearTexture.GetPixel(mpx, mpy).r == 1)
 			{
 				clearTexture.SetPixel(pos.x >> 1 & 15, pos.y >> 1 & 15, Color.clear);
 				clearTexture.Apply();
@@ -308,37 +370,33 @@ namespace VRC_MINE.World
 
 				if ((pos.x & 31) != (mpx << 1) + 1 || (pos.y & 31) != (mpy << 1) + 1)
 					worldTexture.SetPixels((mpx << 9) + 256, (mpy << 8) + 128, 256, 128, clearChunkColor);
-			}
-			worldTexture.SetPixels(pos.x << 8 & 8191, pos.y << 7 & 4095, 256, 128, data);
-			worldTexture.Apply();
-			optimizatorMaterial.SetInt("_ChunkX", pos.x & 31);
+			}*/
+
+			/*optimizatorMaterial.SetInt("_ChunkX", pos.x & 31);
 			optimizatorMaterial.SetInt("_ChunkY", pos.y & 31);
-			initPositions[(pos.x & 31) + ((pos.y & 31) << 5)] = pos;
+			initPositions[(pos.x & 31) + ((pos.y & 31) << 5)] = pos;*/
 
-
-			prevChunk = currentChunk;
-
-			if (prevChunk == chunksQueueData.Length)
+			//if (readingChunk == chunksQueueData.Length)
 			{
 				Debug.Log(debugLogo + "World generation complete!");
 				/*chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
 				chunkTerrainGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;*/
-				optimizator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
+				//optimizator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
 				return;
 			}
 
-			if (currentChunk + 1 == chunksQueueData.Length)
+			/*if (renderingChunk + 1 == chunksQueueData.Length)
 			{
-				currentChunk++;
+				renderingChunk++;
 				VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
 				return;
 			}
 			do
 			{
-				currentChunk++;
-				pos = chunksQueueData[currentChunk] + new Vector2Int((int)transform.position.x >> 4, (int)transform.position.z >> 4);
-			} while (initPositions[(pos.x & 31) + ((pos.y & 31) << 5)] == pos && currentChunk < chunksQueueData.Length - 1);
-			GenerateChunk();
+				renderingChunk++;
+				pos = chunksQueueData[renderingChunk] + new Vector2Int((int)transform.position.x >> 4, (int)transform.position.z >> 4);
+			} while (initPositions[(pos.x & 31) + ((pos.y & 31) << 5)] == pos && renderingChunk < chunksQueueData.Length - 1);
+			SetMatData();*/
 		}
 
 		private byte GetBlock(Vector3Int pos)
@@ -348,11 +406,17 @@ namespace VRC_MINE.World
 			return ((Color32)worldTexture.GetPixel(ch.x + (pos.x & 15) + ((pos.z & 15) << 4), ch.y + pos.y)).r;
 		}
 
+
+
 		private void Update()
 		{
+			/*if (updateChunk != Vector2Int.left)
+			{
+				ctrlTexture.SetPixels(updateChunk.x *
+			}*/
+
 			shadowCam1.enabled = false;
-			var frame = Time.frameCount;
-			if (prevChunk < chunksQueueData.Length / 4 && (frame & 31) == 0) shadowCam1.enabled = true;
+			if ((Time.frameCount & 20) == 0) shadowCam1.enabled = true;
 			var pos = Vector3Int.FloorToInt(localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime + Vector3.up * 0.5f);
 			if (oldPos == pos) return;
 
@@ -446,12 +510,12 @@ namespace VRC_MINE.World
 			{
 				transform.position = p;
 				worldPos = new Vector2Int(Mathf.FloorToInt(transform.position.x) >> 4, Mathf.FloorToInt(transform.position.z) >> 4);
-				if (prevChunk == chunksQueueData.Length)
+				/*if (readingChunk == chunksQueueData.Length)
 				{
-					ReStartGeneration();
+					StartGeneration();
 				}
 				else
-					currentChunk = -1;
+					renderingChunk = -1;*/
 
 				var changed = false;
 				int id1, id2;
@@ -472,7 +536,7 @@ namespace VRC_MINE.World
 
 						if (id1 != id2)
 						{
-							clearTexture.SetPixels(i, 0, 1, 16, clearOptimizatorColor);
+							//clearTexture.SetPixels(i, 0, 1, 16, clearOptimizatorColor);
 							for (int j = 0; j < 32; j++)
 							{
 								initPositions[i * 2 + j * 32].x++;
@@ -499,7 +563,7 @@ namespace VRC_MINE.World
 
 						if (id1 != id2)
 						{
-							clearTexture.SetPixels(0, i, 16, 1, clearOptimizatorColor);
+							//clearTexture.SetPixels(0, i, 16, 1, clearOptimizatorColor);
 							for (int j = 0; j < 32; j++)
 							{
 								initPositions[j + i * 64].y++;
@@ -511,7 +575,7 @@ namespace VRC_MINE.World
 
 				if (changed)
 				{
-					clearTexture.Apply();
+					//clearTexture.Apply();
 					optimizator.initializationMode = CustomRenderTextureUpdateMode.Realtime;
 				}
 			}
@@ -519,30 +583,12 @@ namespace VRC_MINE.World
 			#endregion
 		}
 
-		private void ReStartGeneration()
-		{
-			genLayers[8].SetInt("_OffsetX", 5053 + worldPos.x * 4);
-			genLayers[8].SetInt("_OffsetY", 5053 + worldPos.y * 4);
-			miniGenTexture.initializationMode = CustomRenderTextureUpdateMode.Realtime;
-			currentChunk = 0;
-			var pos = chunksQueueData[currentChunk] + worldPos;
-			while (initPositions[(pos.x & 31) + ((pos.y & 31) << 5)] == pos)
-			{
-				currentChunk++;
-				pos = chunksQueueData[currentChunk] + worldPos;
-			}
-			/*chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
-			chunkTerrainGenerator.initializationMode = CustomRenderTextureUpdateMode.OnLoad;*/
-			prevChunk = -1;
-			GenerateChunk();
-		}
-
 		private void OnDestroy()
 		{
 			//destroy textures
 			Destroy(worldTexture);
 			Destroy(lightTexture);
-			Destroy(miniTex);
+			Destroy(convertor);
 		}
 
 		/*
@@ -602,7 +648,6 @@ public class ChunkMeshGeneratorEditor : Editor
 		var group = new FolderGrup() { name = "BiomeGenerator", properties = new List<SerializedProperty>() };
 		group.properties.Add(serializedObject.FindProperty("dataGameObject"));
 		group.properties.Add(serializedObject.FindProperty("genLayers"));
-		group.properties.Add(serializedObject.FindProperty("continentsLayer"));
 		group.properties.Add(serializedObject.FindProperty("genTextures"));
 		group.properties.Add(serializedObject.FindProperty("miniGenTexture"));
 		folderGrups.Add(group);
@@ -636,6 +681,11 @@ public class ChunkMeshGeneratorEditor : Editor
 		group.properties.Add(serializedObject.FindProperty("chunkGenerator"));
 		group.properties.Add(serializedObject.FindProperty("chunkTerrainGenerator"));
 		group.properties.Add(serializedObject.FindProperty("chunkMeshGenerator"));
+		group.properties.Add(serializedObject.FindProperty("seed"));
+		folderGrups.Add(group);
+
+		group = new FolderGrup() { name = "Systems", properties = new List<SerializedProperty>() };
+		group.properties.Add(serializedObject.FindProperty("blockSelector"));
 		folderGrups.Add(group);
 	}
 	bool chunkMeshTypesFold = false;

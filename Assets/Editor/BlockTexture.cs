@@ -15,19 +15,61 @@ namespace VRC_MINE.Tools
 		[SerializeField]
 		private SideData[] sides = new SideData[6];
 
+		[HideInInspector]
+		[SerializeField]
+		private SideData[] leaves = new SideData[6];
+
 		public void SetSide(BlockSide side, SideData value)
 		{
 			sides[(int)side] = value;
+		}
+		public void SetLeave(BlockSide side, SideData value)
+		{
+			leaves[(int)side] = value;
 		}
 
 		public SideData GetSide(BlockSide side)
 		{
 			return sides[(int)side];
 		}
+		public SideData GetLeave(BlockSide side)
+		{
+			return leaves[(int)side];
+		}
 
 		internal Color32[] GetSideData(BlockSide side)
 		{
 			var d = sides[(int)side].texture.GetPixels32();
+
+			if (side == BlockSide.Front || side == BlockSide.Left)
+			{
+				var copy = d;
+				d = new Color32[d.Length];
+				for (int x = 0; x < 16; x++)
+				{
+					for (int y = 0; y < 16; y++)
+					{
+						d[x + y * 16] = copy[15 - x + y * 16];
+					}
+				}
+			}
+			if (side == BlockSide.Down)
+			{
+				var copy = d;
+				d = new Color32[d.Length];
+				for (int x = 0; x < 16; x++)
+				{
+					for (int y = 0; y < 16; y++)
+					{
+						d[x + y * 16] = copy[x + (15 - y) * 16];
+					}
+				}
+			}
+			return d;
+		}
+		internal Color32[] GetLeaveData(BlockSide side)
+		{
+			var d = leaves[(int)side].texture.GetPixels32();
 
 			if (side == BlockSide.Front || side == BlockSide.Left)
 			{

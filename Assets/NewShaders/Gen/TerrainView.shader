@@ -20,7 +20,7 @@ Shader "VRC_MINE/Editor/TerrainView"
 
             #include "UnityCG.cginc"
 
-            Texture2D<uint2> _MainTex;
+            Texture2D<uint4> _MainTex;
             float4 _MainTex_TexelSize;
 
             bool _ShowDetails;
@@ -55,20 +55,8 @@ Shader "VRC_MINE/Editor/TerrainView"
             fixed4 frag(v2f i) : SV_Target
             {
                 int2 uv = i.uv;
-                float2 r = _MainTex.Load(int3(uv, 0));
-                /*uv.x++;
-                float2 r2 = _MainTex.Load(int3(uv, 0));
-                uv.y++;
-                float2 r4 = _MainTex.Load(int3(uv, 0));
-                uv.x--;
-                float2 r3 = _MainTex.Load(int3(uv, 0));
-                
-                r1 = lerp(r1, r2, i.uv.x%1);
-                r3 = lerp(r3, r4, i.uv.x%1);
-                r1 = lerp(r1, r3, i.uv.y%1);*/
-
-                //if(r1.x==255) discard;
-                return fixed4((r-15)/80,0,1);
+                float4 r = float4(_MainTex.Load(int3(uv, 0)));
+                return r/255;
             }
 
             ENDCG

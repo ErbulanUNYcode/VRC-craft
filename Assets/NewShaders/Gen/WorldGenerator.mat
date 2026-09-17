@@ -87,13 +87,23 @@ Material:
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _Scale: 16
+    - _Seed: 1.9630636e+9
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
+    - _AndesiteOffset: {r: -8907, g: -9675, b: -2709, a: 0}
+    - _CavesOffset: {r: 6389, g: -7423, b: 5302, a: 0}
     - _Chunk: {r: 0, g: 0, b: 0, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _DioriteOffset: {r: 4797, g: -5623, b: -4438, a: 0}
+    - _DirtOffset: {r: -2114, g: -2844, b: 6586, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _GraniteOffset: {r: -6997, g: -1638, b: 6578, a: 0}
+    - _GravelOffset: {r: -2512, g: -8931, b: 1029, a: 0}
+    - _Ore1Offset: {r: 4178, g: -6871, b: 6105, a: 0}
+    - _Ore2Offset: {r: -7026, g: 7343, b: 2710, a: 0}
+    - _Ore3Offset: {r: -8367, g: 2629, b: -9456, a: 0}
   m_BuildTextureStacks: []
