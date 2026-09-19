@@ -4,7 +4,6 @@ Shader "VRC_MINE/WorldOptimizator"
     {
         _WorldTex ("World Texture", 2D) = "white" {}
         _CtrlTex ("Ctrl Texture", 2D) = "white" {}
-        _IndexTex ("Index Texture", 2D) = "white" {}
     }
 
     SubShader
@@ -35,7 +34,6 @@ Shader "VRC_MINE/WorldOptimizator"
             
             texture2D<fixed> _WorldTex;
             texture2D<fixed> _CtrlTex;
-            texture2D<uint4> _IndexTex;
             v2f vert(appdata v)
             {
                 v2f o;
@@ -66,17 +64,18 @@ Shader "VRC_MINE/WorldOptimizator"
                 uint2 uv = floor(i.uv);
                 fixed ctrl = _CtrlTex.Load(int3(uv.x,uv.y%192,0));
 
-                if(ctrl==0) return 0;
+                //if(ctrl==0) return 0;
                 if(ctrl==1) discard;
                 
-                uint4 index = _IndexTex.Load(int3(i.uv,0));
-                uint3 pos = uint3(index.x+((index.w&15)<<5),index.y,index.z+(index.w>>4<<5));
+                uint sourceY = uv.y;
                 uint4 mm = uint4(32,0,32,0);
                 if(uv.y>191)
                 {
-                    uv.y=((uv.y-192)>>2)%3;
+                    sourceY-=192;
+                    uv.y=(sourceY>>2)%3;
                     if(uv.y==0)
                     {
+                        uint3 pos = uint3(uv.x,(sourceY%12&3)<<5,(sourceY/12)<<5);
                         for(int y=0;y<32;y++)
                         {
                             for(int z=0;z<32;z++)
@@ -95,6 +94,7 @@ Shader "VRC_MINE/WorldOptimizator"
                     }
                     else if(uv.y==1)
                     {
+                        uint3 pos = uint3((uv.x>>5)<<5,(sourceY%12&3)<<5,(uv.x&31)+((sourceY/12)<<5));
                         for(int y=0;y<32;y++)
                         {
                             for(int x=0;x<32;x++)
@@ -113,6 +113,7 @@ Shader "VRC_MINE/WorldOptimizator"
                     }
                     else
                     {
+                        uint3 pos = uint3((uv.x>>5)<<5,(uv.x&31)+((sourceY%12&3)<<5)+1,(sourceY/12)<<5);
                         for(int z=0;z<32;z++)
                         {
                             for(int x=0;x<32;x++)
@@ -135,6 +136,7 @@ Shader "VRC_MINE/WorldOptimizator"
                     uv.y=(uv.y>>2)%3;
                     if(uv.y==0)
                     {
+                        uint3 pos = uint3(uv.x,(sourceY%12&3)<<5,(sourceY/12)<<5);
                         for(int y=0;y<32;y++)
                         {
                             for(int z=0;z<32;z++)
@@ -153,6 +155,7 @@ Shader "VRC_MINE/WorldOptimizator"
                     }
                     else if(uv.y==1)
                     {
+                        uint3 pos = uint3((uv.x>>5)<<5,(sourceY%12&3)<<5,(uv.x&31)+((sourceY/12)<<5));
                         for(int y=0;y<32;y++)
                         {
                             for(int x=0;x<32;x++)
@@ -171,6 +174,7 @@ Shader "VRC_MINE/WorldOptimizator"
                     }
                     else
                     {
+                        uint3 pos = uint3((uv.x>>5)<<5,(uv.x&31)+((sourceY%12&3)<<5)+1,(sourceY/12)<<5);
                         for(int z=0;z<32;z++)
                         {
                             for(int x=0;x<32;x++)

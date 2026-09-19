@@ -6,24 +6,6 @@ namespace VRC_MINE.World
 	[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 	public class ChunkMeshGenerator : UdonSharpBehaviour
 	{
-		[SerializeField] private CustomRenderTexture[] biomeGenerators;
-
-		public void StartBiomeGeneration()
-		{
-			foreach (var biomeGenerator in biomeGenerators)
-			{
-				biomeGenerator.initializationMode = CustomRenderTextureUpdateMode.Realtime;
-			}
-			SendCustomEventDelayedFrames(nameof(StopBiomeGeneration), 1);
-		}
-		public void StopBiomeGeneration()
-		{
-			foreach (var biomeGenerator in biomeGenerators)
-			{
-				biomeGenerator.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
-			}
-		}
-
 		private Mesh[] meshes = new Mesh[9];
 
 		public Mesh GetMesh(ChunkMeshType type)
@@ -33,7 +15,6 @@ namespace VRC_MINE.World
 		}
 		public void Generate()
 		{
-			SendCustomEventDelayedFrames(nameof(StartBiomeGeneration), 1);
 			meshes[0] = CreateTypePP();
 			meshes[1] = CreateTypeMP();
 			meshes[2] = CreateTypePM();

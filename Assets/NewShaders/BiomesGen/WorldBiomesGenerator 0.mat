@@ -27,7 +27,7 @@ Material:
     m_Floats:
     - _ChunkPosX: 0
     - _ChunkPosY: 0
-    - _Seed: 1.1051406e+9
+    - _Seed: 295224480
     - _Size: 21
     m_Colors: []
   m_BuildTextureStacks: []

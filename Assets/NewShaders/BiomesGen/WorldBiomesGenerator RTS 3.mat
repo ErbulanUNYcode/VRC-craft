@@ -16,7 +16,7 @@ Material:
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 1911
   stringTagMap: {}
   disabledShaderPasses: []
   m_LockedProperties: 
@@ -37,7 +37,7 @@ Material:
     - _OffsetX: 0
     - _OffsetY: 0
     - _Orient: 0
-    - _Seed: 1.4197916e+9
+    - _Seed: 1.3205586e+9
     - _SetBiomes: 0
     - _SetClimateZones: 0
     - _SetMiniBiomes: 0
