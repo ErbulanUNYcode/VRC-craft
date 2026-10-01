@@ -129,7 +129,8 @@ Shader "VRC_MINE/WorldShow"
                     o.face =_WorldSpaceCameraPos.y<unity_ObjectToWorld._m13+v.vertex.y;
                     o.light=_DownLightColor;
                 }
-                o.inter = v.vertex.xyz + unity_ObjectToWorld._m03_m13_m23;
+                o.inter.xz = v.vertex.xz + unity_ObjectToWorld._m03_m23;
+                o.inter.y = v.vertex.y;
                 if(o.light.a>0)
                 o.shadow= mul(_ShadowMatrix, float4(o.inter, 1)).xyz/2+0.5;
                 else

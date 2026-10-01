@@ -3,17 +3,20 @@ using TMPro;
 using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
+using VRC_MINE.World;
 [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class TeleportTo : UdonSharpBehaviour
 {
 	private VRCPlayerApi currentPlayer;
-	[SerializeField] TextMeshProUGUI text;
+	[SerializeField] private TextMeshProUGUI text;
+	[SerializeField] private WorldGenerator world;
 
 	public void Teleport()
 	{
-		Debug.Log("Teleport");
 		if (currentPlayer == null) return;
-		Networking.LocalPlayer.TeleportTo(currentPlayer.GetPosition(), currentPlayer.GetRotation());
+		Debug.Log("Teleport to: " + currentPlayer.displayName);
+		Networking.LocalPlayer.TeleportTo(currentPlayer.GetPosition() + Vector3.up * 0.5f, currentPlayer.GetRotation());
+		world.OnPlayerTeleport();
 	}
 
 	public void NextPlayer()

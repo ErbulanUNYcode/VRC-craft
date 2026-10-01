@@ -168,6 +168,7 @@ namespace VRC_MINE.Tools
 			asset = bt;
 			mat = new Material(Shader.Find("Unlit/Transparent Cutout"));
 			mat.color = new Color(2f, 2f, 2f, 1f);
+			mat.SetFloat("_Cutoff", 0.5f);
 			Repaint();
 		}
 
@@ -266,7 +267,6 @@ namespace VRC_MINE.Tools
 
 			var s = asset.GetSide(side);
 			mat.mainTexture = s.texture;
-
 			GL.PushMatrix();
 			mat.SetPass(0);
 			GL.LoadPixelMatrix();
