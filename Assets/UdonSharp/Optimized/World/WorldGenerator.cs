@@ -92,7 +92,7 @@ namespace VRC_MINE.World
 		private const string debugLogo = "<color=#00ff00><<<</color><color=#0000ff>MCGE</color><color=#00ff00>>>></color>  ";
 		private const string debugWarningLogo = "<color=#00ff00><<<</color><color=#ff0000>MCGE</color><color=#00ff00>>>></color>  ";
 
-		[UdonSynced] int seed = 1331162761;// int.MinValue;
+		int seed;// int.MinValue;
 
 		#region cache
 		private Collider[] colliders = new Collider[36];
@@ -106,12 +106,8 @@ namespace VRC_MINE.World
 		{
 			InitWorld();
 			enabled = false;
-			//if (Networking.IsOwner(gameObject) && seed == int.MinValue)
-			{
-				//seed = Random.Range(0, int.MaxValue);
-				//RequestSerialization();
-				StartBiomeGenerator();
-			}
+			seed = Networking.GetUniqueName(gameObject).GetHashCode();
+			StartBiomeGenerator();
 		}
 
 		public void OnPlayerTeleport()

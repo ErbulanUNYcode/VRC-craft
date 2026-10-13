@@ -1,6 +1,7 @@
 ﻿
 using UdonSharp;
 using UnityEngine;
+using VRC.SDKBase;
 
 namespace VRC_MINE.UI
 {
@@ -11,11 +12,19 @@ namespace VRC_MINE.UI
 
 		[SerializeField] private string[] _names;
 		[SerializeField] private int[] _maxCounts;
-		[SerializeField] private Material[] _materials;
+		[SerializeField] private Material[] _PCMaterials;
+		[SerializeField] private Material[] _VRMaterials;
 		[SerializeField] private IconType[] _iconTypes;
 		[SerializeField] private int[] _iconIndexes;
 
 		[SerializeField] private Mesh[] _iconSamples;
+		[SerializeField] private GameObject cheatURL;
+		private Material[] _materials;
+		private void Start()
+		{
+			_materials = Networking.LocalPlayer.IsUserInVR() ? _VRMaterials : _PCMaterials;
+		}
+
 		public int MaxCount(int iconIndex) { return _maxCounts[iconIndex]; }
 		public Mesh GetMesh(int iconIndex)
 		{
@@ -39,10 +48,9 @@ namespace VRC_MINE.UI
 
 			return _iconsMeshes[iconIndex];
 		}
-		public Material GetMaterial(int iconIndex)
-		{
-			return _materials[iconIndex];
-		}
+		public Material GetMaterial(int iconIndex) { return _materials[iconIndex]; }
+
+		public string GetName(int iconIndex) { return _names[iconIndex]; }
 	}
 
 	public enum IconType

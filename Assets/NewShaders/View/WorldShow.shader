@@ -181,7 +181,16 @@ Shader "VRC_MINE/WorldShow"
                 int3 pos =floor(p);
                 uint b1 = block(pos);
                 uint b2 = block(pos-i.offset);
-                if ((b1>0&&b2>0) || (i.face?b1:b2)==0)discard;
+                if ((b1>0&&b2>0) || (i.face?b1:b2)==0)
+                {
+                    /*if(i.offset.x && (abs(p.y%1-0.5)>0.494||abs(p.z%1-0.5)>0.494)) return fixed4(1,0,0,1);
+                    if(i.offset.y && (abs(p.x%1-0.5)>0.494||abs(p.z%1-0.5)>0.494)) return fixed4(0,1,0,1);
+                    if(i.offset.z && (abs(p.x%1-0.5)>0.494||abs(p.y%1-0.5)>0.494)) return fixed4(0,0,1,1);*/
+                    /*if(i.offset.x && (abs(p.y%1-0.5)>0.494||abs(p.z%1-0.5)>0.494||abs(p.y%1-p.z%1)<0.01)) return fixed4(1,0,0,1);
+                    if(i.offset.y && (abs(p.x%1-0.5)>0.494||abs(p.z%1-0.5)>0.494||abs(p.x%1-p.z%1)<0.01)) return fixed4(0,1,0,1);
+                    if(i.offset.z && (abs(p.x%1-0.5)>0.494||abs(p.y%1-0.5)>0.494||abs(p.x%1-p.y%1)<0.01)) return fixed4(0,0,1,1);*/
+                    discard;
+                }
                 b1 = i.face?b1:b2;
                 float2 uv = i.offset.x?frac(p.zy):i.offset.y?frac(p.xz):frac(p.xy);
                 int3 os1 = (uv.y>0.5?1:-1)*(i.offset.x?int3(0,1,0):i.offset.y?int3(0,0,1):int3(0,1,0));

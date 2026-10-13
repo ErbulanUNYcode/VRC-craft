@@ -9,6 +9,7 @@ namespace VRC_MINE.UI
 		[SerializeField] private GameObject inventory;
 		[SerializeField] private GameObject aim;
 		[SerializeField] private MeshCollider meshCollider;
+		[SerializeField] private InvSystem invSystem;
 		private Mesh mesh;
 		private Vector3[] vertices;
 
@@ -24,6 +25,7 @@ namespace VRC_MINE.UI
 			0,1,2,
 			2,3,0
 			};
+			inventory.SetActive(false);
 		}
 
 		public void ThroughEvent()
@@ -44,16 +46,21 @@ namespace VRC_MINE.UI
 			var boxCollider = inventory.GetComponent<BoxCollider>();
 			if (boxCollider != null) Destroy(boxCollider);
 
-			if (!Input.GetKey(KeyCode.Tab))
+			if (Input.GetKeyDown(KeyCode.Tab))
+			{
+				inventory.SetActive(true);
+				aim.SetActive(false);
+			}
+
+			if (Input.GetKeyUp(KeyCode.Tab))
 			{
 				inventory.SetActive(false);
+				invSystem.Close();
 				aim.SetActive(true);
 				return;
 			}
-			inventory.gameObject.SetActive(true);
-			aim.SetActive(false);
-			//SendCustomEventDelayedFrames(nameof(ThroughEvent), 0);
-			ThroughEvent();
+
+			if (inventory.activeSelf) ThroughEvent();
 		}
 	}
 }

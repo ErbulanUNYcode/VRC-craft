@@ -29,11 +29,11 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _ChunkPosX: 12048
-    - _ChunkPosY: 144
+    - _ChunkPosX: 304
+    - _ChunkPosY: 240
     - _ReadOffsetX: 240
     - _ReadOffsetY: 240
-    - _Seed: 1.3311628e+9
+    - _Seed: 1.7556863e+9
     - _TestDiv: 4
     - _TestViewIndex: 17
     m_Colors: []

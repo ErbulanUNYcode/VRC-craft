@@ -3,6 +3,7 @@ using TMPro;
 using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
+using VRC.Udon.Common;
 using VRC_MINE.World;
 [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class TeleportTo : UdonSharpBehaviour
@@ -11,6 +12,9 @@ public class TeleportTo : UdonSharpBehaviour
 	[SerializeField] private TextMeshProUGUI text;
 	[SerializeField] private WorldGenerator world;
 
+	[SerializeField] private Transform coursor;
+	[SerializeField] private Transform map;
+	[SerializeField] private float tpScale;
 	public void Teleport()
 	{
 		if (currentPlayer == null) return;
@@ -106,5 +110,46 @@ public class TeleportTo : UdonSharpBehaviour
 		if (player != currentPlayer) return;
 		currentPlayer = null;
 		text.text = "Select a player";
+	}
+
+	private void Update()
+	{
+		var localPlayer = Networking.LocalPlayer;
+		var trakingData = localPlayer.IsUserInVR()
+			? localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.RightHand)
+			: localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.Head);
+
+		var pos = map.InverseTransformPoint(trakingData.position);
+		var order = map.InverseTransformDirection(
+			localPlayer.IsUserInVR()
+				? trakingData.rotation * new Vector3(1, 0, 1)
+				: trakingData.rotation * Vector3.forward
+		);
+
+		if (Vector3.Magnitude(pos) > 2 || pos.z > 0 || order.z < 0)
+		{
+			coursor.gameObject.SetActive(false);
+			return;
+		}
+
+		var distance = -pos.z / order.z;
+		var hit = pos + order * distance;
+
+		if (hit.x < -0.5f || hit.x > 0.5f || hit.y < -0.5f || hit.y > 0.5f)
+		{
+			coursor.gameObject.SetActive(false);
+			return;
+		}
+
+		coursor.gameObject.SetActive(true);
+		coursor.localPosition = new Vector3(hit.x, hit.y, 0);
+	}
+
+	public override void InputUse(bool value, UdonInputEventArgs args)
+	{
+		if (value && coursor.gameObject.activeSelf)
+		{
+			Networking.LocalPlayer.TeleportTo(new Vector3(coursor.localPosition.x, 0, coursor.localPosition.y) * 40940 + Vector3.up * 80, Networking.LocalPlayer.GetRotation());
+		}
 	}
 }

@@ -1,4 +1,5 @@
-﻿using UdonSharp;
+﻿using System;
+using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 using VRC_MINE.UI;
@@ -40,8 +41,8 @@ namespace VRC_MINE.Data
 				invCounts = new byte[41];
 				for (byte i = 0; i < 15; i++)
 				{
-					invIcons[i] = i;
-					invCounts[i] = 64;
+					invIcons[i] = (byte)Mathf.Min(i, 13);
+					invCounts[i] = 60;
 				}
 			}
 			//else
@@ -51,14 +52,16 @@ namespace VRC_MINE.Data
 			var cells = player.IsUserInVR() ? VRCells : PCCells;
 			for (int i = 0; i < cells.Length; i++)
 			{
-				if (invCounts[i] == 0) continue;
-				cells[i].TryGiveItems(invIcons[i], invCounts[i]);
+				cells[i].GiveSavedItems(invIcons[i], invCounts[i]);
 			}
 		}
 
+		DateTime nextSave = DateTime.Now + TimeSpan.FromSeconds(15);
 		private void Update()
 		{
-			if (Time.frameCount % 300 == 0) SaveSpawnPoint();
+			if (nextSave >= DateTime.Now) return;
+			nextSave = DateTime.Now + TimeSpan.FromSeconds(15);
+			SaveSpawnPoint();
 		}
 
 		public void SaveSpawnPoint()
