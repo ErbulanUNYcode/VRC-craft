@@ -10,6 +10,7 @@ namespace VRC_MINE.UI
 	[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 	public class VRHeadUi : UdonSharpBehaviour
 	{
+		[SerializeField] private RectTransform HUD;
 		[SerializeField] private RectTransform invRoot;
 		[SerializeField] private RectTransform inv;
 		[SerializeField] private Material[] UiMaterials;
@@ -34,11 +35,8 @@ namespace VRC_MINE.UI
 		private void Start()
 		{
 			localPlayer = Networking.LocalPlayer;
-#if UNITY_EDITOR
-			if (!testVR)
-#else
-				if (!localPlayer.IsUserInVR())
-#endif
+
+			if (!localPlayer.IsUserInVR())
 			{
 				Destroy(gameObject);
 				return;
@@ -51,7 +49,7 @@ namespace VRC_MINE.UI
 		{
 			var head = localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.Head);
 
-			transform.rotation = Quaternion.Slerp(transform.rotation, head.rotation, 0.1f);
+			HUD.rotation = Quaternion.Slerp(HUD.rotation, head.rotation, 0.1f);
 
 			renderImage.position = head.position + head.rotation * Vector3.forward * 0.1f;
 
@@ -60,15 +58,15 @@ namespace VRC_MINE.UI
 			var offset = VRCCameraSettings.ScreenCamera.Right * eyeDist * localPlayer.GetAvatarEyeHeightAsMeters();
 			foreach (var UiMaterial in UiMaterials) UiMaterial.SetVector("_EyeOffset", offset);
 
+			if (invRoot.localScale == Vector3.zero) return;
+
 			var leftHand = localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.LeftHand);
 
 			invRoot.rotation = leftHand.rotation;
 			invRoot.position = leftHand.position - head.position;
 			var rightHand = localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.RightHand);
 			var localHand = inv.InverseTransformPoint(rightHand.position - head.position);
-#if UNITY_EDITOR
-			cursorPosition = cursor.localPosition;
-#else
+
 			cursorPosition = inv.InverseTransformPoint(rightHand.position + rightHand.rotation * new Vector3(0.1f, 0, 0.1f) - head.position);
 			cursorPosition.z = 0;
 			if (localHand.z > 0 || localHand.z < -200 || !inv.rect.Contains(cursorPosition))
@@ -78,7 +76,7 @@ namespace VRC_MINE.UI
 				lastCell = null;
 				return;
 			}
-#endif
+
 			cursorActive = true;
 
 			if (invZone.rect.Contains(cursorPosition - invZone.localPosition))

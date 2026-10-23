@@ -18,8 +18,8 @@ namespace VRC_MINE.UI
 		[SerializeField] private Sprite[] coursorSprites;
 		[SerializeField] private Sprite[] selectSprites;
 		[SerializeField] private RectTransform[] windows;
+		[SerializeField] private InvSystem invSystem;
 		private int selectedIndex = 0;
-		private RectTransform root;
 		private VRCPlayerApi localPlayer;
 		private bool isActive = false;
 		private VRCTweenHandle scaleTweenHandle = new VRCTweenHandle();
@@ -28,7 +28,6 @@ namespace VRC_MINE.UI
 		{
 			transform.localScale = Vector3.zero;
 			localPlayer = Networking.LocalPlayer;
-			root = GetComponent<RectTransform>();
 			foreach (var win in windows) if (win != null) win.transform.localScale = Vector3.zero;
 		}
 
@@ -37,10 +36,10 @@ namespace VRC_MINE.UI
 			if (transform.localScale == Vector3.zero) return;
 			var head = localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.Head);
 			var leftHand = localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.LeftHand);
-			var delay = leftHand.position - head.position;
-			transform.position = delay + root.transform.rotation * Vector3.right * 0.06f;
-			delay.y = 0;
+			var delay = Vector3.Normalize((leftHand.position + Quaternion.LookRotation(head.rotation * Vector3.forward) * Vector3.right * 0.06f) - head.position);
+			delay.y = -0.25f;
 			transform.rotation = Quaternion.LookRotation(delay);
+			transform.position = (leftHand.position + transform.rotation * Vector3.right * 0.06f) - head.position; ;
 
 			if (isActive)
 			{
@@ -76,6 +75,7 @@ namespace VRC_MINE.UI
 						var tween = scaleWinTweenHandles[selectedIndex];
 						if (tween.IsPlaying) tween.Kill();
 						scaleWinTweenHandles[selectedIndex] = windows[selectedIndex].transform.TweenScale(Vector3.zero, 0.25f, VRCTweenEase.InOutCubic);
+						if (selectedIndex == 2) invSystem.Close();
 					}
 					isActive = true;
 				}
@@ -118,6 +118,7 @@ namespace VRC_MINE.UI
 						var tween = scaleWinTweenHandles[selectedIndex];
 						if (tween.IsPlaying) tween.Kill();
 						scaleWinTweenHandles[selectedIndex] = windows[selectedIndex].transform.TweenScale(Vector3.zero, 0.25f, VRCTweenEase.InOutCubic);
+						if (selectedIndex == 2) invSystem.Close();
 					}
 					isActive = true;
 				}

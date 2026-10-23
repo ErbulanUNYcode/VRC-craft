@@ -44,7 +44,15 @@ namespace VRC_MINE.UI
 			count = _count;
 
 			countText.text = count < 2 ? "" : count.ToString();
-			if (hotBar != null) hotBar.CloneThis(this);
+			if (hotBar != null)
+			{
+				hotBar.CloneThis(this);
+				if (hand != null)
+				{
+					hand.SetMaterial(itemData.GetMaterial(_itemType), 0);
+					hand.SetMesh(itemData.GetMesh(_itemType));
+				}
+			}
 		}
 
 		private void CloneThis(InvCell invCell)
@@ -53,6 +61,11 @@ namespace VRC_MINE.UI
 			icon.materialCount = 1;
 			icon.SetMaterial(invCell.icon.GetMaterial(0), 0);
 			icon.SetMesh(invCell.icon.GetMesh());
+			if (hand != null)
+			{
+				hand.SetMaterial(invCell.icon.GetMaterial(0), 0);
+				hand.SetMesh(invCell.icon.GetMesh());
+			}
 		}
 
 		private int selectCount = 0;
@@ -75,13 +88,6 @@ namespace VRC_MINE.UI
 			if (hotBar != null) hotBar.countText.text = countText.text;
 			dropStarted = DateTime.Now;
 			return selectCount.ToString();
-		}
-
-		public void DropSelects()
-		{
-			selectCount = 0;
-			countText.text = count < 2 ? "" : count.ToString();
-			if (hotBar != null) hotBar.countText.text = countText.text;
 		}
 
 		private bool dropType = false;
@@ -117,6 +123,12 @@ namespace VRC_MINE.UI
 					enteredCell.hotBar.icon.materialCount = 1;
 					enteredCell.hotBar.icon.SetMaterial(icon.GetMaterial(0), 0);
 					enteredCell.hotBar.icon.SetMesh(icon.GetMesh());
+					var hbh = enteredCell.hand;
+					if (hbh != null)
+					{
+						hbh.SetMaterial(icon.GetMaterial(0), 0);
+						hbh.SetMesh(icon.GetMesh());
+					}
 				}
 			}
 			var dropCounts = dropType ? selectCount / dropCellsCount : 1;
@@ -154,9 +166,12 @@ namespace VRC_MINE.UI
 				countText.text = count < 2 ? "" : count.ToString();
 				if (hotBar != null)
 				{
-					hotBar.icon.SetMaterial(enteredCell.icon.GetMaterial(0), 0);
-					hotBar.icon.SetMesh(enteredCell.icon.GetMesh());
-					hotBar.countText.text = countText.text;
+					hotBar.CloneThis(this);
+					if (hand != null)
+					{
+						hand.SetMaterial(enteredCell.icon.GetMaterial(0), 0);
+						hand.SetMesh(enteredCell.icon.GetMesh());
+					}
 				}
 				enteredCell.itemType = tempType;
 				enteredCell.count = tempCount;
@@ -165,9 +180,12 @@ namespace VRC_MINE.UI
 				enteredCell.countText.text = tempCount < 2 ? "" : tempCount.ToString();
 				if (enteredCell.hotBar != null)
 				{
-					enteredCell.hotBar.icon.SetMaterial(itemData.GetMaterial(tempType), 0);
-					enteredCell.hotBar.icon.SetMesh(itemData.GetMesh(tempType));
-					enteredCell.hotBar.countText.text = enteredCell.countText.text;
+					enteredCell.hotBar.CloneThis(enteredCell);
+					if (enteredCell.hand != null)
+					{
+						enteredCell.hand.SetMaterial(itemData.GetMaterial(tempType), 0);
+						enteredCell.hand.SetMesh(itemData.GetMesh(tempType));
+					}
 				}
 				return "";
 			}
@@ -191,7 +209,11 @@ namespace VRC_MINE.UI
 					{
 						cell.countText.text = "";
 						cell.icon.SetMesh(null);
-						if (cell.hotBar != null) cell.hotBar.icon.SetMesh(null);
+						if (cell.hotBar != null)
+						{
+							cell.hotBar.icon.SetMesh(null);
+							if (cell.hand != null) cell.hand.SetMesh(null);
+						}
 					}
 					else cell.countText.text = remain < 2 ? "" : remain.ToString();
 					if (cell.hotBar != null) cell.hotBar.countText.text = cell.countText.text;
@@ -209,7 +231,11 @@ namespace VRC_MINE.UI
 					{
 						cell.countText.text = "";
 						cell.icon.SetMesh(null);
-						if (cell.hotBar != null) cell.hotBar.icon.SetMesh(null);
+						if (cell.hotBar != null)
+						{
+							cell.hotBar.icon.SetMesh(null);
+							if (cell.hand != null) cell.hand.SetMesh(null);
+						}
 					}
 					else cell.countText.text = remain.ToString();
 					if (cell.hotBar != null) cell.hotBar.countText.text = cell.countText.text;
@@ -244,6 +270,7 @@ namespace VRC_MINE.UI
 				{
 					hotBar.countText.text = "";
 					hotBar.icon.SetMesh(null);
+					if (hand != null) hand.SetMesh(null);
 				}
 			}
 
@@ -257,6 +284,17 @@ namespace VRC_MINE.UI
 		public void SetDesk(InvCell[] desk) { this.desk = desk; }
 		public void SetArm(InvCell[] arm) { this.arm = arm; }
 		public void SetInv(InvCell[] inv) { this.inv = inv; }
+		private CanvasRenderer hand;
+		public Vector3 hotBarPosition => hotBar.transform.localPosition;
+
+		public void SetHand(CanvasRenderer hand)
+		{
+			this.hand = hand;
+			if (hand == null) return;
+			hand.materialCount = 1;
+			hand.SetMaterial(icon.GetMaterial(0), 0);
+			hand.SetMesh(icon.GetMesh());
+		}
 	}
 
 	public enum CellType

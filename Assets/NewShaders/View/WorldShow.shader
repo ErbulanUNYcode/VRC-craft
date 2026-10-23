@@ -25,7 +25,6 @@ Shader "VRC_MINE/WorldShow"
 
         Cull Off
         Blend One Zero
-
         Pass
         {
             CGPROGRAM
@@ -253,6 +252,7 @@ Shader "VRC_MINE/WorldShow"
                 shadow *= 1-pow(ao,0.5)*0.5;
 
                 c.rgb = c.rgb*(1-i.fog)*shadow+_FogColor*i.fog;
+                c.a = 1;
                 return c;
             }
 

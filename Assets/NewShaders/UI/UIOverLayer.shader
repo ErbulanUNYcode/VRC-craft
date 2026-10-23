@@ -49,13 +49,27 @@ Shader "VRC_MINE/UIOverLayerLocalizer"
             {
                 v2f o;
 
-                float3 worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+                if(_EyeOffset.x==0 && _EyeOffset.y==0 && _EyeOffset.z==0)
+                {
+                    o.vertex = UnityObjectToClipPos(v.vertex);
+                }   
+                else
+                {
+                    float3 worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
 
-                float3 eyeOffset = lerp(-_EyeOffset.xyz, _EyeOffset.xyz, unity_StereoEyeIndex);
+                    float3 eyeOffset = lerp(
+                        -_EyeOffset.xyz,
+                        _EyeOffset.xyz,
+                        unity_StereoEyeIndex
+                    );
 
-                float3 viewPos = mul((float3x3)UNITY_MATRIX_V, worldPos - eyeOffset);
+                    float3 viewPos = mul(
+                        (float3x3)UNITY_MATRIX_V,
+                        worldPos - eyeOffset
+                    );
 
-                o.vertex = mul(UNITY_MATRIX_P, float4(viewPos, 1.0));
+                    o.vertex = mul(UNITY_MATRIX_P, float4(viewPos, 1.0));
+                }
 
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.color = v.color;

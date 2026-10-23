@@ -93,6 +93,7 @@ namespace VRC_MINE.World
 		private const string debugWarningLogo = "<color=#00ff00><<<</color><color=#ff0000>MCGE</color><color=#00ff00>>>></color>  ";
 
 		int seed;// int.MinValue;
+		VRCCameraSettings cam;
 
 		#region cache
 		private Collider[] colliders = new Collider[36];
@@ -163,12 +164,11 @@ namespace VRC_MINE.World
 			#region cameras
 			shadowCam.SetReplacementShader(replacementShader, "RenderType");
 			shadowCam1.SetReplacementShader(replacementShader, "RenderType");
-			var cam = VRCCameraSettings.ScreenCamera;
+			cam = VRCCameraSettings.ScreenCamera;
+			cam.FarClipPlane = 400;
 			/*var masks = cam.CullingMask;
 			masks.value ^= 1 << 27;
 			cam.CullingMask = masks.value;*/
-			cam.FarClipPlane = 400;
-			cam.AllowMSAA = false;
 			#endregion
 
 			#region colliders
@@ -361,6 +361,11 @@ namespace VRC_MINE.World
 		}
 
 		private bool ctrlUpdate = false;
+
+		private void LateUpdate()
+		{
+			cam.AllowMSAA = false;
+		}
 
 		private void Update()
 		{

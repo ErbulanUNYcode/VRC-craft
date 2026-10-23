@@ -3,11 +3,13 @@ using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon.Common;
+using VRC_MINE.Data;
 namespace VRC_MINE.UI
 {
 	[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 	public class InvSystem : UdonSharpBehaviour
 	{
+		[SerializeField] private PerSystem perSystemSample;
 		[SerializeField] private InvCell[] pcInv;
 		[SerializeField] private InvCell[] vrInv;
 		[SerializeField] private InvCell[] pcArm;
@@ -58,6 +60,7 @@ namespace VRC_MINE.UI
 			//craft
 			craft.SetInv(inv);
 			selectRect.gameObject.SetActive(false);
+			nameObject.SetActive(false);
 		}
 		public void ExitCell(InvCell cell)
 		{
@@ -184,9 +187,15 @@ namespace VRC_MINE.UI
 
 		public void Close()
 		{
-			selectRect.gameObject.SetActive(false);
 			if (selectedCell == null) return;
-			selectedCell.DropSelects();
+			selectRect.gameObject.SetActive(false);
+			nameObject.SetActive(false);
+			if (dropStarted || dropStarted1) selectedCell.TryDrop(selectText.text, null);
+			dropStarted = false;
+			dropStarted1 = false;
+			selectedCell.SetDropType(true);
+			selectedCell.TryDropTo(selectedCell, selectText.text);
+			selectedCell.TryDrop(selectText.text, null);
 			selectedCell = null;
 		}
 	}

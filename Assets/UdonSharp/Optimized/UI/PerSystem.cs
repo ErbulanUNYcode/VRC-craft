@@ -17,6 +17,7 @@ namespace VRC_MINE.Data
 		[SerializeField] private WorldGenerator worldGenerator;
 		[SerializeField] private InvCell[] PCCells;
 		[SerializeField] private InvCell[] VRCells;
+		[SerializeField] private InvSystem InvSystem;
 		public override void OnPlayerRestored(VRCPlayerApi player)
 		{
 			if (!player.isLocal)
