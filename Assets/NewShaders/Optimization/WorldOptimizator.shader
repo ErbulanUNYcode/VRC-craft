@@ -2,8 +2,8 @@ Shader "VRC_MINE/WorldOptimizator"
 {
     Properties
     {
-        _WorldTex ("World Texture", 2D) = "white" {}
-        _CtrlTex ("Ctrl Texture", 2D) = "white" {}
+        _WorldTex ("World Texture", 2D) = "black" {}
+        _CtrlTex ("Ctrl Texture", 2D) = "black" {}
     }
 
     SubShader

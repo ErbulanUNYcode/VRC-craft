@@ -44,6 +44,7 @@ namespace VRC_MINE.Net
 		{
 			if (timer > DateTime.Now) return;
 			timer = DateTime.Now + TimeSpan.FromSeconds(0.1);
+			if (setBlockCount == 0) return;
 			ownClient.SetBlocks(setBlockPositionsX, setBlockPositionsY, setBlockPositionsZ, setBlockTypes, oldBlockTypes, setBlockCount);
 			Networking.SetOwner(localPlayer, ownClient.gameObject);
 			ownClient.RequestSerialization();

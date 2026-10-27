@@ -13,7 +13,7 @@ namespace VRC_MINE.GamePlay
 		[SerializeField] private GameObject PCPlus;
 		[SerializeField] private GameObject selectedCube;
 		[SerializeField] private NetManager netManager;
-		private Texture2D worldTexture;
+		private Texture2D[] worldTextures;
 		private VRCPlayerApi localPlayer;
 		private Vector3Int selectedBlock;
 		private Vector3Int selectedAir;
@@ -28,15 +28,15 @@ namespace VRC_MINE.GamePlay
 			return false;
 		}
 
-		public void SetData(Texture2D world)
+		public void SetData(Texture2D[] world)
 		{
 			localPlayer = Networking.LocalPlayer;
-			worldTexture = world;
+			worldTextures = world;
 		}
 
 		private void Update()
 		{
-			if (worldTexture == null) return;
+			if (worldTextures == null || worldTextures.Length == 0 || worldTextures[0] == null) return;
 
 			var treckingData = localPlayer.GetTrackingData(localPlayer.IsUserInVR() ? VRCPlayerApi.TrackingDataType.RightHand : VRCPlayerApi.TrackingDataType.Head);
 
@@ -142,8 +142,12 @@ namespace VRC_MINE.GamePlay
 		private bool InBlock(Vector3Int pos)
 		{
 			if (pos.y > 127 || pos.y < 0) return false;
-			var ch = new Vector2Int(((pos.x >> 4) & 31) << 8, ((pos.z >> 4) & 31) << 7);
-			var res = ((Color32)worldTexture.GetPixel(ch.x + (pos.x & 15) + ((pos.z & 15) << 4), ch.y + pos.y)).r;
+			int chunkX = pos.x >> 4;
+			int chunkZ = pos.z >> 4;
+			int page = ((chunkX >> 4) & 3) | (((chunkZ >> 4) & 3) << 2);
+			int x = ((chunkX & 15) << 8) + (pos.x & 15) + ((pos.z & 15) << 4);
+			int y = ((chunkZ & 15) << 8) + pos.y;
+			var res = ((Color32)worldTextures[page].GetPixel(x, y)).r;
 
 			return res != 0;
 		}

@@ -206,7 +206,11 @@ Shader "VRC_MINE/WorldBiomesGenerator"
                 bool isIsland = !_SetMiniBiomes;
                 if(result==0 && _AddIslands)
                 {
-                    result = ((h%9==0)||(_CheckSpawn&&pos.x==((_Size-1)>>1)&&pos.y==((_Size-1)>>1)));
+                    bool isSpawnCenter =
+                        pos.x == ((_Size - 1) >> 1) &&
+                        pos.y == ((_Size - 1) >> 1);
+                    result = isSpawnCenter ? (h % 5 == 0) : (h % 9 == 0);
+                    result = result || (_CheckSpawn && isSpawnCenter);
                     result*=21;
                     isIsland = true;
                 }

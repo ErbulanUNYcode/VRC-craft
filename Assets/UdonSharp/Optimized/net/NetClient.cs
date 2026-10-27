@@ -19,15 +19,7 @@ namespace VRC_MINE.Net
 
 		public void SetBlocks(int[] setX, byte[] setY, int[] setZ, byte[] setType, byte[] setOld, int count)
 		{
-			if (count == 0)
-			{
-				setBlockPositionsX = new int[0];
-				setBlockPositionsY = new byte[0];
-				setBlockPositionsZ = new int[0];
-				setBlockTypes = new byte[0];
-				oldBlockTypes = new byte[0];
-				return;
-			}
+			if (count == 0) return;
 			setBlockPositionsX = new int[count];
 			setBlockPositionsY = new byte[count];
 			setBlockPositionsZ = new int[count];

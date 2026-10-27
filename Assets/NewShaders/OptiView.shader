@@ -3,29 +3,8 @@ Shader "VRC_MINE/Editor/UintTexView"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
-        _OceanColor ("Ocean Color", Color) = (0,0.5,1,1)
-        _ContinentColor ("Continent Color", Color) = (0.5,0.5,0.5,1)
-        _PolarColor ("Polar Color", Color) = (0.5,0.5,0.5,1)
-        _ColdColor ("Cold Color", Color) = (0.5,0.5,0.5,1)
-        _TempColor ("Temp Color", Color) = (0.5,0.5,0.5,1)
-        _WarmColor ("Warm Color", Color) = (0.5,0.5,0.5,1)
-        _TundraColor ("Tundra Color", Color) = (0.5,0.5,0.5,1)
-        _SnowForestColor ("Snow Forest Color", Color) = (0.5,0.5,0.5,1)
-        _SnowTaigaColor ("Snow Taiga Color", Color) = (0.5,0.5,0.5,1)
-        _SnowPlainColor ("Snow Plain Color", Color) = (0.5,0.5,0.5,1)
-        _TaigaColor ("Taiga Color", Color) = (0.5,0.5,0.5,1)
-        _DarkForestColor ("Dark Forest Color", Color) = (0.5,0.5,0.5,1)
-        _SwampColor ("Swamp Color", Color) = (0.5,0.5,0.5,1)
-        _DenseForestColor ("Dense Forest Color", Color) = (0.5,0.5,0.5,1)
-        _PlainColor ("Plain Color", Color) = (0.5,0.5,0.5,1)
-        _ForestColor ("Forest Color", Color) = (0.5,0.5,0.5,1)
-        _BrichForestColor ("Brich Forest Color", Color) = (0.5,0.5,0.5,1)
-        _SakuraForestColor ("Sakura Forest Color", Color) = (0.5,0.5,0.5,1)
-        _DesertColor ("Desert Color", Color) = (0.5,0.5,0.5,1)
-        _SavannaColor ("Savanna Color", Color) = (0.5,0.5,0.5,1)
-        _JungleColor ("Jungle Color", Color) = (0.5,0.5,0.5,1)
-        _WastelandColor ("Wasteland Color", Color) = (0.5,0.5,0.5,1)
         _ShowDetails ("Show Details", Int) = 0
+        [IntRange] _BiomeIndex ("Debug Biome Index (-1: all)", Range(-1,21)) = -1
     }
 
     SubShader
@@ -45,38 +24,33 @@ Shader "VRC_MINE/Editor/UintTexView"
             float4 _MainTex_TexelSize;
 
             //base
-            fixed4 _OceanColor;
-            fixed4 _ContinentColor;
-
-            //climates
-            fixed4 _PolarColor;
-            fixed4 _ColdColor;
-            fixed4 _TempColor;
-            fixed4 _WarmColor;
-
-            //biomes
-            //Polar
-            fixed4 _TundraColor;
-            fixed4 _SnowForestColor;
-            fixed4 _SnowTaigaColor;
-            fixed4 _SnowPlainColor;
-            //Cold
-            fixed4 _TaigaColor;
-            fixed4 _DarkForestColor;
-            fixed4 _SwampColor;
-            fixed4 _DenseForestColor;
-            //Temp
-            fixed4 _PlainColor;
-            fixed4 _ForestColor;
-            fixed4 _BrichForestColor;
-            fixed4 _SakuraForestColor;
-            //Warm
-            fixed4 _DesertColor;
-            fixed4 _SavannaColor;
-            fixed4 _JungleColor;
-            fixed4 _WastelandColor;
-
             bool _ShowDetails;
+            int _BiomeIndex;
+            static const fixed4 biomeColors[22] =
+            {
+                fixed4(0.0, 0.5, 1.0, 1.0), // 0 Ocean
+                fixed4(0.39716092, 0.41731593, 0.7075472, 1.0), // 1 Tundra
+                fixed4(0.6084906, 1.0, 0.6358052, 1.0), // 2 SnowForest
+                fixed4(0.5036935, 0.7264151, 0.6618002, 1.0), // 3 SnowTaiga
+                fixed4(1.0, 1.0, 1.0, 1.0), // 4 SnowPlain
+                fixed4(0.08957815, 0.5754717, 0.32994238, 1.0), // 5 Taiga
+                fixed4(0.0, 0.31132078, 0.008894861, 1.0), // 6 DarkForest
+                fixed4(0.26650554, 0.3301887, 0.1759968, 1.0), // 7 Swamp
+                fixed4(0.1852401, 0.41509432, 0.0763617, 1.0), // 8 DenseForest
+                fixed4(0.0, 0.6603774, 0.0, 1.0), // 9 Plain
+                fixed4(0.4745098, 0.88235295, 0.0, 1.0), // 10 Forest
+                fixed4(0.0, 0.8113208, 0.5024658, 1.0), // 11 BirchForest
+                fixed4(1.0, 0.40392157, 0.5803922, 1.0), // 12 SakuraForest
+                fixed4(0.9433962, 0.92364377, 0.3693485, 1.0), // 13 Desert
+                fixed4(1.0, 0.55655974, 0.0, 1.0), // 14 Savanna
+                fixed4(0.0, 1.0, 0.0, 1.0), // 15 Jungle
+                fixed4(1.0, 0.38475227, 0.0, 1.0), // 16 Wasteland
+                fixed4(0.0, 0.0, 1.0, 1.0), // 17 Polar
+                fixed4(0.53333336, 0.0, 0.9019608, 1.0), // 18 Cold
+                fixed4(0.62352943, 0.0, 0.29803923, 1.0), // 19 Temp
+                fixed4(1.0, 0.0, 0.0, 1.0), // 20 Warm
+                fixed4(0.5, 0.5, 0.5, 1.0) // 21 Continent
+            };
 
             struct appdata
             {
@@ -127,8 +101,19 @@ Shader "VRC_MINE/Editor/UintTexView"
                         rl=(rl&63)>1;
                         ru=(ru&63)>1;
                         rd=(rd&63)>1;
-                        if(rc+rr+rl+ru+rd>0) return _DesertColor;
-                        else return (r&63)==0?_OceanColor:_TundraColor;
+                        if(rc+rr+rl+ru+rd>0) return biomeColors[13];
+                        else
+                        {
+                            bool debugOceanChecker =
+                                _BiomeIndex == 0 &&
+                                ((((int)i.uv.x >> 3) + ((int)i.uv.y >> 3)) & 1) != 0;
+                            bool debugTundraChecker =
+                                _BiomeIndex == 1 &&
+                                ((((int)i.uv.x >> 3) + ((int)i.uv.y >> 3)) & 1) != 0;
+                            return (r&63)==0
+                                ? biomeColors[0] * (debugOceanChecker ? 0.72 : 1.0)
+                                : biomeColors[1] * (debugTundraChecker ? 0.72 : 1.0);
+                        }
                     }
 
                     {
@@ -148,35 +133,21 @@ Shader "VRC_MINE/Editor/UintTexView"
                     }
                 }
 
-                float shoreline = (r&63)>>5?0.5:1;
+                uint biome = r & 31;
+                fixed4 result = biomeColors[biome];
 
-                switch (r&31)
-                {
-                    case 0: return _OceanColor;
-                    case 1: return _TundraColor*shoreline;
-                    case 2: return _SnowForestColor*shoreline;
-                    case 3: return _SnowTaigaColor*shoreline;
-                    case 4: return _SnowPlainColor*shoreline;
-                    case 5: return _TaigaColor*shoreline;
-                    case 6: return _DarkForestColor*shoreline;
-                    case 7: return _SwampColor*shoreline;
-                    case 8: return _DenseForestColor*shoreline;
-                    case 9: return _PlainColor*shoreline;
-                    case 10: return _ForestColor*shoreline;
-                    case 11: return _BrichForestColor*shoreline;
-                    case 12: return _SakuraForestColor*shoreline;
-                    case 13: return _DesertColor*shoreline;
-                    case 14: return _SavannaColor*shoreline;
-                    case 15: return _JungleColor*shoreline;
-                    case 16: return _WastelandColor*shoreline;
-                    case 17: return _ShowDetails?fixed4(_WastelandColor.rgb/2,1):_PolarColor*shoreline;
-                    case 18: return _ColdColor*shoreline;
-                    case 19: return _TempColor*shoreline;
-                    case 20: return _WarmColor*shoreline;
-                    case 21: return _ContinentColor*shoreline;
-                }
+                if (biome == 17 && _ShowDetails)
+                    result = fixed4(biomeColors[16].rgb / 2, 1);
 
-                return 0;
+                float shoreline = (r & 63) >> 5 ? 0.5 : 1;
+                result *= shoreline;
+                bool debugChecker =
+                    _BiomeIndex >= 0 &&
+                    biome == (uint)_BiomeIndex &&
+                    (_BiomeIndex != 0 || (r >> 6) == 0) &&
+                    ((((int)i.uv.x >> 3) + ((int)i.uv.y >> 3)) & 1) != 0;
+                result *= debugChecker ? 0.72 : 1.0;
+                return result;
             }
 
             ENDCG

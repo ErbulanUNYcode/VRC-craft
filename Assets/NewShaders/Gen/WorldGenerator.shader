@@ -205,7 +205,7 @@ Shader "VRC_MINE/WorldGenerator"
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 
-                o.uv = v.uv * float2(256, 128);
+                o.uv = v.uv * float2(256, 256);
                 
                 return o;
             }
@@ -369,12 +369,13 @@ Shader "VRC_MINE/WorldGenerator"
 
                 bool m = h.x>>7;
                 h.x&=127;
-                //if(pos.y==127) return float(h.x)/255;//height map
-                //if(pos.y==126) return float(h.y)/255;//biome map
+                h.x+=40;
+                //if(pos.y==255) return float(h.x)/255;//height map
+                //if(pos.y==254) return float(h.y)/255;//biome map
                 int b = h.y&31;
                 if(h.x<pos.y)
                 {
-                    if(pos.y==39&&b>0&&b<5) return 13.0/255;//ice
+                    if(pos.y==79&&b>0&&b<5) return 13.0/255;//ice
                     return 0;//air
                 }
 
