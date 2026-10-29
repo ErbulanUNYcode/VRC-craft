@@ -39,6 +39,7 @@ namespace VRC_MINE.World
 		[SerializeField] private Material worldMaterial;
 		[SerializeField] private Material worldShadowMaterial;
 		[SerializeField] private Material[] optimizatorMaterials;
+		[SerializeField] private Renderer[] worldTextureDebugRenderers;
 		[SerializeField] private Material chunkGeneratorMaterial;
 		[SerializeField] private Material chunkTerrainGeneratorMaterial;
 		#endregion
@@ -80,7 +81,6 @@ namespace VRC_MINE.World
 		[SerializeField] private CustomRenderTexture chunkGenerator;
 		[SerializeField] private CustomRenderTexture chunkTerrainGenerator;
 		[SerializeField] private ChunkMeshGenerator chunkMeshGenerator;
-		[SerializeField] private bool applyWorldTexture = true;
 		#endregion
 
 		private int currentIndex;
@@ -107,6 +107,7 @@ namespace VRC_MINE.World
 		private Color[] clearColor = new Color[4_096];//0
 		private Color[] updateColors = new Color[16];//0.5
 		private bool[] worldTextureEdited = new bool[16];
+		private bool worldTexturePendingApply;
 		private byte[] ignoreColors = new byte[65_536];//1
 		private byte[] px = new byte[65_536];
 		private Vector2Int p;
@@ -115,9 +116,10 @@ namespace VRC_MINE.World
 		private void Start()
 		{
 			InitWorld();
-			enabled = false;
 			seed = Networking.GetUniqueName(gameObject).GetHashCode();
 			StartBiomeGenerator();
+			// Keep the world-generation Update loop disabled while biome layers are running.
+			enabled = false;
 		}
 
 		public void OnPlayerTeleport()
@@ -152,7 +154,8 @@ namespace VRC_MINE.World
 			localPlayer.SetGravityStrength(3);
 			updateColors[0].r = 0.5f;
 			for (int i = 1; i < updateColors.Length; i <<= 1) Array.Copy(updateColors, 0, updateColors, i, Mathf.Min(i, updateColors.Length - i));
-			ignoreColors[0] = 1;
+			// The optimizers use the raw R8 value: 1 means "ignore/discard".
+			ignoreColors[0] = 255;
 			for (int i = 1; i < ignoreColors.Length; i <<= 1) Array.Copy(ignoreColors, 0, ignoreColors, i, Mathf.Min(i, ignoreColors.Length - i));
 			#endregion
 
@@ -204,7 +207,10 @@ namespace VRC_MINE.World
 				worldTextures[i].LoadRawTextureData(new byte[worldTextures[i].width * worldTextures[i].height]);
 				worldTextures[i].Apply();
 			}
-
+			if (worldTextureDebugRenderers != null)
+				for (int i = 0; i < worldTextureDebugRenderers.Length && i < worldTextures.Length; i++)
+					if (worldTextureDebugRenderers[i] != null)
+						worldTextureDebugRenderers[i].material.SetTexture("_MainTex", worldTextures[i]);
 			/*ctrlTexture = new Texture2D(512, 192, TextureFormat.R8, false, true);
 			ctrlTexture.filterMode = FilterMode.Point;
 			ctrlTexture.LoadRawTextureData(new byte[ctrlTexture.width * ctrlTexture.height]);
@@ -234,8 +240,10 @@ namespace VRC_MINE.World
 				if (i < ctrlTextures.Length) optimizatorMaterials[i].SetTexture("_CtrlTex", ctrlTextures[i]);
 				optimizators[i].initializationMode = CustomRenderTextureUpdateMode.Realtime;
 			}
+			optimizatorMaterials[1].SetTexture("_PrevLodTex", optimizators[0]);
+			optimizatorMaterials[2].SetTexture("_PrevLodTex", optimizators[1]);
 			for (int page = 0; page < worldTextures.Length; page++)
-				worldMaterial.SetTexture("_MainTex" + page, worldTextures[page]);
+				worldMaterial.SetTexture("_WorldTex" + page, worldTextures[page]);
 			#endregion
 
 			blockSelector.SetData(worldTextures);
@@ -272,25 +280,21 @@ namespace VRC_MINE.World
 			enabled = true;
 		}
 
-		private void TryNext()
+		private bool TryNext()
 		{
-			if (currentIndex == chunksQueueData.Length) return;
-
-			var pos = chunksQueueData[currentIndex] + worldPos;
-
 			while (currentIndex < chunksQueueData.Length)
 			{
-				pos = chunksQueueData[currentIndex] + worldPos;
+				var pos = chunksQueueData[currentIndex] + worldPos;
 				if (initTexture.GetPixel(pos.x & 63, pos.y & 63).r != 0 || renderingChunk == pos || readingChunk == pos)
 				{
 					currentIndex++;
 				}
 				else
 				{
-					SetMaterialPositions();
-					return;
+					return true;
 				}
 			}
+			return false;
 		}
 
 		private void BuildQueueRadiusData()
@@ -402,8 +406,6 @@ namespace VRC_MINE.World
 
 			if (chunkReading)
 			{
-				chunkReading = false;
-
 				var offset = readingChunk - worldPos;
 				if (offset.x > -33 && offset.y > -33 && offset.x < 32 && offset.y < 32)
 				{
@@ -412,7 +414,10 @@ namespace VRC_MINE.World
 					var data = convertor.GetPixels();
 					int page = GetWorldPage(readingChunk.x, readingChunk.y);
 					worldTextures[page].SetPixels((readingChunk.x & 15) << 8, (readingChunk.y & 15) << 8, 256, 256, data);
-					worldTextureEdited[page] = true;
+					// Temporary timing test: match the old pipeline and apply immediately in the async callback.
+					worldTextures[page].Apply(false, false);
+					worldTextureEdited[page] = false;
+					worldTexturePendingApply = true;
 					lastGeneratedIndex = renderingQueueIndex;
 					initTexture.SetPixel(readingChunk.x & 63, readingChunk.y & 63, Color.red);
 					updateChunk = new Vector2Int(readingChunk.x & 63, readingChunk.y & 63);
@@ -428,11 +433,9 @@ namespace VRC_MINE.World
 				chunkRendering = false;
 				readingChunk = renderingChunk;
 				chunkReading = true;
+				if (TryNext()) SetMaterialPositions();
+				VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
 			}
-
-			TryNext();
-
-			if (chunkRendering || chunkReading) VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
 			else
 			{
 				asyncWorking = false;
@@ -449,25 +452,32 @@ namespace VRC_MINE.World
 			return ((Color32)worldTextures[page].GetPixel(GetWorldTextureX(chunkX, pos.x & 15, pos.z & 15), GetWorldTextureY(chunkZ, pos.y))).r;
 		}
 
-		private bool ctrlUpdate = false;
+		private bool ctrl0Update;
+		private bool ctrl1Update;
 
 		private void Update()
 		{
 			bool ctrl0Edited = false;
 			bool ctrl1Edited = false;
+			bool lod1Update = false;
+			bool lod2Update = false;
 			bool lod3Update = false;
 			bool worldEdited = false;
 
-			if (ctrlUpdate)
+			if (ctrl0Update)
 			{
-				ctrlUpdate = false;
+				ctrl0Update = false;
 				ctrl0Edited = true;
+				ctrlTextures[0].LoadRawTextureData(ignoreColors);
+				optimizators[0].initializationMode = CustomRenderTextureUpdateMode.OnDemand;
+			}
+
+			if (ctrl1Update)
+			{
+				ctrl1Update = false;
 				ctrl1Edited = true;
-				for (int i = 0; i < ctrlTextures.Length; i++)
-				{
-					ctrlTextures[i].LoadRawTextureData(ignoreColors);
-					optimizators[i].initializationMode = CustomRenderTextureUpdateMode.OnDemand;
-				}
+				ctrlTextures[1].LoadRawTextureData(ignoreColors);
+				optimizators[1].initializationMode = CustomRenderTextureUpdateMode.OnDemand;
 			}
 
 			if (updateChunk != Vector2Int.left)
@@ -477,7 +487,10 @@ namespace VRC_MINE.World
 				updateChunk = Vector2Int.left;
 				ctrl0Edited = true;
 				ctrl1Edited = true;
-				ctrlUpdate = true;
+				ctrl0Update = true;
+				ctrl1Update = true;
+				lod1Update = true;
+				lod2Update = true;
 				lod3Update = true;
 				worldEdited = true;
 			}
@@ -499,7 +512,10 @@ namespace VRC_MINE.World
 				worldEdited = true;
 				ctrl0Edited = true;
 				ctrl1Edited = true;
-				ctrlUpdate = true;
+				ctrl0Update = true;
+				ctrl1Update = true;
+				lod1Update = true;
+				lod2Update = true;
 				lod3Update = true;
 				foreach (var collider in colliders)
 				{
@@ -566,82 +582,98 @@ namespace VRC_MINE.World
 				var oldP = p;
 				if (pos.x > p.x + 16)
 				{
-					p.x = pos.x >> 5 << 5;
+					p.x = pos.x >> 4 << 4;
 					if (pos.z > p.y + 8)
-						p.y = (pos.z >> 5 << 5) + 16;
+						p.y = (pos.z >> 4 << 4) + 16;
 					else if (pos.z < p.y - 8)
-						p.y = pos.z >> 5 << 5;
+						p.y = pos.z >> 4 << 4;
 				}
 				else if (pos.x < p.x - 16)
 				{
-					p.x = (pos.x >> 5 << 5) + 16;
+					p.x = (pos.x >> 4 << 4) + 16;
 					if (pos.z > p.y + 8)
-						p.y = (pos.z >> 5 << 5) + 16;
+						p.y = (pos.z >> 4 << 4) + 16;
 					else if (pos.z < p.y - 8)
-						p.y = pos.z >> 5 << 5;
+						p.y = pos.z >> 4 << 4;
 				}
 
 				if (pos.z > p.y + 16)
 				{
-					p.y = pos.z >> 5 << 5;
+					p.y = pos.z >> 4 << 4;
 					if (pos.x > p.x + 8)
-						p.x = (pos.x >> 5 << 5) + 16;
+						p.x = (pos.x >> 4 << 4) + 16;
 					else if (pos.x < p.x - 8)
-						p.x = pos.x >> 5 << 5;
+						p.x = pos.x >> 4 << 4;
 				}
 				else if (pos.z < p.y - 16)
 				{
-					p.y = pos.z >> 5 << 5;
+					p.y = pos.z >> 4 << 4;
 					if (pos.x > p.x + 8)
-						p.x = (pos.x >> 5 << 5) + 16;
+						p.x = (pos.x >> 4 << 4) + 16;
 					else if (pos.x < p.x - 8)
-						p.x = pos.x >> 5 << 5;
+						p.x = pos.x >> 4 << 4;
 				}
 
 				if (p != oldP)
 				{
 					var oldWorldPos = worldPos;
-					worldPos = new Vector2Int(Mathf.FloorToInt(transform.position.x) >> 4, Mathf.FloorToInt(transform.position.z) >> 4);
+					worldPos = new Vector2Int(p.x >> 4, p.y >> 4);
 					var offset = worldPos - oldWorldPos;
 					PrepareQueueAfterShift(oldWorldPos, worldPos);
 					queueSearchPrepared = true;
 					ctrl1Edited = true;
+					lod2Update = true;
 					lod3Update = true;
-					if (!asyncWorking)
-					{
-						asyncWorking = true;
-						VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
-					}
-					if (Mathf.Abs(offset.x) > 31 || Mathf.Abs(offset.y) > 31)
+					if (Mathf.Abs(offset.x) > 63 || Mathf.Abs(offset.y) > 63)
 					{
 						ctrlTextures[1].SetPixels(clearColor);
+						initTexture.SetPixels(clearColor);
 					}
 					else
 					{
 						if (offset.x != 0)
 						{
-							var SE = p.x > oldP.x ? new Vector2Int(oldP.x >> 4, p.x >> 4) : new Vector2Int(p.x >> 4, oldP.x >> 4);
+							var SE = worldPos.x > oldWorldPos.x
+								? new Vector2Int(oldWorldPos.x, worldPos.x)
+								: new Vector2Int(worldPos.x, oldWorldPos.x);
 							for (int i = SE.x; i < SE.y; i++)
 							{
-								var ind = i + 32 & 63;
-								ctrlTextures[1].SetPixels(ind, 0, 4, 64, clearColor);
+								var ind = (i + 32) & 63;
+								ctrlTextures[1].SetPixels(ind, 0, 1, 64, clearColor);
+								initTexture.SetPixels(ind, 0, 1, 64, clearColor);
 							}
 						}
 
 						if (offset.y != 0)
 						{
-							var SE = p.y > oldP.y ? new Vector2Int(oldP.y >> 4, p.y >> 4) : new Vector2Int(p.y >> 4, oldP.y >> 4);
+							var SE = worldPos.y > oldWorldPos.y
+								? new Vector2Int(oldWorldPos.y, worldPos.y)
+								: new Vector2Int(worldPos.y, oldWorldPos.y);
 							for (int i = SE.x; i < SE.y; i++)
 							{
-								var ind = i + 32 & 63;
-								ctrlTextures[1].SetPixels(0, ind, 64, 4, clearColor);
+								var ind = (i + 32) & 63;
+								ctrlTextures[1].SetPixels(0, ind, 64, 1, clearColor);
+								initTexture.SetPixels(0, ind, 64, 1, clearColor);
 							}
+						}
+
+					}
+
+					if (!asyncWorking)
+					{
+						chunkReading = false;
+						chunkRendering = false;
+						if (TryNext())
+						{
+							SetMaterialPositions();
+							asyncWorking = true;
+							VRCAsyncGPUReadback.Request(chunkGenerator, 0, this);
 						}
 					}
 				}
 			}
 			#endregion
-			if (worldEdited && applyWorldTexture)
+			if (worldEdited || worldTexturePendingApply)
 			{
 				for (int i = 0; i < worldTextures.Length; i++)
 				{
@@ -649,13 +681,12 @@ namespace VRC_MINE.World
 					worldTextures[i].Apply(false, false);
 					worldTextureEdited[i] = false;
 				}
+				worldTexturePendingApply = false;
 			}
 			if (ctrl0Edited) ctrlTextures[0].Apply();
 			if (ctrl1Edited) ctrlTextures[1].Apply();
-			if (ctrlUpdate)
-			{
-				for (int i = 0; i < ctrlTextures.Length; i++) optimizators[i].initializationMode = CustomRenderTextureUpdateMode.Realtime;
-			}
+			if (lod1Update) optimizators[0].initializationMode = CustomRenderTextureUpdateMode.Realtime;
+			if (lod2Update) optimizators[1].initializationMode = CustomRenderTextureUpdateMode.Realtime;
 			if (lod3Update) optimizators[2].initializationMode = CustomRenderTextureUpdateMode.Realtime;
 		}
 
@@ -772,7 +803,6 @@ public class ChunkMeshGeneratorEditor : Editor
 		group.properties.Add(serializedObject.FindProperty("chunkGenerator"));
 		group.properties.Add(serializedObject.FindProperty("chunkTerrainGenerator"));
 		group.properties.Add(serializedObject.FindProperty("chunkMeshGenerator"));
-		group.properties.Add(serializedObject.FindProperty("applyWorldTexture"));
 		folderGrups.Add(group);
 
 		group = new FolderGrup() { name = "Systems", properties = new List<SerializedProperty>() };

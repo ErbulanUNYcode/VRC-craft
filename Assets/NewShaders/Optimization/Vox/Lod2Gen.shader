@@ -21,7 +21,7 @@ Shader "VRC_MINE/Lod2Gen"
             #include "UnityCustomRenderTexture.cginc"
             
             
-            texture2D<fixed> _PrevLodTex;
+            texture2D<uint> _PrevLodTex;
             texture2D<fixed> _CtrlTex;
 
             struct appdata
@@ -55,7 +55,7 @@ Shader "VRC_MINE/Lod2Gen"
                 int2 uv = i.uv;
                 int3 pos = int3(uv.x&63,(uv.x>>6)+(uv.y>>6<<2),uv.y&63);
 
-                fixed ctrl = _CtrlTex.Load(int3(pos.xz>>2,0));
+                fixed ctrl = _CtrlTex.Load(int3(pos.xz,0));
                 if(ctrl == 0) return 0;
                 if(ctrl == 1) discard;
 

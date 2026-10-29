@@ -20,7 +20,7 @@ Shader "VRC_MINE/Lod3Gen"
             #include "UnityCustomRenderTexture.cginc"
             
             
-            texture2D<fixed> _PrevLodTex;
+            texture2D<uint> _PrevLodTex;
 
             struct appdata
             {
