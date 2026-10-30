@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: WorldTerrainGenerator
+  m_Name: TerrainGenerator
   m_Shader: {fileID: 4800000, guid: 52ff46a7adb7d4d49a508860122bfbbf, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -24,16 +24,17 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BiomesData:
-        m_Texture: {fileID: 8600000, guid: acb7cb914182f42438b67f48fda2e794, type: 2}
+        m_Texture: {fileID: 8600000, guid: 68b26fbb011cca14787244d7fb54a53c, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _ChunkPosX: 528
-    - _ChunkPosY: 96
-    - _ReadOffsetX: 96
-    - _ReadOffsetY: 96
-    - _Seed: -2.066544e+9
+    - _ChunkPosX: 0
+    - _ChunkPosY: 85.03
+    - _ReadOffsetX: 4444
+    - _ReadOffsetY: 4444
+    - _Seed: 285641
+    - _TerrainPadding: 3
     - _TestDiv: 4
     - _TestViewIndex: 17
     m_Colors: []

@@ -4,8 +4,10 @@ Shader "VRC_MINE/WorldBiomesGenerator"
     {
         _MainTex ("Texture", 2D) = "white" {}
         _Seed ("Seed", Int) = 0
+        _ClimateSeed ("Climate Seed", Int) = 0
+        _ClimateScale ("Climate Scale", Float) = 4
         _Size ("Size", Int) = 0
-        _AddIslands ("Add Islands", Int) = 0
+        _AddIslands ("Island Chance (out of 64)", Range(0, 64)) = 0
         _SetClimateZones ("Set Climate Zones", Int) = 0
         _SetBiomes ("Set Biomes", Int) = 0
         _SetMiniBiomes ("Set Mini Biomes", Int) = 0
@@ -38,26 +40,29 @@ Shader "VRC_MINE/WorldBiomesGenerator"
             {
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                float2 climateUV : TEXCOORD1;
             };
 
             Texture2D<uint> _MainTex;
             int _Seed;
+            int _ClimateSeed;
+            float _ClimateScale;
             int _Size;
-            bool _AddIslands;
+            int _AddIslands;
             bool _SetClimateZones;
             bool _SetBiomes;
             bool _SetMiniBiomes;
             bool _InitRivers;
             bool _CheckSpawn;
             //int _ClimateProbabilities[4];
-            static const int _ClimateProbabilities[4] = {10, 25, 45, 20};
+            static const int _ClimateProbabilities[4] = {30, 18, 25, 40};
             //int _BiomeProbabilities[16];
             static const int _BiomeProbabilities[17] = 
             {
                 40,15,30,15,
                 30,20,10,40,
                 35,30,20,2,
-                35,30,25,10,10
+                30,25,30,10,10
             };
             //int _Weights[22];
             static const int _Weights[22] =
@@ -65,9 +70,9 @@ Shader "VRC_MINE/WorldBiomesGenerator"
                 0,
                 12,60,80,45,
                 90,55,35,100,
-                100,90,75,10,
-                100,80,100,35,
-                35,80,100,70,
+                100,90,75,50,
+                100,80,100,80,
+                80,80,100,70,
                 1
             };
 
@@ -80,6 +85,7 @@ Shader "VRC_MINE/WorldBiomesGenerator"
                 o.pos = UnityObjectToClipPos(v.vertex);
 
                 o.uv = v.uv * _Size + int2(_OffsetX, _OffsetY);
+                o.climateUV = v.uv;
 
                 return o;
             }
@@ -97,6 +103,55 @@ Shader "VRC_MINE/WorldBiomesGenerator"
                 h ^= h >> 16;
 
                 return h;
+            }
+
+            float climateHash21(int2 p)
+            {
+                uint h = asuint(p.x);
+                h ^= asuint(p.y) * 0x9E3779B9u;
+                h ^= asuint(_ClimateSeed) * 0x85EBCA6Bu;
+
+                h ^= h >> 16;
+                h *= 0x7FEB352Du;
+                h ^= h >> 15;
+                h *= 0x846CA68Bu;
+                h ^= h >> 16;
+
+                return h * 0.00000000023283064365386963;
+            }
+
+            float climateNoise2D(float2 p)
+            {
+                float2 grid = floor(p);
+                float2 fraction = frac(p);
+                float2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+
+                float a = climateHash21(grid);
+                float b = climateHash21(grid + float2(1, 0));
+                float c = climateHash21(grid + float2(0, 1));
+                float d = climateHash21(grid + float2(1, 1));
+
+                return lerp(lerp(a, b, blend.x), lerp(c, d, blend.x), blend.y);
+            }
+
+            float climateFbm2D(float2 p)
+            {
+                float value = climateNoise2D((p + 8192) * 1.0) * 0.5;
+                value += climateNoise2D((p + 8192) * 2.0) * 0.25;
+                return value / 0.75;
+            }
+
+            uint climateZone(float2 normalizedUV)
+            {
+                uint value = (uint)(climateFbm2D(normalizedUV * _ClimateScale) *
+                    (_ClimateProbabilities[0]+_ClimateProbabilities[1]+_ClimateProbabilities[2]+_ClimateProbabilities[3]));
+
+                if(value<_ClimateProbabilities[0]) return 17;
+                value-=_ClimateProbabilities[0];
+                if(value<_ClimateProbabilities[1]) return 18;
+                value-=_ClimateProbabilities[1];
+                if(value<_ClimateProbabilities[2]) return 19;
+                return 20;
             }
 
             uint ret(int2 pos)
@@ -203,13 +258,13 @@ Shader "VRC_MINE/WorldBiomesGenerator"
                     }
                 }
 
-                bool isIsland = !_SetMiniBiomes;
-                if(result==0 && _AddIslands)
+                bool isIsland = false;
+                if(result==0 && _AddIslands>0)
                 {
                     bool isSpawnCenter =
                         pos.x == ((_Size - 1) >> 1) &&
                         pos.y == ((_Size - 1) >> 1);
-                    result = isSpawnCenter ? (h % 5 == 0) : (h % 9 == 0);
+                    result = (h&63) < _AddIslands*(isSpawnCenter?16:1);
                     result = result || (_CheckSpawn && isSpawnCenter);
                     result*=21;
                     isIsland = true;
@@ -217,62 +272,51 @@ Shader "VRC_MINE/WorldBiomesGenerator"
 
                 if(result==21 && _SetClimateZones)
                 {
-                    uint hh = h%(_ClimateProbabilities[0]+_ClimateProbabilities[1]+_ClimateProbabilities[2]+_ClimateProbabilities[3]);
-
-                    if(hh<_ClimateProbabilities[0]) result = 17;
-                    else hh-=_ClimateProbabilities[0];
-
-                    if(result == 21)
-                    {
-                        if(hh<_ClimateProbabilities[1]) result = 18;
-                        else hh-=_ClimateProbabilities[1];
-                    }
-
-                    if(result == 21)
-                    {
-                        if(hh<_ClimateProbabilities[2]) result = 19;
-                        else hh-=_ClimateProbabilities[2];
-                    }
-
-                    if(result == 21) result = 20;
+                    result = climateZone(i.climateUV);
                 }
 
-                if(result!=0 && result<17 &&_SetMiniBiomes && ((h>>2)&15))
+                uint biome = result&31;
+                bool isMiniBiome = false;
+                if(biome!=0 && biome<17 && !(biome>=13 && biome<=16) && _SetMiniBiomes && ((h>>2)&63)<30)
                 {
-                    result--;
-                    result>>=2;
-                    result+=17;
+                    biome = climateZone(i.climateUV);
+                    result = (result&~31u) + biome;
+                    isMiniBiome = true;
                 }
 
-                if(result>16 && result < 21 && _SetBiomes)
+                biome = result&31;
+                if(biome>16 && biome<21 && _SetBiomes)
                 {
-                    int i = (result-17)<<2;
+                    int i = (biome-17)<<2;
                     int p0 = _BiomeProbabilities[i];
                     int p1 = _BiomeProbabilities[i+1];
                     int p2 = _BiomeProbabilities[i+2];
                     int p3 = _BiomeProbabilities[i+3];
-                    uint r=result;
+                    // Сакура — только мини-биом; пустошь — только обычный биом.
+                    if((!isMiniBiome || isIsland) && i==8) p3 = 0;
+                    if(isIsland && i==12) p2 = 0;
+                    if((isMiniBiome || isIsland) && i==12) p3 = 0;
+                    uint r=biome;
                     uint hh = h%(p0+p1+p2+p3);
 
-                    if(hh<p0) result = 1+i;
+                    if(hh<p0) biome = 1+i;
                     else hh-=p0;
 
-                    if(result == r)
+                    if(biome == r)
                     {
-                        if(hh<p1) result = 2+i;
+                        if(hh<p1) biome = 2+i;
                         else hh-=p1;
                     }
 
-                    if(result == r)
+                    if(biome == r)
                     {
-                        if(hh<p2) result = 3+i;
+                        if(hh<p2) biome = 3+i;
                         else hh-=p2;
                     }
 
-                    if(result == r) result = 4+i;
+                    if(biome == r) biome = 4+i;
+                    result = (result&~31u)+biome;
                 }
-
-                if(isIsland && result== 12) result-=(h%3)+1;
 
                 if(_InitRivers && result>1 && result<64) result+=((h&1)<<6)+64;
 

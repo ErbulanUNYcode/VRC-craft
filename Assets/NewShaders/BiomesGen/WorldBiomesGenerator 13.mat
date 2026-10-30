@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: WorldBiomesGenerator 9
+  m_Name: WorldBiomesGenerator 13
   m_Shader: {fileID: 4800000, guid: 051c099d3421da444990812bb5b48e64, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -24,7 +24,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _MainTex:
-        m_Texture: {fileID: 8600000, guid: 0101497a7061c8e46b168e3dcccd3f48, type: 2}
+        m_Texture: {fileID: 8600000, guid: 715d2a2c53dac9644bb2085fbf8d630f, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -33,13 +33,15 @@ Material:
     - _CheckSpawn: 0
     - _ChunkPosX: 0
     - _ChunkPosY: 0
+    - _ClimateScale: 9
+    - _ClimateSeed: 8
     - _InitRivers: 0
-    - _OffsetX: 5161
-    - _OffsetY: 5053
+    - _OffsetX: 0
+    - _OffsetY: 0
     - _Seed: 1.02745517e+9
     - _SetBiomes: 0
     - _SetClimateZones: 0
     - _SetMiniBiomes: 0
-    - _Size: 135
+    - _Size: 10241
     m_Colors: []
   m_BuildTextureStacks: []

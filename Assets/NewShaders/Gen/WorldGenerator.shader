@@ -363,15 +363,29 @@ Shader "VRC_MINE/WorldGenerator"
             fixed frag(v2f i) : SV_Target
             {
                 int2 uv = i.uv;
+                if(uv.y>251)
+                {
+                    int quadrant = 255-uv.y;
+                    int2 terrainUV = int2(uv.x&15,uv.x>>4)+int2((quadrant&1)<<4,(quadrant>>1)<<4);
+                    uint terrainHeight = _Data.Load(int3(terrainUV,0)).x;
+                    terrainHeight &= 127;
+                    if(terrainHeight!=0) terrainHeight += 40;
+                    return float(terrainHeight)/255;
+                }
+                if(uv.y>247)
+                {
+                    int quadrant = 251-uv.y;
+                    int2 terrainUV = int2(uv.x&15,uv.x>>4)+int2((quadrant&1)<<4,(quadrant>>1)<<4);
+                    uint terrainBiome = _Data.Load(int3(terrainUV,0)).y;
+                    return float(terrainBiome)/255;
+                }
                 int3 pos = int3((uv.x&15)+(_ChunkPosX), uv.y, (uv.x>>4)+(_ChunkPosY));
                 if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16.0/255;//bedrock
-                uint4 h = _Data.Load(int3(pos.xz&15,0)); 
+                uint4 h = _Data.Load(int3((pos.xz&15)+8,0));
 
                 bool m = h.x>>7;
                 h.x&=127;
                 h.x+=40;
-                //if(pos.y==255) return float(h.x)/255;//height map
-                //if(pos.y==254) return float(h.y)/255;//biome map
                 int b = h.y&31;
                 if(h.x<pos.y)
                 {

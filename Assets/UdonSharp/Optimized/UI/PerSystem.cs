@@ -31,8 +31,9 @@ namespace VRC_MINE.Data
 				spawnRotation = player.GetRotation();
 			}
 
-			player.TeleportTo(spawnPosition + Vector3.up, spawnRotation);
-			worldGenerator.OnPlayerTeleport();
+			// Saved-position teleport is temporarily disabled while the new world architecture is rebuilt.
+			// player.TeleportTo(spawnPosition + Vector3.up, spawnRotation);
+			// worldGenerator.OnPlayerTeleport();
 
 
 

@@ -16,7 +16,7 @@ Material:
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: 1903
+  m_CustomRenderQueue: 1904
   stringTagMap: {}
   disabledShaderPasses: []
   m_LockedProperties: 
@@ -29,14 +29,16 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _AddIslands: 1
-    - _CheckSpawn: 0
+    - _AddIslands: 2
+    - _CheckSpawn: 1
     - _ChunkPosX: 0
     - _ChunkPosY: 0
+    - _ClimateScale: 9
+    - _ClimateSeed: 8
     - _InitRivers: 1
     - _OffsetX: 0
     - _OffsetY: 0
-    - _Seed: 365932400
+    - _Seed: 2.0296986e+9
     - _SetBiomes: 1
     - _SetClimateZones: 1
     - _SetMiniBiomes: 1

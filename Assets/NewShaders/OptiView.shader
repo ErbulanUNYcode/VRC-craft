@@ -72,13 +72,6 @@ Shader "VRC_MINE/Editor/UintTexView"
                 return o;
             }
 
-            float hash21(int2 p)
-			{
-				int n = p.x * 374761393 + p.y * 668265263;
-				n = (n ^ (n >> 13)) * 1274126177;
-				return frac(n * 0.00000000023283064365386963);
-			}
-
             fixed4 frag(v2f i) : SV_Target
             {
                 if(dot(i.uv-_MainTex_TexelSize.z/2,i.uv-_MainTex_TexelSize.z/2)<_MainTex_TexelSize.z*_MainTex_TexelSize.z/400000) return fixed4(1,0,0,1);
@@ -87,13 +80,12 @@ Shader "VRC_MINE/Editor/UintTexView"
 
                 if(_ShowDetails)
                 {
-
                     uint rc = r;
                     uint rr = _MainTex.Load(int3(i.uv+int2(1,0), 0));
                     uint rl = _MainTex.Load(int3(i.uv+int2(-1,0), 0));
                     uint ru = _MainTex.Load(int3(i.uv+int2(0,1), 0));
                     uint rd = _MainTex.Load(int3(i.uv+int2(0,-1), 0));
-                    
+
                     if((r&63)<2)
                     {
                         rc=(rc&63)>1;

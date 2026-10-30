@@ -5,9 +5,8 @@ Shader "VRC_MINE/WorldTerrainGenerator"
         _BiomesData ("BiomesData", 2D) = "white" {} 
         _ChunkPosX ("ChunkPosX", Int) = 0
         _ChunkPosY ("ChunkPosY", Int) = 0
-        _ReadOffsetX ("ReadOffsetX", Int) = 0
-        _ReadOffsetY ("ReadOffsetY", Int) = 0
         _Seed ("Seed", Int) = 0
+        [IntRange] _TerrainPadding ("Terrain Padding", Range(0, 8)) = 0
     }
 
     SubShader
@@ -36,19 +35,19 @@ Shader "VRC_MINE/WorldTerrainGenerator"
             };
 
             Texture2D<uint> _BiomesData;
-            int _ReadOffsetX;
-            int _ReadOffsetY;
             int _ChunkPosX;
             int _ChunkPosY;
+            int _TerrainPadding;
             int _TestViewIndex;
             int _Seed;
 
             v2f vert(appdata v)
             {
                 v2f o;
+                float terrainSize = 32-_TerrainPadding*2;
+                v.vertex.xy = v.vertex.xy*(terrainSize/32)+_TerrainPadding/32.0;
                 o.pos = UnityObjectToClipPos(v.vertex);
-
-                o.uv = v.uv * 16;
+                o.uv = v.uv*terrainSize+_TerrainPadding;
 
                 return o;
             }
@@ -299,14 +298,14 @@ Shader "VRC_MINE/WorldTerrainGenerator"
             uint4 frag(v2f i) : SV_Target
             {
                 int2 uv = i.uv;
-                int2 pos = int2(uv.x+(_ChunkPosX), uv.y+(_ChunkPosY));
-                int2 rPos = int2(uv.x+(_ReadOffsetX), uv.y+(_ReadOffsetY))>>2;
+                int2 pos = int2(uv.x, uv.y) + int2(_ChunkPosX, _ChunkPosY) * 16 - 8;
+                int2 rPos = pos>>2;
                 uint b[64];//read 8x8
                 for(int x = 0; x < 8; x++)
                 {
                     for(int y = 0; y < 8; y++)
                     {
-                        b[x+y*8] = _BiomesData.Load(int3(int2(rPos.x+x, rPos.y+y)+64, 0));
+                        b[x+y*8] = _BiomesData.Load(int3(int2(rPos.x+x, rPos.y+y)+5118, 0));
                     }
                 }
                 

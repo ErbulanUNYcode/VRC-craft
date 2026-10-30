@@ -6,6 +6,8 @@ Shader "VRC_MINE/WorldBiomesGeneratorRiverToSea"
         _Size ("Size", Int) = 0
         _Orient ("Orient", Vector) = (0,0,0,0)
         _Seed ("Seed", Float) = 0
+        _OceanShoreKeyChance ("Ocean Shore Key Chance (out of 64)", Range(0, 64)) = 4
+        _RiverShoreKeyChance ("River Shore Key Chance (out of 64)", Range(0, 64)) = 3
     }
 
     SubShader
@@ -59,6 +61,8 @@ Shader "VRC_MINE/WorldBiomesGeneratorRiverToSea"
             int _Size;
             int4 _Orient;
             int _Seed;
+            int _OceanShoreKeyChance;
+            int _RiverShoreKeyChance;
 
             v2f vert(appdata v)
             {
@@ -126,12 +130,19 @@ Shader "VRC_MINE/WorldBiomesGeneratorRiverToSea"
                     )
                     result += 32;
                     else if(
-                        ((neigh.x&31)<2) || (neigh.x>>6)!=(result>>6) ||
-                        ((neigh.y&31)<2) || (neigh.y>>6)!=(result>>6) ||
-                        ((neigh.z&31)<2) || (neigh.z>>6)!=(result>>6) ||
-                        ((neigh.w&31)<2) || (neigh.w>>6)!=(result>>6)
+                        ((neigh.x&31)<2) ||
+                        ((neigh.y&31)<2) ||
+                        ((neigh.z&31)<2) ||
+                        ((neigh.w&31)<2)
                     )
-                    result+=((hash2D(pos)>>1)&7)==0?32:0;
+                    result+=((hash2D(pos)>>1)&63)<_OceanShoreKeyChance?32:0;
+                    else if(
+                        (neigh.x>>6)!=(result>>6) ||
+                        (neigh.y>>6)!=(result>>6) ||
+                        (neigh.z>>6)!=(result>>6) ||
+                        (neigh.w>>6)!=(result>>6)
+                    )
+                    result+=((hash2D(pos)>>1)&63)<_RiverShoreKeyChance?32:0;
                 }
 
                 if((result&31)==13 || (result&31)==16 || (result&31)==17)
