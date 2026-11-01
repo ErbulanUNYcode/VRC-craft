@@ -1,4 +1,4 @@
-Shader "VRC_MINE/WorldTerrainGenerator"
+Shader "VRC_MINE/TerrainGenerator"
 {
     Properties
     {

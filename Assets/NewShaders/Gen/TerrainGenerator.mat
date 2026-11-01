@@ -30,10 +30,10 @@ Material:
     m_Ints: []
     m_Floats:
     - _ChunkPosX: 0
-    - _ChunkPosY: 85.03
+    - _ChunkPosY: 168.8
     - _ReadOffsetX: 4444
     - _ReadOffsetY: 4444
-    - _Seed: 285641
+    - _Seed: 285640.25
     - _TerrainPadding: 3
     - _TestDiv: 4
     - _TestViewIndex: 17

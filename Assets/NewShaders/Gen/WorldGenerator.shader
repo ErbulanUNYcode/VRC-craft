@@ -29,6 +29,36 @@ Shader "VRC_MINE/WorldGenerator"
             #pragma fragment frag
             
             #include "UnityCG.cginc"
+            #include "UnityCustomRenderTexture.cginc"
+
+            struct MineCustomRenderTextureV2F
+            {
+                float4 vertex : SV_POSITION;
+                float3 localTexcoord : TEXCOORD0;
+                float3 globalTexcoord : TEXCOORD1;
+                uint primitiveID : TEXCOORD2;
+                float3 direction : TEXCOORD3;
+            };
+
+            MineCustomRenderTextureV2F vert(appdata_customrendertexture v)
+            {
+                v2f_customrendertexture base = CustomRenderTextureVertexShader(v);
+                MineCustomRenderTextureV2F o;
+
+                o.vertex = base.vertex;
+                o.localTexcoord = base.localTexcoord;
+                o.globalTexcoord = base.globalTexcoord;
+                o.primitiveID = base.primitiveID;
+                o.direction = base.direction;
+
+                /*float2 onePixel = float2(
+                    2.0 / _CustomRenderTextureWidth,
+                    -2.0 / _CustomRenderTextureHeight
+                );
+                o.vertex.xy += onePixel * o.vertex.w;*/
+
+                return o;
+            }
             
             Texture2D<uint4> _Data;
             int _ChunkPosX;
@@ -188,28 +218,6 @@ Shader "VRC_MINE/WorldGenerator"
                 }
             };
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-            
-            struct v2f
-            {
-                float4 pos : SV_POSITION;
-                float2 uv : TEXCOORD0;
-            };
-            
-            v2f vert(appdata v)
-            {
-                v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                
-                o.uv = v.uv * float2(256, 256);
-                
-                return o;
-            }
-            
             float hash31(int3 p)
             {
                 int n = p.x * 374761393 + p.y * 668265263 + p.z * 1446658333;
@@ -360,28 +368,24 @@ Shader "VRC_MINE/WorldGenerator"
                 return value/(1.0-1.0/(1<<o));
             }
             
-            fixed frag(v2f i) : SV_Target
+            fixed frag(MineCustomRenderTextureV2F i) : SV_Target
             {
-                int2 uv = i.uv;
-                if(uv.y>251)
-                {
-                    int quadrant = 255-uv.y;
-                    int2 terrainUV = int2(uv.x&15,uv.x>>4)+int2((quadrant&1)<<4,(quadrant>>1)<<4);
-                    uint terrainHeight = _Data.Load(int3(terrainUV,0)).x;
-                    terrainHeight &= 127;
-                    if(terrainHeight!=0) terrainHeight += 40;
-                    return float(terrainHeight)/255;
-                }
-                if(uv.y>247)
-                {
-                    int quadrant = 251-uv.y;
-                    int2 terrainUV = int2(uv.x&15,uv.x>>4)+int2((quadrant&1)<<4,(quadrant>>1)<<4);
-                    uint terrainBiome = _Data.Load(int3(terrainUV,0)).y;
-                    return float(terrainBiome)/255;
-                }
+                if (i.primitiveID == 0)
+                    return 0;
+
+                int2 uv = (int2)(i.globalTexcoord.xy * 256.0);
                 int3 pos = int3((uv.x&15)+(_ChunkPosX), uv.y, (uv.x>>4)+(_ChunkPosY));
                 if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16.0/255;//bedrock
                 uint4 h = _Data.Load(int3((pos.xz&15)+8,0));
+
+                if(uv.y==255)
+                {
+                    uint terrainHeight = h.x&127;
+                    if(terrainHeight!=0) terrainHeight += 40;
+                    return float(terrainHeight)/255;
+                }
+                if(uv.y==254)
+                    return float(h.y&31)/255;
 
                 bool m = h.x>>7;
                 h.x&=127;
@@ -390,7 +394,7 @@ Shader "VRC_MINE/WorldGenerator"
                 if(h.x<pos.y)
                 {
                     if(pos.y==79&&b>0&&b<5) return 13.0/255;//ice
-                    return 0;//air
+                    discard;//air
                 }
 
                 float3 cavePos = pos+_CavesOffset;
@@ -402,7 +406,7 @@ Shader "VRC_MINE/WorldGenerator"
                 
                 uint delay = h.x-pos.y;
 
-                if(cave&&(h.x>42||(h.x<43&&delay>5))) return 0;/////////
+                if(cave&&(h.x>42||(h.x<43&&delay>5))) discard;/////////
                 
                 int per = fbm2D(pos.xz*0.07,3)*3;
                 float result=0;

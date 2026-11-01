@@ -2,16 +2,15 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using VRC_MINE.World;
 using Random = UnityEngine.Random;
 
 namespace VRC_MINE.Tools
 {
-	[CustomEditor(typeof(MineStructureEditorComponent))]
+	[CustomEditor(typeof(MineStructure))]
 	public class MineStructureEditor : Editor
 	{
 		private SerializedObject serializedComponent;
-		private MineStructureEditorComponent targetComponent;
+		private MineStructure targetComponent;
 		#region base
 		private Vector3Int size;
 		private Vector3Int root;
@@ -28,6 +27,7 @@ namespace VRC_MINE.Tools
 		private bool previewRotateStarted = false;
 		private Vector2Int zoneDrawStartPos;
 		private Texture2D preview;
+		private bool hasStructureChanges;
 		private Stage stage;
 		private enum Stage
 		{
@@ -36,6 +36,21 @@ namespace VRC_MINE.Tools
 			second
 		}
 		#endregion
+		private void MarkDirty()
+		{
+			hasStructureChanges = true;
+			EditorUtility.SetDirty(targetComponent);
+		}
+
+		private void OnDisable()
+		{
+			if (!hasStructureChanges || targetComponent == null || EditorApplication.isCompiling)
+				return;
+
+			AssetDatabase.SaveAssetIfDirty(targetComponent);
+			hasStructureChanges = false;
+		}
+
 		private void ApplyModifiedProperties()
 		{
 			List<Vector2Int> positions = new List<Vector2Int>();
@@ -61,6 +76,7 @@ namespace VRC_MINE.Tools
 			}
 
 			targetComponent.UpdateProperties(positions.ToArray(), sizes.ToArray(), IDs.ToArray(), layers);
+			MarkDirty();
 			UpdatePreview();
 		}
 
@@ -74,18 +90,18 @@ namespace VRC_MINE.Tools
 				hideFlags = HideFlags.HideAndDontSave,
 				color = Color.white
 			};
-			targetComponent = (MineStructureEditorComponent)target;
+			targetComponent = (MineStructure)target;
 			if (EditorPrefs.HasKey("MineStructureEditorAtlas"))
 			{
 				atlas = AssetDatabase.LoadAssetAtPath<MineAtlas>(AssetDatabase.GUIDToAssetPath(EditorPrefs.GetString("MineStructureEditorAtlas")));
 				if (atlas == null) EditorPrefs.DeleteKey("MineStructureEditorAtlas");
 			}
 
-			if (targetComponent.current != null) ReLoad();
+			ReLoad();
 		}
 		private void ReLoad()
 		{
-			serializedComponent = new SerializedObject(targetComponent.current);
+			serializedComponent = new SerializedObject(targetComponent);
 			serializedComponent.Update();
 			#region base
 			size = serializedComponent.FindProperty("size").vector3IntValue;
@@ -95,6 +111,12 @@ namespace VRC_MINE.Tools
 			var positions = GetVector2IntArrayProperty("positions");
 			var sizes = GetVector2IntArrayProperty("sizes");
 			var IDs = GetIntArrayProperty("IDs");
+			var layersProperty = serializedComponent.FindProperty("layers");
+			if (layersProperty.arraySize != size.z * 3)
+			{
+				layersProperty.arraySize = size.z * 3;
+				serializedComponent.ApplyModifiedProperties();
+			}
 			var layers = GetVector2IntArrayProperty("layers");
 
 			zones = new List<(Vector2Int pos, Vector2Int size, byte id)>[layers.Length];
@@ -108,14 +130,17 @@ namespace VRC_MINE.Tools
 			}
 			#endregion
 			#region blockList
-			var atlasProp = new SerializedObject(atlas).FindProperty("blocks");
 			var prop = serializedComponent.FindProperty("blockList");
 			blockList = new Dictionary<byte, BlockTexture>();
-			for (int i = 0; i < prop.arraySize; i++)
+			if (atlas != null && prop != null)
 			{
-				var id = (byte)prop.GetArrayElementAtIndex(i).intValue;
-				var bt = atlasProp.GetArrayElementAtIndex(id).objectReferenceValue as BlockTexture;
-				blockList.Add(id, bt);
+				var atlasProp = new SerializedObject(atlas).FindProperty("blocks");
+				for (int i = 0; i < prop.arraySize; i++)
+				{
+					var id = (byte)prop.GetArrayElementAtIndex(i).intValue;
+					var bt = atlasProp.GetArrayElementAtIndex(id).objectReferenceValue as BlockTexture;
+					blockList.Add(id, bt);
+				}
 			}
 			#endregion
 			UpdatePreview();
@@ -172,41 +197,32 @@ namespace VRC_MINE.Tools
 			return array;
 		}
 		#endregion
+		private bool HasPlacedData()
+		{
+			if (zones == null) return false;
+			for (int i = 0; i < zones.Length; i++)
+				if (zones[i] != null && zones[i].Count > 0) return true;
+			return false;
+		}
+
+		private bool IsBlockUsed(byte id)
+		{
+			if (zones == null) return false;
+			for (int i = 0; i < zones.Length; i++)
+				if (zones[i] != null)
+					for (int j = 0; j < zones[i].Count; j++)
+						if (zones[i][j].id == id) return true;
+			return false;
+		}
 
 		public override void OnInspectorGUI()
 		{
-			var allStructures = targetComponent.GetComponents<MineStructure>();
-			if (allStructures == null || allStructures.Length == 0) return;
-			var names = new string[allStructures.Length + 1];
-			names[0] = "None";
-			var selected = targetComponent.current == null ? 0 : Array.IndexOf(allStructures, targetComponent.current) + 1;
-
-			for (int i = 0; i < allStructures.Length; i++)
-			{
-				names[i + 1] = allStructures[i].structureName;
-			}
-
-			var newSelected = EditorGUILayout.Popup("Structure", selected, names);
-
-			if (newSelected != selected)
-			{
-				if (newSelected == 0)
-				{
-					targetComponent.current = null;
-				}
-				else
-				{
-					targetComponent.current = allStructures[newSelected - 1];
-					ReLoad();
-				}
-			}
-
-			if (targetComponent.current == null) return;
+			if (target == null) return;
 			#region base
 			var newSize = EditorGUILayout.Vector3IntField("size", size);
 			if (newSize != size)
 			{
-				if (EditorUtility.DisplayDialog(
+				if (!HasPlacedData() || EditorUtility.DisplayDialog(
 					"Resize Structure",
 					"Resizing the structure will delete all placed data.\r\n\r\nContinue?",
 					"Yes",
@@ -215,6 +231,7 @@ namespace VRC_MINE.Tools
 				{
 					size = newSize;
 					targetComponent.ResetProperties(size);
+					MarkDirty();
 					ReLoad();
 				}
 			}
@@ -224,6 +241,7 @@ namespace VRC_MINE.Tools
 				root = newRoot;
 				serializedObject.FindProperty("root").vector3IntValue = root;
 				serializedObject.ApplyModifiedProperties();
+				MarkDirty();
 			}
 
 			var newAtlas = (MineAtlas)EditorGUILayout.ObjectField("atlas", atlas, typeof(MineAtlas), false);
@@ -291,7 +309,7 @@ namespace VRC_MINE.Tools
 				zoneDrawStarted = true;
 				zoneDrawStartPos = new Vector2Int(Mathf.FloorToInt((Event.current.mousePosition.x - gridRect.min.x) / gridRect.width * size.x), Mathf.FloorToInt((Event.current.mousePosition.y - gridRect.min.y) / gridRect.height * size.y));
 				zoneDrawStartPos.y = size.y - zoneDrawStartPos.y - 1;
-				zones[layer + (int)stage * size.x].Add((zoneDrawStartPos, new Vector2Int(1, 1), selectedBlock));
+				zones[layer + (int)stage * size.z].Add((zoneDrawStartPos, new Vector2Int(1, 1), selectedBlock));
 				Repaint();
 			}
 
@@ -305,7 +323,7 @@ namespace VRC_MINE.Tools
 					zoneDrawCurrentPos = Vector2Int.Min(zoneDrawCurrentPos, (Vector2Int)size - Vector2Int.one);
 					var zoneDrawSize = zoneDrawCurrentPos - zoneDrawStartPos;
 					zoneDrawSize = new Vector2Int(Mathf.Abs(zoneDrawSize.x), Mathf.Abs(zoneDrawSize.y)) + Vector2Int.one;
-					zones[layer + (int)stage * size.x][zones[layer + (int)stage * size.x].Count - 1] = (Vector2Int.Min(zoneDrawStartPos, zoneDrawCurrentPos), zoneDrawSize, selectedBlock);
+					zones[layer + (int)stage * size.z][zones[layer + (int)stage * size.z].Count - 1] = (Vector2Int.Min(zoneDrawStartPos, zoneDrawCurrentPos), zoneDrawSize, selectedBlock);
 					Repaint();
 				}
 			}
@@ -318,7 +336,7 @@ namespace VRC_MINE.Tools
 
 			byte delete = 255;
 			{
-				var layerZone = zones[layer + (int)stage * size.x];
+				var layerZone = zones[layer + (int)stage * size.z];
 				float gridCellSize = editorRect.height / size.y;
 				for (byte i = 0; i < layerZone.Count; i++)
 				{
@@ -335,7 +353,7 @@ namespace VRC_MINE.Tools
 				}
 				if (delete < zones.Length)
 				{
-					zones[layer + (int)stage * size.x].RemoveAt(delete);
+					zones[layer + (int)stage * size.z].RemoveAt(delete);
 					ApplyModifiedProperties();
 				}
 			}
@@ -396,16 +414,17 @@ namespace VRC_MINE.Tools
 			}
 
 			if (blockList.ContainsKey(delete) &&
-				EditorUtility.DisplayDialog(
+				(!IsBlockUsed(delete) || EditorUtility.DisplayDialog(
 					"Delete Block",
 					"Deleting this block may remove all placed structure parts that use it.\r\n\r\nContinue?",
 					"Yes",
-					"No")
+					"No"))
 			)
 			{
 				blockList.Remove(delete);
 				targetComponent.blockList = new int[blockList.Count];
 				for (int i = 0; i < blockList.Count; i++) targetComponent.blockList[i] = i;
+				MarkDirty();
 			}
 
 			block.x = (targetComponent.blockList.Length % 2) * blockSize + 1;
@@ -432,6 +451,7 @@ namespace VRC_MINE.Tools
 						targetComponent.blockList[_i] = blockTex.Key;
 						_i++;
 					}
+					MarkDirty();
 				});
 			}
 			EditorGUI.EndDisabledGroup();
@@ -552,11 +572,11 @@ namespace VRC_MINE.Tools
 			{
 				Vector3 v = cubeVertices[i];
 
-				// Поворот вокруг Y
+				// РџРѕРІРѕСЂРѕС‚ РІРѕРєСЂСѓРі Y
 				float x = v.x * cx + v.z * sx;
 				float z = -v.x * sx + v.z * cx;
 
-				// Поворот вокруг X
+				// РџРѕРІРѕСЂРѕС‚ РІРѕРєСЂСѓРі X
 				float y = v.y * cy - z * sy;
 				z = v.y * sy + z * cy;
 
@@ -896,11 +916,11 @@ namespace VRC_MINE.Tools
 			{
 				Vector3 v = cubeVertices[i];
 
-				// Поворот вокруг Y
+				// РџРѕРІРѕСЂРѕС‚ РІРѕРєСЂСѓРі Y
 				float x = v.x * cx + v.z * sx;
 				float z = -v.x * sx + v.z * cx;
 
-				// Поворот вокруг X
+				// РџРѕРІРѕСЂРѕС‚ РІРѕРєСЂСѓРі X
 				float y = v.y * cy - z * sy;
 				z = v.y * sy + z * cy;
 
@@ -1041,15 +1061,15 @@ namespace VRC_MINE.Tools
 				size.y + 6
 			);
 
-			// Если не помещается справа — показываем слева
+			// Р•СЃР»Рё РЅРµ РїРѕРјРµС‰Р°РµС‚СЃСЏ СЃРїСЂР°РІР° вЂ” РїРѕРєР°Р·С‹РІР°РµРј СЃР»РµРІР°
 			if (rect.xMax > position.width)
 				rect.x = mouse.x - rect.width - 12;
 
-			// Если не помещается сверху — показываем снизу
+			// Р•СЃР»Рё РЅРµ РїРѕРјРµС‰Р°РµС‚СЃСЏ СЃРІРµСЂС…Сѓ вЂ” РїРѕРєР°Р·С‹РІР°РµРј СЃРЅРёР·Сѓ
 			if (rect.y < 0)
 				rect.y = mouse.y + 18;
 
-			// Если всё равно вылезает — прижимаем к границам
+			// Р•СЃР»Рё РІСЃС‘ СЂР°РІРЅРѕ РІС‹Р»РµР·Р°РµС‚ вЂ” РїСЂРёР¶РёРјР°РµРј Рє РіСЂР°РЅРёС†Р°Рј
 			rect.x = Mathf.Clamp(rect.x, 0, position.width - rect.width);
 			rect.y = Mathf.Clamp(rect.y, 0, position.height - rect.height);
 

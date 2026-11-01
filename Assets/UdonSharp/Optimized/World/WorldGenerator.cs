@@ -17,7 +17,7 @@ namespace VRC_MINE.World
 	{
 		#region biomes	
 		[SerializeField] private GameObject dataGameObject;
-		private MineStructure[] biomesData;
+		//private MineStructure[] biomesData;
 		private Vector2Int[] biomesIndex;
 		[SerializeField] private Material[] genLayers;
 		[SerializeField] private CustomRenderTexture[] genTextures;
@@ -160,7 +160,7 @@ namespace VRC_MINE.World
 			#endregion
 
 			#region biomes/structures
-			var biomes = dataGameObject.GetComponents<MineBiome>();
+			/*var biomes = dataGameObject.GetComponents<MineBiome>();
 			Debug.LogWarning(debugLogo + biomes.Length + " biomes found");
 			var oldCount = 0;
 			biomesData = new MineStructure[0];
@@ -171,7 +171,7 @@ namespace VRC_MINE.World
 				biomesData = biome.SplitThis(biomesData);
 				biomesIndex[i] = new Vector2Int(oldCount, biomesData.Length - oldCount);
 				oldCount = biomesData.Length;
-			}
+			}*/
 			#endregion
 
 			#region cameras

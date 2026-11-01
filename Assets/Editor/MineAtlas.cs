@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace VRC_MINE.Tools
 {
-	[CreateAssetMenu(fileName = "MineAtlas", menuName = "MineTools/MineAtlas")]
+	[CreateAssetMenu(fileName = "MineAtlas", menuName = "MineTools/Blocks/MineAtlas")]
 	public class MineAtlas : ScriptableObject
 	{
 		[SerializeField] private BlockTexture[] blocks;

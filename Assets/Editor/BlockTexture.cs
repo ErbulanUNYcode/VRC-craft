@@ -5,7 +5,7 @@ using Object = UnityEngine.Object;
 
 namespace VRC_MINE.Tools
 {
-	[CreateAssetMenu(fileName = "BlockTexture", menuName = "MineTools/BlockTexture")]
+	[CreateAssetMenu(fileName = "BlockTexture", menuName = "MineTools/Blocks/BlockTexture")]
 	public class BlockTexture : ScriptableObject
 	{
 		[SerializeField]
