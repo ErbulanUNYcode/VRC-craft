@@ -373,6 +373,9 @@ Shader "VRC_MINE/WorldGenerator"
                 if (i.primitiveID == 0)
                     return 0;
 
+                if (i.primitiveID != 265)
+                    discard;
+
                 int2 uv = (int2)(i.globalTexcoord.xy * 256.0);
                 int3 pos = int3((uv.x&15)+(_ChunkPosX), uv.y, (uv.x>>4)+(_ChunkPosY));
                 if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16.0/255;//bedrock

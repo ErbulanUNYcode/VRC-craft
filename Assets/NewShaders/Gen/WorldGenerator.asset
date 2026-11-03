@@ -43,7 +43,7 @@ CustomRenderTexture:
   m_InitMaterial: {fileID: 2100000, guid: 354eda0d8afbf9247ae923868e78da6d, type: 2}
   m_InitColor: {r: 1, g: 1, b: 1, a: 1}
   m_InitTexture: {fileID: 0}
-  m_UpdateMode: 0
+  m_UpdateMode: 1
   m_InitializationMode: 0
   m_UpdateZoneSpace: 1
   m_CurrentUpdateZoneSpace: 1
@@ -1378,723 +1378,723 @@ CustomRenderTexture:
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: -4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 0, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 4, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 8, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 4}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 5}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 12, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 6}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: -4, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 0, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 4, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 8, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 12, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 2}
     rotation: 0
     passIndex: -1
     needSwap: 0
-  - updateZoneCenter: {x: 0.5, y: 255.5, z: 0.5}
-    updateZoneSize: {x: 1, y: 1, z: 1}
+  - updateZoneCenter: {x: 16, y: 16, z: 0.5}
+    updateZoneSize: {x: 1, y: 1, z: 3}
     rotation: 0
     passIndex: -1
     needSwap: 0
@@ -2103,4 +2103,3 @@ CustomRenderTexture:
   m_CubemapFaceMask: 4294967295
   m_DoubleBuffered: 0
   m_WrapUpdateZones: 0
-

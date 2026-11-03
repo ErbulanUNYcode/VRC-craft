@@ -14,6 +14,8 @@ namespace VRC_MINE.Tools
 		#region base
 		private Vector3Int size;
 		private Vector3Int root;
+		private int rootOffsetMask;
+		private int variableHeight;
 		#endregion
 		private List<(Vector2Int pos, Vector2Int size, byte id)>[] zones;
 		#region editor
@@ -105,7 +107,20 @@ namespace VRC_MINE.Tools
 			serializedComponent.Update();
 			#region base
 			size = serializedComponent.FindProperty("size").vector3IntValue;
-			root = serializedComponent.FindProperty("root").vector3IntValue;
+			var rootProperty = serializedComponent.FindProperty("root");
+			var rootOffsetProperty = serializedComponent.FindProperty("rootOffsetMask");
+			rootOffsetMask = rootOffsetProperty.intValue & 3;
+			if ((size.x & 1) != 0) rootOffsetMask &= ~1;
+			if ((size.z & 1) != 0) rootOffsetMask &= ~2;
+			root = CalculateRoot(size, rootOffsetMask);
+			if (rootProperty.vector3IntValue != root || rootOffsetProperty.intValue != rootOffsetMask)
+			{
+				rootOffsetProperty.intValue = rootOffsetMask;
+				rootProperty.vector3IntValue = root;
+				serializedComponent.ApplyModifiedProperties();
+				MarkDirty();
+			}
+			variableHeight = Mathf.Clamp(serializedComponent.FindProperty("variableHeight").intValue, 0, 7);
 			#endregion
 			#region main
 			var positions = GetVector2IntArrayProperty("positions");
@@ -197,6 +212,27 @@ namespace VRC_MINE.Tools
 			return array;
 		}
 		#endregion
+		private static Vector3Int CalculateRoot(Vector3Int structureSize, int offsetMask)
+		{
+			return new Vector3Int(
+				(structureSize.x - 1) / 2 + ((offsetMask & 1) != 0 ? 1 : 0),
+				0,
+				(structureSize.z - 1) / 2 + ((offsetMask & 2) != 0 ? 1 : 0));
+		}
+
+		private void SetRootOffsetMask(int offsetMask)
+		{
+			rootOffsetMask = offsetMask & 3;
+			if ((size.x & 1) != 0) rootOffsetMask &= ~1;
+			if ((size.z & 1) != 0) rootOffsetMask &= ~2;
+			root = CalculateRoot(size, rootOffsetMask);
+			serializedComponent.FindProperty("rootOffsetMask").intValue = rootOffsetMask;
+			serializedComponent.FindProperty("root").vector3IntValue = root;
+			serializedComponent.ApplyModifiedProperties();
+			MarkDirty();
+			Repaint();
+		}
+
 		private bool HasPlacedData()
 		{
 			if (zones == null) return false;
@@ -220,6 +256,10 @@ namespace VRC_MINE.Tools
 			if (target == null) return;
 			#region base
 			var newSize = EditorGUILayout.Vector3IntField("size", size);
+			newSize = new Vector3Int(
+				Mathf.Clamp(newSize.x, 2, 9),
+				Mathf.Clamp(newSize.y, 3, 34),
+				Mathf.Clamp(newSize.z, 2, 9));
 			if (newSize != size)
 			{
 				if (!HasPlacedData() || EditorUtility.DisplayDialog(
@@ -235,14 +275,30 @@ namespace VRC_MINE.Tools
 					ReLoad();
 				}
 			}
-			var newRoot = EditorGUILayout.Vector3IntField("root", root);
-			if (newRoot != root)
+			var newVariableHeight = EditorGUILayout.IntSlider("variable height", variableHeight, 0, 7);
+			if (newVariableHeight != variableHeight)
 			{
-				root = newRoot;
-				serializedObject.FindProperty("root").vector3IntValue = root;
-				serializedObject.ApplyModifiedProperties();
+				variableHeight = newVariableHeight;
+				serializedComponent.FindProperty("variableHeight").intValue = variableHeight;
+				serializedComponent.ApplyModifiedProperties();
 				MarkDirty();
 			}
+			EditorGUILayout.LabelField("root", root.ToString());
+			int newRootOffsetMask = rootOffsetMask;
+			EditorGUI.BeginDisabledGroup((size.x & 1) != 0);
+			if (EditorGUILayout.Toggle("root offset X (+1)", (rootOffsetMask & 1) != 0))
+				newRootOffsetMask |= 1;
+			else
+				newRootOffsetMask &= ~1;
+			EditorGUI.EndDisabledGroup();
+			EditorGUI.BeginDisabledGroup((size.z & 1) != 0);
+			if (EditorGUILayout.Toggle("root offset Z (+1)", (rootOffsetMask & 2) != 0))
+				newRootOffsetMask |= 2;
+			else
+				newRootOffsetMask &= ~2;
+			EditorGUI.EndDisabledGroup();
+			if (newRootOffsetMask != rootOffsetMask)
+				SetRootOffsetMask(newRootOffsetMask);
 
 			var newAtlas = (MineAtlas)EditorGUILayout.ObjectField("atlas", atlas, typeof(MineAtlas), false);
 			if (newAtlas != atlas)
@@ -504,17 +560,17 @@ namespace VRC_MINE.Tools
 					}
 				}
 			}
-
 			Handles.color = Color.black;
-			Handles.DrawAAPolyLine(9f, previewRect.center, previewRect.center + (p[3] - p[0]) * 1.52f);
-			Handles.DrawAAPolyLine(9f, previewRect.center, previewRect.center + (p[0] - p[4]) * 1.52f);
-			Handles.DrawAAPolyLine(9f, previewRect.center, previewRect.center + (p[1] - p[0]) * 1.52f);
+			Vector2 axisOrigin = GetPreviewPosition(previewRect, root);
+			Handles.DrawAAPolyLine(9f, axisOrigin, axisOrigin + (p[3] - p[0]) * 1.52f);
+			Handles.DrawAAPolyLine(9f, axisOrigin, axisOrigin + (p[0] - p[4]) * 1.52f);
+			Handles.DrawAAPolyLine(9f, axisOrigin, axisOrigin + (p[1] - p[0]) * 1.52f);
 			Handles.color = Color.red;
-			Handles.DrawAAPolyLine(5f, previewRect.center, previewRect.center + (p[3] - p[0]) * 1.5f);
+			Handles.DrawAAPolyLine(5f, axisOrigin, axisOrigin + (p[3] - p[0]) * 1.5f);
 			Handles.color = Color.green;
-			Handles.DrawAAPolyLine(5f, previewRect.center, previewRect.center + (p[0] - p[4]) * 1.5f);
+			Handles.DrawAAPolyLine(5f, axisOrigin, axisOrigin + (p[0] - p[4]) * 1.5f);
 			Handles.color = Color.blue;
-			Handles.DrawAAPolyLine(5f, previewRect.center, previewRect.center + (p[1] - p[0]) * 1.5f);
+			Handles.DrawAAPolyLine(5f, axisOrigin, axisOrigin + (p[1] - p[0]) * 1.5f);
 
 			if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && previewRect.Contains(Event.current.mousePosition))
 			{
@@ -627,6 +683,23 @@ namespace VRC_MINE.Tools
 			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Back), 4, 0, 3, 7);
 			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Front), 6, 2, 1, 5);
 		}
+
+		private Vector2 GetPreviewPosition(Rect viewPort, Vector3Int position)
+		{
+			int maxSize = Mathf.Max(size.x, Mathf.Max(size.y, size.z));
+			float scale = Mathf.Min(viewPort.width, viewPort.height) / maxSize * 0.5f;
+			Vector3 structureCenter = (Vector3)(size - Vector3Int.one) * 0.5f;
+			Vector3 localPosition = (Vector3)position - structureCenter;
+			Vector3 offset =
+				cubeAxisX * localPosition.x +
+				cubeAxisY * localPosition.y +
+				cubeAxisZ * localPosition.z;
+
+			return new Vector2(
+				viewPort.center.x + offset.x * scale,
+				viewPort.center.y - offset.y * scale);
+		}
+
 		private void DrawCubeInRect(Rect viewPort, BlockTexture blockTex, Rect rect)
 		{
 			if (blockTex == null)
@@ -810,6 +883,7 @@ namespace VRC_MINE.Tools
 		private MineAtlas atlas;
 
 		private string hoveredName = "";
+		private GUIStyle hoverTooltipStyle;
 
 		public static void Open(System.Action<(byte id, BlockTexture blockTex)> callback)
 		{
@@ -1069,11 +1143,27 @@ namespace VRC_MINE.Tools
 			if (rect.y < 0)
 				rect.y = mouse.y + 18;
 
+			// Если подсказка оказалась справа и снизу от курсора,
+			// дополнительно отводим её вправо, чтобы мышь не закрывала текст.
+			if (rect.x >= mouse.x && rect.y >= mouse.y)
+				rect.x += 20f;
+
 			// Если всё равно вылезает — прижимаем к границам
 			rect.x = Mathf.Clamp(rect.x, 0, position.width - rect.width);
 			rect.y = Mathf.Clamp(rect.y, 0, position.height - rect.height);
 
-			GUI.Box(rect, hoveredName);
+			if (hoverTooltipStyle == null)
+			{
+				hoverTooltipStyle = new GUIStyle(GUI.skin.label)
+				{
+					alignment = TextAnchor.MiddleLeft,
+					padding = new RectOffset(4, 4, 2, 2)
+				};
+				hoverTooltipStyle.normal.textColor = Color.white;
+			}
+
+			EditorGUI.DrawRect(rect, new Color(0.035f, 0.035f, 0.035f, 0.96f));
+			GUI.Label(rect, hoveredName, hoverTooltipStyle);
 		}
 	}
 }

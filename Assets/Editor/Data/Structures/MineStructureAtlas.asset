@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9649d23823ab474da532743e5dca730, type: 3}
+  m_Name: MineStructureAtlas
+  m_EditorClassIdentifier: 
+  atlasSize: {x: 256, y: 32}
+  metadataAtlas: {fileID: 0}
+  structures:
+  - {fileID: 11400000, guid: 036fad1af4dc9a74bb36e65685f28470, type: 2}
+  - {fileID: 11400000, guid: b299c34582c0add48b27378e92b1fa96, type: 2}
+  - {fileID: 11400000, guid: fd2cdca4551329c4e8a10550caafc298, type: 2}
+  - {fileID: 11400000, guid: a7e2fb9afe98a9840a95ebc2c7c350f2, type: 2}
+  structurePositions:
+  - {x: 25, y: 7}
+  - {x: 0, y: 7}
+  - {x: 0, y: 0}
+  - {x: 231, y: 0}
+  biomeNames:
+  - T
+  - S
+  biomeProbabilities: 0000000000000000000000000000000000000000000000000000000000000000

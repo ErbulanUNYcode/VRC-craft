@@ -7,7 +7,9 @@ namespace VRC_MINE.Tools
 	{
 		#region base
 		[SerializeField] private Vector3Int size = new Vector3Int(3, 3, 3);
-		[SerializeField] private Vector3Int root = Vector3Int.zero;
+		[SerializeField] private Vector3Int root = new Vector3Int(1, 0, 1);
+		[SerializeField] private int rootOffsetMask;
+		[SerializeField] private int variableHeight;
 		#endregion
 
 		#region main
@@ -19,10 +21,27 @@ namespace VRC_MINE.Tools
 
 		[SerializeField] public int[] blockList = new int[0];
 
+		private void OnValidate()
+		{
+			size = new Vector3Int(
+				Mathf.Clamp(size.x, 2, 9),
+				Mathf.Clamp(size.y, 3, 34),
+				Mathf.Clamp(size.z, 2, 9));
+			rootOffsetMask &= 3;
+			if ((size.x & 1) != 0) rootOffsetMask &= ~1;
+			if ((size.z & 1) != 0) rootOffsetMask &= ~2;
+			root = new Vector3Int(
+				(size.x - 1) / 2 + ((rootOffsetMask & 1) != 0 ? 1 : 0),
+				0,
+				(size.z - 1) / 2 + ((rootOffsetMask & 2) != 0 ? 1 : 0));
+			variableHeight = Mathf.Clamp(variableHeight, 0, 7);
+		}
+
 		public void ResetProperties(Vector3Int newSize)
 		{
 			size = newSize;
-			root = Vector3Int.zero;
+			rootOffsetMask = 0;
+			root = new Vector3Int((newSize.x - 1) / 2, 0, (newSize.z - 1) / 2);
 			positions = new Vector2Int[0];
 			sizes = new Vector2Int[0];
 			IDs = new int[0];
