@@ -2,10 +2,12 @@ Shader "VRC_MINE/WorldGenerator"
 {
     Properties
     {
-        _Data ("Data", 2D) = "white" {}
+        _Data ("Data", 2D) = "black" {}
+        _StructureAtlas ("Structure Atlas", 2D) = "black" {}
         _ChunkPosX ("ChunkPosX", Int) = 0
         _ChunkPosY ("ChunkPosY", Int) = 0
         _Seed ("Seed", Int) = 0
+        [IntRange] _DebugBiome ("Debug Biome", Range(0, 17)) = 0
         _CavesOffset ("CavesOffset", Vector) = (0,0,0,0)
         _Ore1Offset ("Ore1Offset", Vector) = (0,0,0,0)
         _Ore2Offset ("Ore2Offset", Vector) = (0,0,0,0)
@@ -38,32 +40,15 @@ Shader "VRC_MINE/WorldGenerator"
                 float3 globalTexcoord : TEXCOORD1;
                 uint primitiveID : TEXCOORD2;
                 float3 direction : TEXCOORD3;
+                nointerpolation uint biomeID : TEXCOORD4;
             };
 
-            MineCustomRenderTextureV2F vert(appdata_customrendertexture v)
-            {
-                v2f_customrendertexture base = CustomRenderTextureVertexShader(v);
-                MineCustomRenderTextureV2F o;
-
-                o.vertex = base.vertex;
-                o.localTexcoord = base.localTexcoord;
-                o.globalTexcoord = base.globalTexcoord;
-                o.primitiveID = base.primitiveID;
-                o.direction = base.direction;
-
-                /*float2 onePixel = float2(
-                    2.0 / _CustomRenderTextureWidth,
-                    -2.0 / _CustomRenderTextureHeight
-                );
-                o.vertex.xy += onePixel * o.vertex.w;*/
-
-                return o;
-            }
-            
             Texture2D<uint4> _Data;
+            Texture2D<float4> _StructureAtlas;
             int _ChunkPosX;
             int _ChunkPosY;
             int _Seed;
+            int _DebugBiome;
             float4 _CavesOffset;
             float4 _Ore1Offset;
             float4 _Ore2Offset;
@@ -73,6 +58,7 @@ Shader "VRC_MINE/WorldGenerator"
             float4 _GraniteOffset;
             float4 _AndesiteOffset;
             float4 _DioriteOffset;
+            static const int TEXTURE_SIZE = 256;
             /*
                 Ocean
                 Tundra
@@ -316,7 +302,7 @@ Shader "VRC_MINE/WorldGenerator"
                 return value / 0.75;
             }
             
-            float hash21(int2 p)
+            uint hash2D(int2 p)
             {
                 uint h = asuint(p.x);
                 h ^= asuint(p.y) * 0x9E3779B9u;
@@ -327,6 +313,13 @@ Shader "VRC_MINE/WorldGenerator"
                 h ^= h >> 15;
                 h *= 0x846CA68Bu;
                 h ^= h >> 16;
+
+                return h;
+            }
+
+            float hash21(int2 p)
+            {
+                uint h = hash2D(p);
 
                 return h * 0.00000000023283064365386963;
             }
@@ -367,28 +360,32 @@ Shader "VRC_MINE/WorldGenerator"
 
                 return value/(1.0-1.0/(1<<o));
             }
-            
-            fixed frag(MineCustomRenderTextureV2F i) : SV_Target
+
+            uint4 ReadTerrainData(int2 worldPosition)
             {
-                if (i.primitiveID == 0)
-                    return 0;
+                int2 terrainPosition = worldPosition - int2(_ChunkPosX, _ChunkPosY) + 8;
+                return _Data.Load(int3(terrainPosition, 0));
+            }
 
-                if (i.primitiveID != 265)
-                    discard;
+            uint4 ReadStructureAtlas(int2 position)
+            {
+                return (uint4)round(_StructureAtlas.Load(int3(position, 0)) * 255.0);
+            }
 
-                int2 uv = (int2)(i.globalTexcoord.xy * 256.0);
-                int3 pos = int3((uv.x&15)+(_ChunkPosX), uv.y, (uv.x>>4)+(_ChunkPosY));
-                if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16.0/255;//bedrock
-                uint4 h = _Data.Load(int3((pos.xz&15)+8,0));
+            // Возвращает сгенерированное байтовое значение в мировой точке.
+            // Ноль означает воздух.
+            int GenerateTerrainValue(int3 pos)
+            {
+                uint4 h = ReadTerrainData(pos.xz);
 
-                if(uv.y==255)
+                if(pos.y==255)
                 {
                     uint terrainHeight = h.x&127;
                     if(terrainHeight!=0) terrainHeight += 40;
-                    return float(terrainHeight)/255;
+                    return terrainHeight;
                 }
-                if(uv.y==254)
-                    return float(h.y&31)/255;
+                if(pos.y==254)
+                    return h.y&31;
 
                 bool m = h.x>>7;
                 h.x&=127;
@@ -396,8 +393,8 @@ Shader "VRC_MINE/WorldGenerator"
                 int b = h.y&31;
                 if(h.x<pos.y)
                 {
-                    if(pos.y==79&&b>0&&b<5) return 13.0/255;//ice
-                    discard;//air
+                    if(pos.y==79&&b>0&&b<5) return 13;//ice
+                    return 0;//air
                 }
 
                 float3 cavePos = pos+_CavesOffset;
@@ -406,13 +403,13 @@ Shader "VRC_MINE/WorldGenerator"
                 cavePos+=220;
                 float cave2 = (fbmCave(cavePos/40)-0.5)*30;
                 bool cave = cave1<1&&cave1>-1&&cave2<1&&cave2>-1;
-                
+
                 uint delay = h.x-pos.y;
 
-                if(cave&&(h.x>42||(h.x<43&&delay>5))) discard;/////////
-                
+                if(cave&&(h.x>42||(h.x<43&&delay>5))) return 0;
+
                 int per = fbm2D(pos.xz*0.07,3)*3;
-                float result=0;
+                int result=0;
                 if(m)
                 {
                     if(delay<per-1)
@@ -440,7 +437,6 @@ Shader "VRC_MINE/WorldGenerator"
                     result = delay<7?_BiomeGeology[per][min(h.y,16)][delay]:17;
                 }
 
-
                 if(result==17)
                 {
                     float sp =hash31(pos+_Ore1Offset);
@@ -467,8 +463,115 @@ Shader "VRC_MINE/WorldGenerator"
                 }
 
                 if(delay==0 && result == 18 && b>1) result = b<5?15:19;//dirt on face to grass
-                
-                return result/255;
+
+                return result;
+            }
+
+            int2 GetZonePosition(uint batchZoneIndex)
+            {
+                return (int2)CustomRenderTextureCenters[batchZoneIndex].xy;
+            }
+
+            int3 GetZoneSize(uint batchZoneIndex)
+            {
+                return (int3)CustomRenderTextureSizesAndRotations[batchZoneIndex].xyz;
+            }
+
+            float4 LocalRectToZone(int4 localRect)
+            {
+                float2 size = localRect.zw;
+                float2 center = float2(
+                    localRect.x + size.x * 0.5,
+                    TEXTURE_SIZE - localRect.y - size.y * 0.5
+                );
+                return float4(center, size);
+            }
+
+            float2 LocalRectToVertexPosition(
+                int4 localRect,
+                float2 originalVertexPosition,
+                uint batchZoneIndex)
+            {
+                float4 zone = LocalRectToZone(localRect);
+                float2 originalCenter = CustomRenderTextureCenters[batchZoneIndex].xy;
+                float2 originalSize = CustomRenderTextureSizesAndRotations[batchZoneIndex].xy;
+                float2 originalCenterClip = originalCenter * (2.0 / TEXTURE_SIZE) - 1.0;
+                float2 scaledVertexOffset =
+                    (originalVertexPosition - originalCenterClip) * (zone.zw / originalSize);
+                float2 centerOffset = (zone.xy - originalCenter) * (2.0 / TEXTURE_SIZE);
+                return originalCenterClip + scaledVertexOffset + centerOffset;
+            }
+
+            MineCustomRenderTextureV2F vert(appdata_customrendertexture v)
+            {
+                v2f_customrendertexture base = CustomRenderTextureVertexShader(v);
+                MineCustomRenderTextureV2F o;
+
+                uint batchZoneIndex = (v.vertexID / 6) % kCustomTextureBatchSize;
+
+                o.vertex = base.vertex;
+                o.localTexcoord = base.localTexcoord;
+                o.globalTexcoord = base.globalTexcoord;
+                o.primitiveID = base.primitiveID;
+                o.direction = base.direction;
+                o.biomeID = 0;
+
+                if (base.primitiveID != 0 && base.primitiveID != 265)
+                {
+                    int2 zoneCenter = GetZonePosition(batchZoneIndex);
+                    int2 zoneWorldPosition = int2(_ChunkPosX, _ChunkPosY) + zoneCenter;
+                    uint zoneHash = hash2D(zoneWorldPosition);
+                    int2 zoneOffset = int2(zoneHash & 3u, (zoneHash >> 2) & 3u);
+                    int2 zonePosition = zoneCenter + zoneOffset;
+                    uint4 rootTerrainData = ReadTerrainData(
+                        int2(_ChunkPosX, _ChunkPosY) + zonePosition
+                    );
+                    o.biomeID = rootTerrainData.y & 31u;
+                    uint structureTicket = (zoneHash >> 4) & 255u;
+                    uint4 structureMetadata = ReadStructureAtlas(
+                        int2((int)structureTicket, (int)o.biomeID)
+                    );
+                    if (structureMetadata.g == 0u)
+                    {
+                        o.vertex.xy = float2(1000.0, 1000.0);
+                        return o;
+                    }
+                    uint packedSize = structureMetadata.b;
+                    int2 structureSize = int2(
+                        (packedSize & 7u) + 2u,
+                        ((packedSize >> 3) & 7u) + 2u
+                    );
+                    int2 structureRoot = (structureSize - 1) / 2 + int2(
+                        (packedSize >> 6) & 1u,
+                        (packedSize >> 7) & 1u
+                    );
+                    int2 structurePosition = (zonePosition - structureRoot) * 16;
+                    int2 debugStructureSize = structureSize * 16;
+                    o.vertex.xy = LocalRectToVertexPosition(
+                        int4(structurePosition, debugStructureSize),
+                        base.vertex.xy,
+                        batchZoneIndex
+                    );
+                }
+
+                return o;
+            }
+            
+            fixed frag(MineCustomRenderTextureV2F i) : SV_Target
+            {
+                if (i.primitiveID == 0)
+                    return 0;
+
+                if (i.primitiveID != 265)
+                    return i.biomeID == (uint)_DebugBiome ? 0.5 : 1.0;
+
+                int2 uv = (int2)(i.globalTexcoord.xy * TEXTURE_SIZE);
+                int3 pos = int3((uv.x&15)+(_ChunkPosX), uv.y, (uv.x>>4)+(_ChunkPosY));
+                if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16.0/255;//bedrock
+
+                int result = GenerateTerrainValue(pos);
+                if(result==0) discard;
+                return float(result)/255;
             }
             
             ENDHLSL

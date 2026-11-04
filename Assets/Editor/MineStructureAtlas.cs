@@ -9,7 +9,6 @@ namespace VRC_MINE.Tools
 	public class MineStructureAtlas : ScriptableObject
 	{
 		[SerializeField] private Vector2Int atlasSize = Vector2Int.one;
-		[SerializeField] private Texture2D metadataAtlas;
 		[SerializeField] private MineStructure[] structures = new MineStructure[0];
 		[SerializeField] private Vector2Int[] structurePositions = new Vector2Int[0];
 		[SerializeField] private string[] biomeNames = new string[0];
@@ -27,12 +26,6 @@ namespace VRC_MINE.Tools
 		{
 			get { return atlasSize; }
 			set { atlasSize = new Vector2Int(256, Mathf.Max(1, value.y)); }
-		}
-
-		public Texture2D MetadataAtlas
-		{
-			get { return metadataAtlas; }
-			set { metadataAtlas = value; }
 		}
 
 		public MineStructure[] Structures
@@ -117,7 +110,6 @@ namespace VRC_MINE.Tools
 			atlasSize.x = 256;
 			atlasSize.y = Mathf.Max(1, EditorGUILayout.IntField("Atlas Height", Mathf.Max(1, atlasSize.y)));
 			sizeProperty.vector2IntValue = atlasSize;
-			EditorGUILayout.PropertyField(serializedObject.FindProperty("metadataAtlas"));
 			var structuresProperty = serializedObject.FindProperty("structures");
 			EditorGUILayout.PropertyField(structuresProperty, new GUIContent("Structures"), true);
 			var biomeNamesProperty = serializedObject.FindProperty("biomeNames");
@@ -592,26 +584,31 @@ namespace VRC_MINE.Tools
 				AssetDatabase.CreateFolder(folder, "BiomeAtlases");
 
 			BuildStructureAtlas(biome, atlasFolder);
-			BuildMetadataAtlas(biome, atlasFolder);
 			AssetDatabase.SaveAssets();
 			AssetDatabase.Refresh();
 		}
 
 		private void BuildStructureAtlas(MineStructureAtlas biome, string atlasFolder)
 		{
+			int metadataRows = biome.BiomeNames.Length;
+			int atlasWidth = biome.AtlasSize.x;
+			int atlasHeight = biome.AtlasSize.y + metadataRows;
 			var path = atlasFolder + "/" + biome.name + ".asset";
 			var atlas = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
 			bool recreateAtlas = atlas == null ||
-				atlas.width != biome.AtlasSize.x ||
-				atlas.height != biome.AtlasSize.y;
+				atlas.width != atlasWidth ||
+				atlas.height != atlasHeight ||
+				atlas.isDataSRGB;
 
 			if (recreateAtlas)
 			{
 				var replacement = new Texture2D(
-					biome.AtlasSize.x,
-					biome.AtlasSize.y,
+					atlasWidth,
+					atlasHeight,
 					TextureFormat.RGBA32,
-					false);
+					false,
+					true);
+				replacement.name = biome.name;
 				replacement.filterMode = FilterMode.Point;
 				replacement.wrapMode = TextureWrapMode.Clamp;
 
@@ -628,79 +625,65 @@ namespace VRC_MINE.Tools
 				}
 			}
 
+			atlas.name = biome.name;
 			atlas.filterMode = FilterMode.Point;
 			atlas.wrapMode = TextureWrapMode.Clamp;
-			atlas.SetPixels32(preview.GetPixels32());
-			atlas.Apply(false, false);
-			EditorUtility.SetDirty(atlas);
-		}
 
-		private void BuildMetadataAtlas(MineStructureAtlas biome, string atlasFolder)
-		{
-			const int atlasSize = 64;
-			const int tileSize = 16;
-			const int maxMetadataEntries = tileSize * tileSize;
+			var atlasPixels = new Color32[atlasWidth * atlasHeight];
+			var previewPixels = preview.GetPixels32();
+			for (int y = 0; y < biome.AtlasSize.y; y++)
+				Array.Copy(
+					previewPixels,
+					y * atlasWidth,
+					atlasPixels,
+					(y + metadataRows) * atlasWidth,
+					atlasWidth);
 
-			var metadataAtlas = biome.MetadataAtlas;
-			if (metadataAtlas == null)
+			for (int biomeIndex = 0; biomeIndex < metadataRows; biomeIndex++)
 			{
-				var path = atlasFolder + "/BiomeStructureMetadataAtlas.asset";
-				metadataAtlas = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-				if (metadataAtlas == null)
+				int metadataX = 0;
+				for (int structureIndex = 0;
+					structureIndex < biome.Structures.Length && metadataX < atlasWidth;
+					structureIndex++)
 				{
-					metadataAtlas = new Texture2D(atlasSize, atlasSize, TextureFormat.RGBA32, false);
-					metadataAtlas.filterMode = FilterMode.Point;
-					metadataAtlas.wrapMode = TextureWrapMode.Clamp;
-					metadataAtlas.SetPixels32(new Color32[atlasSize * atlasSize]);
-					metadataAtlas.Apply(false, false);
-					AssetDatabase.CreateAsset(metadataAtlas, path);
-				}
+					var structure = biome.Structures[structureIndex];
+					if (structure == null) continue;
 
-				biome.MetadataAtlas = metadataAtlas;
-				EditorUtility.SetDirty(biome);
-			}
-
-			if (metadataAtlas.width != atlasSize || metadataAtlas.height != atlasSize)
-			{
-				Debug.LogError("Biome structure metadata atlas must be 64x64.", metadataAtlas);
-				return;
-			}
-
-			var pixels = metadataAtlas.GetPixels32();
-			for (int i = 0; i < pixels.Length; i++)
-				pixels[i] = new Color32(0, 0, 0, 0);
-
-			int biomeCount = Mathf.Min(16, biome.BiomeNames.Length);
-			for (int biomeIndex = 0; biomeIndex < biomeCount; biomeIndex++)
-			{
-				int tileX = (biomeIndex & 3) * tileSize;
-				int tileY = (biomeIndex >> 2) * tileSize;
-				int metadataIndex = 0;
-
-				for (int structureIndex = 0; structureIndex < biome.Structures.Length; structureIndex++)
-				{
-					if (biome.Structures[structureIndex] == null) continue;
 					int probabilityIndex = biomeIndex * biome.Structures.Length + structureIndex;
 					int probability = probabilityIndex < biome.BiomeProbabilities.Length
-						? Mathf.Clamp(biome.BiomeProbabilities[probabilityIndex], 0, 256)
+						? Mathf.Clamp(biome.BiomeProbabilities[probabilityIndex], 0, atlasWidth)
 						: 0;
 					if (probability == 0) continue;
-					if (metadataIndex + probability > maxMetadataEntries) break;
 
-					for (int copy = 0; copy < probability; copy++)
-					{
-						int localX = metadataIndex & 15;
-						int localY = metadataIndex >> 4;
-						pixels[tileX + localX + (tileY + localY) * atlasSize] =
-							new Color32((byte)structureIndex, 0, 0, byte.MaxValue);
-						metadataIndex++;
-					}
+					var structureData = new SerializedObject(structure);
+					var structureSize = structureData.FindProperty("size").vector3IntValue;
+					int rootOffsetMask = structureData.FindProperty("rootOffsetMask").intValue & 3;
+					int variableHeight = structureData.FindProperty("variableHeight").intValue & 7;
+					var structurePosition = biome.StructurePositions[structureIndex];
+
+					byte packedSize = (byte)(
+						((structureSize.x - 2) & 7) |
+						(((structureSize.z - 2) & 7) << 3) |
+						((rootOffsetMask & 1) << 6) |
+						((rootOffsetMask & 2) << 6));
+					byte packedHeight = (byte)(
+						((structureSize.y - 3) & 31) |
+						(variableHeight << 5));
+					var metadata = new Color32(
+						(byte)structurePosition.x,
+						(byte)(structurePosition.y + metadataRows),
+						packedSize,
+						packedHeight);
+
+					int writeCount = Mathf.Min(probability, atlasWidth - metadataX);
+					for (int copy = 0; copy < writeCount; copy++)
+						atlasPixels[biomeIndex * atlasWidth + metadataX++] = metadata;
 				}
 			}
 
-			metadataAtlas.SetPixels32(pixels);
-			metadataAtlas.Apply(false, false);
-			EditorUtility.SetDirty(metadataAtlas);
+			atlas.SetPixels32(atlasPixels);
+			atlas.Apply(false, false);
+			EditorUtility.SetDirty(atlas);
 		}
 
 		private void OnDisable()

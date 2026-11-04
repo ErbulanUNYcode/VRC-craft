@@ -11,7 +11,8 @@ Material:
   m_Shader: {fileID: 4800000, guid: 9e42964e173c8664f8dd4769745a87d9, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
+  m_ValidKeywords:
+  - DEBUG_STRUCTURE_SIZE
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -67,6 +68,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _StructureAtlas:
+        m_Texture: {fileID: 2800000, guid: ca5303f630220db49b1c3e63e7cc7765, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _VolumeTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -74,9 +79,11 @@ Material:
     m_Ints: []
     m_Floats:
     - _BumpScale: 1
-    - _ChunkPosX: 0
-    - _ChunkPosY: 0
+    - _ChunkPosX: 8.84
+    - _ChunkPosY: -7155
     - _Cutoff: 0.5
+    - _DebugBiome: 10
+    - _DebugStructureSize: 1
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _GlossMapScale: 1
@@ -87,7 +94,7 @@ Material:
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _Scale: 16
-    - _Seed: -2.066544e+9
+    - _Seed: -2.0678273e+9
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
