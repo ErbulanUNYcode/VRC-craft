@@ -41,6 +41,9 @@ Shader "VRC_MINE/WorldGenerator"
                 uint primitiveID : TEXCOORD2;
                 float3 direction : TEXCOORD3;
                 nointerpolation uint biomeID : TEXCOORD4;
+                nointerpolation uint4 structureMetadata : TEXCOORD5;
+                nointerpolation int4 structureRaster : TEXCOORD6;
+                nointerpolation int3 structureInfo : TEXCOORD7;
             };
 
             Texture2D<uint4> _Data;
@@ -374,24 +377,24 @@ Shader "VRC_MINE/WorldGenerator"
 
             // Возвращает сгенерированное байтовое значение в мировой точке.
             // Ноль означает воздух.
-            int GenerateTerrainValue(int3 pos)
+            int GenerateTerrainValue(int3 pos, bool surfaceOnly)
             {
                 uint4 h = ReadTerrainData(pos.xz);
 
-                if(pos.y==255)
+                if(!surfaceOnly && pos.y==255)
                 {
                     uint terrainHeight = h.x&127;
                     if(terrainHeight!=0) terrainHeight += 40;
                     return terrainHeight;
                 }
-                if(pos.y==254)
+                if(!surfaceOnly && pos.y==254)
                     return h.y&31;
 
                 bool m = h.x>>7;
                 h.x&=127;
                 h.x+=40;
                 int b = h.y&31;
-                if(h.x<pos.y)
+                if(!surfaceOnly && h.x<pos.y)
                 {
                     if(pos.y==79&&b>0&&b<5) return 13;//ice
                     return 0;//air
@@ -515,6 +518,9 @@ Shader "VRC_MINE/WorldGenerator"
                 o.primitiveID = base.primitiveID;
                 o.direction = base.direction;
                 o.biomeID = 0;
+                o.structureMetadata = 0;
+                o.structureRaster = 0;
+                o.structureInfo = 0;
 
                 if (base.primitiveID != 0 && base.primitiveID != 265)
                 {
@@ -545,13 +551,93 @@ Shader "VRC_MINE/WorldGenerator"
                         (packedSize >> 6) & 1u,
                         (packedSize >> 7) & 1u
                     );
-                    int2 structurePosition = (zonePosition - structureRoot) * 16;
-                    int2 debugStructureSize = structureSize * 16;
+
+                    int zoneLayer = GetZoneSize(batchZoneIndex).z;
+                    int structureLayer = zoneLayer + structureRoot.y - 4;
+                    if (structureLayer < 0 || structureLayer >= structureSize.y)
+                    {
+                        o.vertex.xy = float2(1000.0, 1000.0);
+                        return o;
+                    }
+
+                    int rootHeight = (int)(rootTerrainData.x & 127u);
+                    if (rootHeight == 0)
+                    {
+                        o.vertex.xy = float2(1000.0, 1000.0);
+                        return o;
+                    }
+                    rootHeight += 40;
+
+                    int minimumTreeHeight = o.biomeID == 7u ? 78 : 79;
+                    if (rootHeight < minimumTreeHeight)
+                    {
+                        o.vertex.xy = float2(1000.0, 1000.0);
+                        return o;
+                    }
+
+                    int rootBlock = GenerateTerrainValue(int3(
+                        _ChunkPosX + zonePosition.x,
+                        rootHeight,
+                        _ChunkPosY + zonePosition.y
+                    ), true);
+                    if (rootBlock != 15 && rootBlock != 18 && rootBlock != 19)
+                    {
+                        o.vertex.xy = float2(1000.0, 1000.0);
+                        return o;
+                    }
+
+                    int structureHeight = (int)(structureMetadata.a & 31u) + 3;
+                    int variableHeight = (int)(structureMetadata.a >> 5);
+                    int heightGrowth = variableHeight == 0
+                        ? 0
+                        : (int)((zoneHash >> 20) % (uint)(variableHeight + 1));
+                    int renderedHeight = structureHeight + heightGrowth;
+
+                    int layerZ = zonePosition.y + zoneLayer - 4;
+                    if (layerZ < 0 || layerZ >= 16)
+                    {
+                        o.vertex.xy = float2(1000.0, 1000.0);
+                        return o;
+                    }
+
+                    int structureLeft = zonePosition.x - structureRoot.x;
+                    int clippedLeft = max(structureLeft, 0);
+                    int clippedRight = min(structureLeft + structureSize.x, 16);
+                    int clippedBottom = max(rootHeight, 0);
+                    int clippedTop = min(rootHeight + renderedHeight, TEXTURE_SIZE);
+                    if (clippedLeft >= clippedRight || clippedBottom >= clippedTop)
+                    {
+                        o.vertex.xy = float2(1000.0, 1000.0);
+                        return o;
+                    }
+
+                    int outputLeft = layerZ * 16 + clippedLeft;
+                    o.structureMetadata = structureMetadata;
+                    o.structureRaster = int4(
+                        outputLeft,
+                        clippedBottom,
+                        clippedLeft - structureLeft,
+                        clippedBottom - rootHeight
+                    );
+                    o.structureInfo = int3(
+                        structureLayer,
+                        structureSize.x,
+                        heightGrowth
+                    );
                     o.vertex.xy = LocalRectToVertexPosition(
-                        int4(structurePosition, debugStructureSize),
+                        int4(
+                            outputLeft,
+                            clippedBottom,
+                            clippedRight - clippedLeft,
+                            clippedTop - clippedBottom
+                        ),
                         base.vertex.xy,
                         batchZoneIndex
                     );
+                    o.globalTexcoord.xy = o.vertex.xy * 0.5 + 0.5;
+                    #if UNITY_UV_STARTS_AT_TOP
+                        o.globalTexcoord.y = 1.0 - o.globalTexcoord.y;
+                    #endif
                 }
 
                 return o;
@@ -563,13 +649,60 @@ Shader "VRC_MINE/WorldGenerator"
                     return 0;
 
                 if (i.primitiveID != 265)
-                    return i.biomeID == (uint)_DebugBiome ? 0.5 : 1.0;
+                {
+                    int2 outputPixel = min(
+                        (int2)(i.globalTexcoord.xy * TEXTURE_SIZE),
+                        TEXTURE_SIZE - 1
+                    );
+                    int localX = i.structureRaster.z + outputPixel.x - i.structureRaster.x;
+                    int grownY = i.structureRaster.w + outputPixel.y - i.structureRaster.y;
+                    int atlasY = grownY;
+                    if (i.structureInfo.z > 0 && grownY > 1)
+                        atlasY = grownY <= i.structureInfo.z + 1
+                            ? 1
+                            : grownY - i.structureInfo.z;
+
+                    int atlasX = (int)i.structureMetadata.r
+                        + i.structureInfo.x * i.structureInfo.y
+                        + localX;
+                    uint4 structurePixel = ReadStructureAtlas(int2(
+                        atlasX,
+                        (int)i.structureMetadata.g + atlasY
+                    ));
+
+                    if (structurePixel.a == 0u)
+                        discard;
+
+                    bool mandatoryPass = i.primitiveID > 265;
+                    if (mandatoryPass != (structurePixel.b != 0u))
+                        discard;
+
+                    uint block = structurePixel.r;
+                    bool hasRandomBlock = structurePixel.g != 0u;
+                    if (hasRandomBlock)
+                    {
+                        int3 worldPosition = int3(
+                            _ChunkPosX + (outputPixel.x & 15),
+                            outputPixel.y,
+                            _ChunkPosY + (outputPixel.x >> 4)
+                        );
+                        uint randomBlock = hash2D(worldPosition.xz);
+                        randomBlock ^= asuint(worldPosition.y) * 0x9E3779B9u;
+                        if ((randomBlock & 1u) != 0u)
+                            block = structurePixel.g;
+                    }
+
+                    if (hasRandomBlock && block == 0u)
+                        discard;
+
+                    return (fixed)block / 255.0;
+                }
 
                 int2 uv = (int2)(i.globalTexcoord.xy * TEXTURE_SIZE);
                 int3 pos = int3((uv.x&15)+(_ChunkPosX), uv.y, (uv.x>>4)+(_ChunkPosY));
                 if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16.0/255;//bedrock
 
-                int result = GenerateTerrainValue(pos);
+                int result = GenerateTerrainValue(pos, false);
                 if(result==0) discard;
                 return float(result)/255;
             }

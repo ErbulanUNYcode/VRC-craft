@@ -15,7 +15,7 @@ MonoBehaviour:
   size: {x: 5, y: 6, z: 5}
   root: {x: 2, y: 0, z: 2}
   rootOffsetMask: 0
-  variableHeight: 0
+  variableHeight: 3
   positions:
   - {x: 1, y: 2}
   - {x: 2, y: 4}
