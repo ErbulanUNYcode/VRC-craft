@@ -11,114 +11,109 @@ namespace VRC_MINE.Tools
 		[SerializeField] private BlockTexture[] blocks;
 
 		private const string savePath = "Assets/Textures/Atlas/";
+		private const int blockTextureSize = 32;
+		private const int blocksPerAxis = 16;
+		private const int atlasSize = blockTextureSize * blocksPerAxis;
+		private const int sideCount = 6;
 
 		public void BuildAtlas()
 		{
-			var atlas = new Texture2D(512, 512, TextureFormat.RGBA32, false, false);
-			atlas.filterMode = FilterMode.Point;
-			atlas.wrapMode = TextureWrapMode.Clamp;
+			var atlasPixels = new Color32[sideCount][];
+			var flipPixels = new Color32[sideCount][];
+			for (int side = 0; side < sideCount; side++)
+			{
+				atlasPixels[side] = new Color32[atlasSize * atlasSize];
+				flipPixels[side] = new Color32[blocksPerAxis * blocksPerAxis];
+			}
 
-			atlas.LoadRawTextureData(new byte[atlas.width * atlas.height * 4]);
+			int blockCount = Mathf.Min(blocks == null ? 0 : blocks.Length, 256);
+			for (int blockID = 0; blockID < blockCount; blockID++)
+			{
+				var block = blocks[blockID];
+				if (block == null) continue;
+				int blockX = (blockID & 15) * blockTextureSize;
+				int blockY = (blockID >> 4) * blockTextureSize;
+
+				for (int sideIndex = 0; sideIndex < sideCount; sideIndex++)
+				{
+					var side = (BlockTexture.BlockSide)sideIndex;
+					var sideData = block.GetSide(side);
+					var pixels = block.GetSideData(side);
+					if (pixels == null) continue;
+					if (sideData.texture.width != blockTextureSize || sideData.texture.height != blockTextureSize)
+					{
+						Debug.LogError($"{block.name}, {side}: expected a 32x32 texture.", block);
+						continue;
+					}
+
+					var maskData = block.GetLeave(side);
+					var mask = block.GetLeaveData(side);
+					if (mask != null && (maskData.texture.width != blockTextureSize || maskData.texture.height != blockTextureSize))
+					{
+						Debug.LogError($"{block.name}, {side}: expected a 32x32 biome mask.", block);
+						mask = null;
+					}
+					for (int y = 0; y < blockTextureSize; y++)
+					{
+						int sourceRow = y * blockTextureSize;
+						int targetRow = (blockY + y) * atlasSize + blockX;
+						for (int x = 0; x < blockTextureSize; x++)
+						{
+							Color32 pixel = pixels[sourceRow + x];
+							if (mask != null && mask[sourceRow + x].a != 0 && pixel.a != 0)
+								pixel.a = 128;
+							atlasPixels[sideIndex][targetRow + x] = pixel;
+						}
+					}
+
+					flipPixels[sideIndex][blockID] = new Color32(
+						sideData.randomFlipDiagonal ? byte.MaxValue : byte.MinValue,
+						sideData.randomFlipHorizontal ? byte.MaxValue : byte.MinValue,
+						sideData.randomFlipVertical ? byte.MaxValue : byte.MinValue,
+						byte.MaxValue);
+				}
+			}
+
+			var atlas = new Texture2DArray(atlasSize, atlasSize, sideCount, TextureFormat.RGBA32, false, false)
+			{
+				name = name + "_array",
+				filterMode = FilterMode.Point,
+				wrapMode = TextureWrapMode.Clamp
+			};
+			var flipMap = new Texture2DArray(blocksPerAxis, blocksPerAxis, sideCount, TextureFormat.RGBA32, false, true)
+			{
+				name = name + "_flipmap_array",
+				filterMode = FilterMode.Point,
+				wrapMode = TextureWrapMode.Clamp
+			};
+			for (int side = 0; side < sideCount; side++)
+			{
+				atlas.SetPixels32(atlasPixels[side], side);
+				flipMap.SetPixels32(flipPixels[side], side);
+			}
 			atlas.Apply(false, false);
-
-			for (int i = 0; i < blocks.Length; i++)
-			{
-				var b = blocks[i];
-				if (b == null) continue;
-
-				var pos = new Vector2Int((i & 15) * 32, (i >> 4) * 48);
-
-				atlas.SetPixels32(pos.x, pos.y, 16, 16, b.GetSideData(BlockTexture.BlockSide.Right));
-
-				pos.x += 16;
-				atlas.SetPixels32(pos.x, pos.y, 16, 16, b.GetSideData(BlockTexture.BlockSide.Left));
-
-				pos.x -= 16;
-				pos.y += 16;
-				atlas.SetPixels32(pos.x, pos.y, 16, 16, b.GetSideData(BlockTexture.BlockSide.Up));
-
-				pos.x += 16;
-				atlas.SetPixels32(pos.x, pos.y, 16, 16, b.GetSideData(BlockTexture.BlockSide.Down));
-
-				pos.x -= 16;
-				pos.y += 16;
-				atlas.SetPixels32(pos.x, pos.y, 16, 16, b.GetSideData(BlockTexture.BlockSide.Front));
-
-				pos.x += 16;
-				atlas.SetPixels32(pos.x, pos.y, 16, 16, b.GetSideData(BlockTexture.BlockSide.Back));
-			}
-
-			atlas.Apply(false, false);
-
-			string fullPath = savePath + name + ".asset";
-
-			var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(fullPath);
-
-			if (existing != null)
-			{
-				EditorUtility.CopySerialized(atlas, existing);
-				DestroyImmediate(atlas);
-				EditorUtility.SetDirty(existing);
-
-				Debug.Log("Atlas updated (no GUID change)");
-			}
-			else
-			{
-				AssetDatabase.CreateAsset(atlas, fullPath);
-				Debug.Log("Atlas created");
-			}
-
-			var flipMap = new Texture2D(32, 32, TextureFormat.RGBA32, false, false);
-			flipMap.filterMode = FilterMode.Point;
-			flipMap.wrapMode = TextureWrapMode.Clamp;
-			flipMap.LoadRawTextureData(new byte[flipMap.width * flipMap.height * 4]);
 			flipMap.Apply(false, false);
 
-			for (int i = 0; i < blocks.Length; i++)
-			{
-				var b = blocks[i];
-				if (b == null) continue;
-
-				var pos = new Vector2Int((i & 15) * 2, (i >> 4) * 3);
-				var s = b.GetSide(BlockTexture.BlockSide.Right);
-				flipMap.SetPixels32(pos.x, pos.y, 1, 1, new Color32[] { new Color32(s.randomFlipDiagonal ? byte.MaxValue : byte.MinValue, s.randomFlipHorizontal ? byte.MaxValue : byte.MinValue, s.randomFlipVertical ? byte.MaxValue : byte.MinValue, 0) });
-				s = b.GetSide(BlockTexture.BlockSide.Left);
-				pos.x += 1;
-				flipMap.SetPixels32(pos.x, pos.y, 1, 1, new Color32[] { new Color32(s.randomFlipDiagonal ? byte.MaxValue : byte.MinValue, s.randomFlipHorizontal ? byte.MaxValue : byte.MinValue, s.randomFlipVertical ? byte.MaxValue : byte.MinValue, 1) });
-				s = b.GetSide(BlockTexture.BlockSide.Up);
-				pos.x -= 1;
-				pos.y += 1;
-				flipMap.SetPixels32(pos.x, pos.y, 1, 1, new Color32[] { new Color32(s.randomFlipDiagonal ? byte.MaxValue : byte.MinValue, s.randomFlipHorizontal ? byte.MaxValue : byte.MinValue, s.randomFlipVertical ? byte.MaxValue : byte.MinValue, 2) });
-				s = b.GetSide(BlockTexture.BlockSide.Down);
-				pos.x += 1;
-				flipMap.SetPixels32(pos.x, pos.y, 1, 1, new Color32[] { new Color32(s.randomFlipDiagonal ? byte.MaxValue : byte.MinValue, s.randomFlipHorizontal ? byte.MaxValue : byte.MinValue, s.randomFlipVertical ? byte.MaxValue : byte.MinValue, 3) });
-				s = b.GetSide(BlockTexture.BlockSide.Front);
-				pos.x -= 1;
-				pos.y += 1;
-				flipMap.SetPixels32(pos.x, pos.y, 1, 1, new Color32[] { new Color32(s.randomFlipDiagonal ? byte.MaxValue : byte.MinValue, s.randomFlipHorizontal ? byte.MaxValue : byte.MinValue, s.randomFlipVertical ? byte.MaxValue : byte.MinValue, 4) });
-				s = b.GetSide(BlockTexture.BlockSide.Back);
-				pos.x += 1;
-				flipMap.SetPixels32(pos.x, pos.y, 1, 1, new Color32[] { new Color32(s.randomFlipDiagonal ? byte.MaxValue : byte.MinValue, s.randomFlipHorizontal ? byte.MaxValue : byte.MinValue, s.randomFlipVertical ? byte.MaxValue : byte.MinValue, 5) });
-			}
-
-			flipMap.Apply(false, false);
-			fullPath = savePath + name + "_flipmap.asset";
-			existing = AssetDatabase.LoadAssetAtPath<Texture2D>(fullPath);
-			if (existing != null)
-			{
-				EditorUtility.CopySerialized(flipMap, existing);
-				DestroyImmediate(flipMap);
-				EditorUtility.SetDirty(existing);
-				Debug.Log("Flipmap updated (no GUID change)");
-			}
-			else
-			{
-				AssetDatabase.CreateAsset(flipMap, fullPath);
-				Debug.Log("Flipmap created");
-			}
-
+			SaveOrUpdate(atlas, savePath + name + "_array.asset", "Atlas");
+			SaveOrUpdate(flipMap, savePath + name + "_flipmap_array.asset", "Flipmap");
 			AssetDatabase.SaveAssets();
 			AssetDatabase.Refresh();
+		}
+
+		private static void SaveOrUpdate(Texture2DArray generated, string path, string label)
+		{
+			var existing = AssetDatabase.LoadAssetAtPath<Texture2DArray>(path);
+			if (existing == null)
+			{
+				AssetDatabase.CreateAsset(generated, path);
+				Debug.Log(label + " array created");
+				return;
+			}
+
+			EditorUtility.CopySerialized(generated, existing);
+			DestroyImmediate(generated);
+			EditorUtility.SetDirty(existing);
+			Debug.Log(label + " array updated (no GUID change)");
 		}
 	}
 

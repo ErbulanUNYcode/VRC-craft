@@ -537,36 +537,30 @@ namespace VRC_MINE.Tools
 				var size = structure.FindProperty("size").vector3IntValue;
 				var positions = structure.FindProperty("positions");
 				var sizes = structure.FindProperty("sizes");
-				var IDs = structure.FindProperty("IDs");
+				var redIDs = structure.FindProperty("redIDs");
+				var greenIDs = structure.FindProperty("greenIDs");
+				var blueIDs = structure.FindProperty("blueIDs");
+				var settings = structure.FindProperty("settings");
 				var layers = structure.FindProperty("layers");
 				for (int layer = 0; layer < layers.arraySize; layer++)
 				{
-					int stage = layer / size.z;
 					var range = layers.GetArrayElementAtIndex(layer).vector2IntValue;
 					for (int zone = range.x; zone < range.y; zone++)
 					{
 						var position = positions.GetArrayElementAtIndex(zone).vector2IntValue;
 						var zoneSize = sizes.GetArrayElementAtIndex(zone).vector2IntValue;
-						var id = (byte)IDs.GetArrayElementAtIndex(zone).intValue;
+						var pixel = new Color32(
+							(byte)redIDs.GetArrayElementAtIndex(zone).intValue,
+							(byte)greenIDs.GetArrayElementAtIndex(zone).intValue,
+							(byte)blueIDs.GetArrayElementAtIndex(zone).intValue,
+							(byte)settings.GetArrayElementAtIndex(zone).intValue);
 						for (int y = 0; y < zoneSize.y; y++)
 							for (int x = 0; x < zoneSize.x; x++)
 							{
-								int atlasX = placements[i].x + position.x + (layer % size.z) * size.x + x;
+								int atlasX = placements[i].x + position.x + layer * size.x + x;
 								int atlasY = placements[i].y + position.y + y;
 								if (atlasX >= 0 && atlasX < biome.AtlasSize.x && atlasY >= 0 && atlasY < biome.AtlasSize.y)
-								{
-									int pixelIndex = atlasX + atlasY * biome.AtlasSize.x;
-									var pixel = pixels[pixelIndex];
-									if (stage == 1)
-										pixel.g = id;
-									else
-									{
-										pixel.r = id;
-										if (stage == 2) pixel.b = byte.MaxValue;
-									}
-									pixel.a = byte.MaxValue;
-									pixels[pixelIndex] = pixel;
-								}
+									pixels[atlasX + atlasY * biome.AtlasSize.x] = pixel;
 							}
 					}
 				}

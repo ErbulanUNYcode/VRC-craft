@@ -39,63 +39,63 @@ namespace VRC_MINE.Tools
 
 		internal Color32[] GetSideData(BlockSide side)
 		{
-			var d = sides[(int)side].texture.GetPixels32();
-
-			if (side == BlockSide.Front || side == BlockSide.Left)
-			{
-				var copy = d;
-				d = new Color32[d.Length];
-				for (int x = 0; x < 16; x++)
-				{
-					for (int y = 0; y < 16; y++)
-					{
-						d[x + y * 16] = copy[15 - x + y * 16];
-					}
-				}
-			}
-			if (side == BlockSide.Down)
-			{
-				var copy = d;
-				d = new Color32[d.Length];
-				for (int x = 0; x < 16; x++)
-				{
-					for (int y = 0; y < 16; y++)
-					{
-						d[x + y * 16] = copy[x + (15 - y) * 16];
-					}
-				}
-			}
-			return d;
+			return GetData(sides[(int)side], side);
 		}
 		internal Color32[] GetLeaveData(BlockSide side)
 		{
-			var d = leaves[(int)side].texture.GetPixels32();
+			var mask = leaves[(int)side];
+			var main = sides[(int)side];
+			mask.flipDiagonal = main.flipDiagonal;
+			mask.flipHorizontal = main.flipHorizontal;
+			mask.flipVertical = main.flipVertical;
+			return GetData(mask, side);
+		}
+
+		private static Color32[] GetData(SideData data, BlockSide side)
+		{
+			if (data.texture == null) return null;
+			int width = data.texture.width;
+			int height = data.texture.height;
+			var pixels = data.texture.GetPixels32();
 
 			if (side == BlockSide.Front || side == BlockSide.Left)
-			{
-				var copy = d;
-				d = new Color32[d.Length];
-				for (int x = 0; x < 16; x++)
-				{
-					for (int y = 0; y < 16; y++)
-					{
-						d[x + y * 16] = copy[15 - x + y * 16];
-					}
-				}
-			}
+				pixels = FlipHorizontal(pixels, width, height);
 			if (side == BlockSide.Down)
-			{
-				var copy = d;
-				d = new Color32[d.Length];
-				for (int x = 0; x < 16; x++)
-				{
-					for (int y = 0; y < 16; y++)
-					{
-						d[x + y * 16] = copy[x + (15 - y) * 16];
-					}
-				}
-			}
-			return d;
+				pixels = FlipVertical(pixels, width, height);
+			if (data.flipHorizontal)
+				pixels = FlipHorizontal(pixels, width, height);
+			if (data.flipVertical)
+				pixels = FlipVertical(pixels, width, height);
+			if (data.flipDiagonal && width == height)
+				pixels = FlipDiagonal(pixels, width);
+			return pixels;
+		}
+
+		private static Color32[] FlipHorizontal(Color32[] source, int width, int height)
+		{
+			var result = new Color32[source.Length];
+			for (int y = 0; y < height; y++)
+				for (int x = 0; x < width; x++)
+					result[x + y * width] = source[width - 1 - x + y * width];
+			return result;
+		}
+
+		private static Color32[] FlipVertical(Color32[] source, int width, int height)
+		{
+			var result = new Color32[source.Length];
+			for (int y = 0; y < height; y++)
+				for (int x = 0; x < width; x++)
+					result[x + y * width] = source[x + (height - 1 - y) * width];
+			return result;
+		}
+
+		private static Color32[] FlipDiagonal(Color32[] source, int size)
+		{
+			var result = new Color32[source.Length];
+			for (int y = 0; y < size; y++)
+				for (int x = 0; x < size; x++)
+					result[x + y * size] = source[y + x * size];
+			return result;
 		}
 
 		public enum BlockSide
@@ -384,14 +384,28 @@ namespace VRC_MINE.Tools
 			}
 
 
-			if (!changed && IsInside(p[a], p[b], p[c], p[d], Event.current.mousePosition) && e.type == EventType.MouseUp && e.button == 0 && firstMouse == e.mousePosition)
+			bool sideClicked = !changed &&
+				IsInside(p[a], p[b], p[c], p[d], Event.current.mousePosition) &&
+				e.type == EventType.MouseUp &&
+				(e.button == 1 || (e.button == 0 && firstMouse == e.mousePosition));
+			if (sideClicked)
 			{
+				bool selectMask = e.button == 1;
 				TexturePickerWindow.Open(tex =>
 				{
-					Undo.RecordObject(asset, "Change Front");
-					var s = asset.GetSide(side);
-					s.texture = tex;
-					asset.SetSide(side, s);
+					Undo.RecordObject(asset, selectMask ? "Change Biome Mask" : "Change Block Texture");
+					if (selectMask)
+					{
+						var mask = asset.GetLeave(side);
+						mask.texture = tex;
+						asset.SetLeave(side, mask);
+					}
+					else
+					{
+						var main = asset.GetSide(side);
+						main.texture = tex;
+						asset.SetSide(side, main);
+					}
 					EditorUtility.SetDirty(asset);
 					Repaint();
 				});
@@ -455,18 +469,18 @@ namespace VRC_MINE.Tools
 		{
 			string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { targetPath });
 
-			textures = new Texture2D[guids.Length];
+			textures = new Texture2D[guids.Length + 1];
 
 			for (int i = 0; i < guids.Length; i++)
 			{
 				string path = AssetDatabase.GUIDToAssetPath(guids[i]);
-				textures[i] = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+				textures[i + 1] = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
 			}
 		}
 
 		private void OnGUI()
 		{
-			if (textures == null || textures.Length == 0)
+			if (textures == null)
 			{
 				GUILayout.Label("No textures found.");
 				return;
@@ -504,7 +518,13 @@ namespace VRC_MINE.Tools
 				}
 				else
 				{
-					GUILayout.Space(size);
+					Rect r = GUILayoutUtility.GetRect(size, size);
+					if (GUI.Button(r, "∅"))
+					{
+						onSelect?.Invoke(null);
+						Close();
+					}
+					if (r.Contains(e.mousePosition)) hoveredName = "null";
 				}
 
 				bool isLastInRow = (i % columns == columns - 1);

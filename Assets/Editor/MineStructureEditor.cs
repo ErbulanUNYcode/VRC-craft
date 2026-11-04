@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using Random = UnityEngine.Random;
 
 namespace VRC_MINE.Tools
 {
@@ -17,27 +16,60 @@ namespace VRC_MINE.Tools
 		private int rootOffsetMask;
 		private int variableHeight;
 		#endregion
-		private List<(Vector2Int pos, Vector2Int size, byte id)>[] zones;
+		private struct ZoneData
+		{
+			public Vector2Int pos;
+			public Vector2Int size;
+			public byte red;
+			public byte green;
+			public byte blue;
+			public byte settings;
+
+			public ZoneData(Vector2Int pos, Vector2Int size, byte red, byte green, byte blue, byte settings)
+			{
+				this.pos = pos;
+				this.size = size;
+				this.red = red;
+				this.green = green;
+				this.blue = blue;
+				this.settings = settings;
+			}
+		}
+
+		private List<ZoneData>[] zones;
 		#region editor
 		private int layer;
-		private Vector2 blockListScroll;
+		private readonly Vector2[] blockListScroll = new Vector2[4];
 		private MineAtlas atlas;
-		private bool secondVariant;
 		private Dictionary<byte, BlockTexture> blockList;
-		private byte selectedBlock = 255;
+		private readonly byte[] selectedBlocks = { 255, 255, 255 };
+		private int appearanceProbability = 3;
+		private bool appearanceXYZ;
+		private bool variantXYZ;
+		private bool useBlueVariant = true;
+		private bool protectedPriority;
+		private bool mandatoryPriority;
 		private bool zoneDrawStarted = false;
 		private bool previewRotateStarted = false;
 		private Vector2Int zoneDrawStartPos;
 		private Texture2D preview;
+		private readonly Texture2D[,] probabilityPatterns = new Texture2D[2, 4];
 		private bool hasStructureChanges;
-		private Stage stage;
-		private enum Stage
-		{
-			main,
-			random,
-			second
-		}
 		#endregion
+
+		private byte BrushSettings
+		{
+			get
+			{
+				int value = appearanceProbability & 3;
+				if (appearanceXYZ) value |= 1 << 2;
+				if (variantXYZ) value |= 1 << 3;
+				if (protectedPriority) value |= 1 << 4;
+				if (mandatoryPriority) value |= 1 << 5;
+				if (useBlueVariant) value |= 1 << 6;
+				return (byte)value;
+			}
+		}
 		private void MarkDirty()
 		{
 			hasStructureChanges = true;
@@ -46,18 +78,28 @@ namespace VRC_MINE.Tools
 
 		private void OnDisable()
 		{
-			if (!hasStructureChanges || targetComponent == null || EditorApplication.isCompiling)
-				return;
+			if (hasStructureChanges && targetComponent != null && !EditorApplication.isCompiling)
+			{
+				AssetDatabase.SaveAssetIfDirty(targetComponent);
+				hasStructureChanges = false;
+			}
 
-			AssetDatabase.SaveAssetIfDirty(targetComponent);
-			hasStructureChanges = false;
+			for (int dimensions = 0; dimensions < 2; dimensions++)
+				for (int probability = 0; probability < 4; probability++)
+					if (probabilityPatterns[dimensions, probability] != null)
+						DestroyImmediate(probabilityPatterns[dimensions, probability]);
+			if (mat != null) DestroyImmediate(mat);
+			if (preview != null) DestroyImmediate(preview);
 		}
 
 		private void ApplyModifiedProperties()
 		{
 			List<Vector2Int> positions = new List<Vector2Int>();
 			List<Vector2Int> sizes = new List<Vector2Int>();
-			List<int> IDs = new List<int>();
+			List<int> redIDs = new List<int>();
+			List<int> greenIDs = new List<int>();
+			List<int> blueIDs = new List<int>();
+			List<int> settings = new List<int>();
 			for (int i = 0; i < zones.Length; i++)
 			{
 				var layerZone = zones[i];
@@ -66,7 +108,10 @@ namespace VRC_MINE.Tools
 					var zone = layerZone[j];
 					positions.Add(zone.pos);
 					sizes.Add(zone.size);
-					IDs.Add(zone.id);
+					redIDs.Add(zone.red);
+					greenIDs.Add(zone.green);
+					blueIDs.Add(zone.blue);
+					settings.Add(zone.settings);
 				}
 			}
 			Vector2Int[] layers = new Vector2Int[zones.Length];
@@ -77,7 +122,14 @@ namespace VRC_MINE.Tools
 				counter += zones[i].Count;
 			}
 
-			targetComponent.UpdateProperties(positions.ToArray(), sizes.ToArray(), IDs.ToArray(), layers);
+			targetComponent.UpdateProperties(
+				positions.ToArray(),
+				sizes.ToArray(),
+				redIDs.ToArray(),
+				greenIDs.ToArray(),
+				blueIDs.ToArray(),
+				settings.ToArray(),
+				layers);
 			MarkDirty();
 			UpdatePreview();
 		}
@@ -85,6 +137,7 @@ namespace VRC_MINE.Tools
 		#region init
 		private void OnEnable()
 		{
+			CreateProbabilityPatterns();
 			Shader shader = Shader.Find("Unlit/Transparent");
 
 			mat = new Material(shader)
@@ -100,6 +153,49 @@ namespace VRC_MINE.Tools
 			}
 
 			ReLoad();
+		}
+
+		private void CreateProbabilityPatterns()
+		{
+			for (int dimensions = 0; dimensions < 2; dimensions++)
+			{
+				for (int probability = 0; probability < 4; probability++)
+				{
+					var texture = new Texture2D(16, 16, TextureFormat.RGBA32, false, true)
+					{
+						name = $"Structure probability {(probability + 1) * 25}% {(dimensions == 0 ? "XZ" : "XYZ")}",
+						filterMode = FilterMode.Point,
+						wrapMode = TextureWrapMode.Repeat,
+						hideFlags = HideFlags.HideAndDontSave
+					};
+					var pixels = new Color32[16 * 16];
+					for (int y = 0; y < 16; y++)
+					{
+						for (int x = 0; x < 16; x++)
+						{
+							bool enabled;
+							if (dimensions == 0)
+							{
+								int sample = ((x & 1) << 1) | ((x >> 1) & 1);
+								enabled = sample <= probability;
+							}
+							else
+							{
+								enabled = probability == 3 ||
+									(probability == 2 && !((x & 1) != 0 && (y & 1) != 0)) ||
+									(probability == 1 && ((x + y) & 1) == 0) ||
+									(probability == 0 && (x & 1) == 0 && (y & 1) == 0);
+							}
+							pixels[x + y * 16] = enabled
+								? new Color32(255, 255, 255, 190)
+								: new Color32(255, 255, 255, 0);
+						}
+					}
+					texture.SetPixels32(pixels);
+					texture.Apply(false, true);
+					probabilityPatterns[dimensions, probability] = texture;
+				}
+			}
 		}
 		private void ReLoad()
 		{
@@ -125,22 +221,31 @@ namespace VRC_MINE.Tools
 			#region main
 			var positions = GetVector2IntArrayProperty("positions");
 			var sizes = GetVector2IntArrayProperty("sizes");
-			var IDs = GetIntArrayProperty("IDs");
+			var redIDs = GetIntArrayProperty("redIDs");
+			var greenIDs = GetIntArrayProperty("greenIDs");
+			var blueIDs = GetIntArrayProperty("blueIDs");
+			var settings = GetIntArrayProperty("settings");
 			var layersProperty = serializedComponent.FindProperty("layers");
-			if (layersProperty.arraySize != size.z * 3)
+			if (layersProperty.arraySize != size.z)
 			{
-				layersProperty.arraySize = size.z * 3;
+				layersProperty.arraySize = size.z;
 				serializedComponent.ApplyModifiedProperties();
 			}
 			var layers = GetVector2IntArrayProperty("layers");
 
-			zones = new List<(Vector2Int pos, Vector2Int size, byte id)>[layers.Length];
+			zones = new List<ZoneData>[layers.Length];
 			for (int i = 0; i < zones.Length; i++)
 			{
-				zones[i] = new List<(Vector2Int pos, Vector2Int size, byte id)>();
+				zones[i] = new List<ZoneData>();
 				for (int j = layers[i].x; j < layers[i].y; j++)
 				{
-					zones[i].Add((positions[j], sizes[j], (byte)IDs[j]));
+					zones[i].Add(new ZoneData(
+						positions[j],
+						sizes[j],
+						(byte)redIDs[j],
+						(byte)greenIDs[j],
+						(byte)blueIDs[j],
+						(byte)settings[j]));
 				}
 			}
 			#endregion
@@ -161,8 +266,19 @@ namespace VRC_MINE.Tools
 			UpdatePreview();
 		}
 		private int lastRandomTick = 0;
+
+		private static uint PreviewHash(int x, int y, int z, int salt)
+		{
+			uint h = (uint)(x * 374761393 ^ z * 668265263 ^ salt * 1274126177);
+			h ^= (uint)(y * 1446658333);
+			h ^= h >> 13;
+			h *= 1274126177u;
+			return h ^ (h >> 16);
+		}
+
 		private void UpdatePreview()
 		{
+			if (preview != null) DestroyImmediate(preview);
 			preview = new Texture2D(size.x * size.z, size.y, TextureFormat.R8, false, true);
 			preview.LoadRawTextureData(new byte[preview.width * preview.height]);
 			if (lastRandomTick != DateTime.Now.Second)
@@ -170,20 +286,30 @@ namespace VRC_MINE.Tools
 				lastRandomTick = DateTime.Now.Second;
 				Repaint();
 			}
-			Random.InitState(DateTime.Now.Second);
 			for (int i = 0; i < zones.Length; i++)
 			{
-				var isRandom = i / size.z == 1;
 				var layerZones = zones[i];
 				foreach (var zone in layerZones)
 				{
-					if (isRandom && Random.Range(0f, 1f) < 0.5f) continue;
-					var colors = new Color[zone.size.x * zone.size.y];
-					for (int j = 0; j < colors.Length; j++)
+					for (int y = 0; y < zone.size.y; y++)
 					{
-						colors[j] = (Color)(new Color32(zone.id, 0, 0, 0));
+						for (int x = 0; x < zone.size.x; x++)
+						{
+							int px = zone.pos.x + x;
+							int py = zone.pos.y + y;
+							bool appearanceUsesY = (zone.settings & (1 << 2)) != 0;
+							uint appearanceHash = PreviewHash(px, appearanceUsesY ? py : 0, i, lastRandomTick);
+							int probability = (zone.settings & 3) + 1;
+							if ((appearanceHash & 3u) >= probability) continue;
+
+							bool variantUsesY = (zone.settings & (1 << 3)) != 0;
+							uint variantHash = PreviewHash(px, variantUsesY ? py : 0, i, lastRandomTick + 7919);
+							int variantCount = (zone.settings & (1 << 6)) != 0 ? 3 : 2;
+							int variant = (int)(variantHash % (uint)variantCount);
+							byte id = variant == 0 ? zone.red : variant == 1 ? zone.green : zone.blue;
+							preview.SetPixel(px + i * size.x, py, (Color)new Color32(id, 0, 0, 255));
+						}
 					}
-					preview.SetPixels(zone.pos.x + (i % size.z) * size.x, zone.pos.y, zone.size.x, zone.size.y, colors);
 				}
 			}
 			preview.Apply();
@@ -247,8 +373,110 @@ namespace VRC_MINE.Tools
 			for (int i = 0; i < zones.Length; i++)
 				if (zones[i] != null)
 					for (int j = 0; j < zones[i].Count; j++)
-						if (zones[i][j].id == id) return true;
+						if (zones[i][j].red == id || zones[i][j].green == id || zones[i][j].blue == id)
+							return true;
 			return false;
+		}
+
+		private void SyncBlockList()
+		{
+			targetComponent.blockList = new int[blockList.Count];
+			int i = 0;
+			foreach (var entry in blockList) targetComponent.blockList[i++] = entry.Key;
+			MarkDirty();
+		}
+
+		private byte DrawBlockPanel(Rect viewport, int panel, Color tint, bool library)
+		{
+			EditorGUI.DrawRect(viewport, tint);
+			GUI.Label(new Rect(viewport.x + 4, viewport.y + 1, viewport.width - 8, 17), library ? "Blocks" : "RGB"[panel - 1].ToString(), EditorStyles.miniBoldLabel);
+			Rect scrollRect = new Rect(viewport.x, viewport.y + 18, viewport.width, viewport.height - 18);
+			float cell = Mathf.Max(24, (scrollRect.width - 13) / 2);
+			int count = blockList.Count + (library ? 1 : 0);
+			Rect contentRect = new Rect(0, 0, scrollRect.width - 13, Mathf.Max(scrollRect.height + .1f, Mathf.Ceil(count / 2f) * cell));
+			blockListScroll[panel] = GUI.BeginScrollView(scrollRect, blockListScroll[panel], contentRect);
+			Rect button = new Rect(0, 0, cell - 2, cell - 2);
+			GUIStyle style = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleCenter, fontSize = Mathf.RoundToInt(cell / 3) };
+			byte delete = 255;
+			int i = 0;
+			foreach (var entry in blockList)
+			{
+				button.x = (i % 2) * cell + 1;
+				button.y = (i / 2) * cell + 1;
+				if (GUI.Button(button, new GUIContent("", entry.Value == null ? "" : entry.Value.name), style))
+				{
+					if (library && Event.current.button == 1) delete = entry.Key;
+					else if (!library && Event.current.button == 0) selectedBlocks[panel - 1] = entry.Key;
+				}
+				if (!library && entry.Key == selectedBlocks[panel - 1])
+					Handles.DrawSolidRectangleWithOutline(button, Color.clear, Color.white);
+				i++;
+			}
+
+			rot = Vector2.one * .3f;
+			CacheCubeRotation();
+			Rect glRect = new Rect(blockListScroll[panel].x, blockListScroll[panel].y, contentRect.width, scrollRect.height);
+			i = 0;
+			foreach (var entry in blockList)
+			{
+				button.x = (i % 2) * cell + 1;
+				button.y = (i / 2) * cell + 1;
+				DrawCubeInRect(glRect, entry.Value, new Rect(button.x + 4, button.y + 4, cell - 8, cell - 8));
+				i++;
+			}
+
+			if (library)
+			{
+				button.x = (i % 2) * cell + 1;
+				button.y = (i / 2) * cell + 1;
+				EditorGUI.BeginDisabledGroup(atlas == null);
+				if (GUI.Button(button, new GUIContent("+", atlas == null ? "Select a MineAtlas first." : "Add a block."), style))
+				{
+					MineStructureBlockCreator.Open(block =>
+					{
+						if (blockList.ContainsKey(block.id)) return;
+						blockList.Add(block.id, block.blockTex);
+						SyncBlockList();
+					});
+				}
+				EditorGUI.EndDisabledGroup();
+			}
+			GUI.EndScrollView();
+			return delete;
+		}
+
+		private void DrawZoneVisualization(Rect zoneRect, ZoneData zone, Color outlineColor)
+		{
+			int probability = zone.settings & 3;
+			int appearanceDimensions = (zone.settings & (1 << 2)) != 0 ? 1 : 0;
+			Color previousGUIColor = GUI.color;
+			GUI.color = new Color(outlineColor.r, outlineColor.g, outlineColor.b, previousGUIColor.a * .55f);
+			GUI.DrawTextureWithTexCoords(
+				zoneRect,
+				probabilityPatterns[appearanceDimensions, probability],
+				new Rect(0, 0, zone.size.x, zone.size.y),
+				true);
+			GUI.color = previousGUIColor;
+
+			Handles.color = new Color(outlineColor.r, outlineColor.g, outlineColor.b, .85f);
+			float blockWidth = zoneRect.width / zone.size.x;
+			float blockHeight = zoneRect.height / zone.size.y;
+			for (int blockX = 0; blockX < zone.size.x; blockX++)
+			{
+				for (int division = 1; division <= 3; division++)
+				{
+					float x = zoneRect.xMin + (blockX + division * .25f) * blockWidth;
+					Handles.DrawAAPolyLine(1f, new Vector3(x, zoneRect.yMin), new Vector3(x, zoneRect.yMax));
+				}
+			}
+			if ((zone.settings & (1 << 3)) != 0)
+				for (int blockY = 0; blockY < zone.size.y; blockY++)
+					for (int division = 1; division <= 3; division++)
+					{
+						float y = zoneRect.yMin + (blockY + division * .25f) * blockHeight;
+						Handles.DrawAAPolyLine(1f, new Vector3(zoneRect.xMin, y), new Vector3(zoneRect.xMax, y));
+					}
+			Handles.color = Color.white;
 		}
 
 		public override void OnInspectorGUI()
@@ -310,24 +538,29 @@ namespace VRC_MINE.Tools
 					EditorPrefs.DeleteKey("MineStructureEditorAtlas");
 			}
 			#endregion
-			#region stage
-			GUILayout.Label("stage");
+			#region brush
+			GUILayout.Label("brush", EditorStyles.boldLabel);
+			int probabilityStep = EditorGUILayout.IntSlider("appearance probability", appearanceProbability + 1, 1, 4);
+			appearanceProbability = probabilityStep - 1;
+			EditorGUILayout.LabelField("", (probabilityStep * 25) + "%", GUILayout.Width(45));
 
 			EditorGUILayout.BeginHorizontal();
-
-			EditorGUI.BeginDisabledGroup(stage == Stage.main);
-			if (GUILayout.Button("main")) stage = Stage.main;
-			EditorGUI.EndDisabledGroup();
-
-			EditorGUI.BeginDisabledGroup(stage == Stage.random);
-			if (GUILayout.Button("random")) stage = Stage.random;
-			EditorGUI.EndDisabledGroup();
-
-			EditorGUI.BeginDisabledGroup(stage == Stage.second);
-			if (GUILayout.Button("second")) stage = Stage.second;
-			EditorGUI.EndDisabledGroup();
-
+			GUILayout.Label("appearance hash", GUILayout.Width(EditorGUIUtility.labelWidth));
+			appearanceXYZ = GUILayout.Toolbar(appearanceXYZ ? 1 : 0, new[] { "XZ", "XYZ" }) == 1;
 			EditorGUILayout.EndHorizontal();
+
+			EditorGUILayout.BeginHorizontal();
+			GUILayout.Label("variant hash", GUILayout.Width(EditorGUIUtility.labelWidth));
+			variantXYZ = GUILayout.Toolbar(variantXYZ ? 1 : 0, new[] { "XZ", "XYZ" }) == 1;
+			EditorGUILayout.EndHorizontal();
+
+			useBlueVariant = EditorGUILayout.Toggle("use blue variant", useBlueVariant);
+			bool newProtected = EditorGUILayout.Toggle("protected", protectedPriority);
+			bool newMandatory = EditorGUILayout.Toggle("mandatory", mandatoryPriority);
+			if (newProtected && !protectedPriority) newMandatory = false;
+			if (newMandatory && !mandatoryPriority) newProtected = false;
+			protectedPriority = newProtected;
+			mandatoryPriority = newMandatory;
 			#endregion
 
 			layer = EditorGUILayout.IntSlider("layer", layer, 0, size.z - 1);
@@ -360,12 +593,21 @@ namespace VRC_MINE.Tools
 			}
 			Handles.EndGUI();
 
-			if (blockList.ContainsKey(selectedBlock) && Event.current.type == EventType.MouseDown && Event.current.button == 0 && gridRect.Contains(Event.current.mousePosition))
+			bool brushReady = blockList.ContainsKey(selectedBlocks[0]) &&
+				blockList.ContainsKey(selectedBlocks[1]) &&
+				(!useBlueVariant || blockList.ContainsKey(selectedBlocks[2]));
+			if (brushReady && Event.current.type == EventType.MouseDown && Event.current.button == 0 && gridRect.Contains(Event.current.mousePosition))
 			{
 				zoneDrawStarted = true;
 				zoneDrawStartPos = new Vector2Int(Mathf.FloorToInt((Event.current.mousePosition.x - gridRect.min.x) / gridRect.width * size.x), Mathf.FloorToInt((Event.current.mousePosition.y - gridRect.min.y) / gridRect.height * size.y));
 				zoneDrawStartPos.y = size.y - zoneDrawStartPos.y - 1;
-				zones[layer + (int)stage * size.z].Add((zoneDrawStartPos, new Vector2Int(1, 1), selectedBlock));
+				zones[layer].Add(new ZoneData(
+					zoneDrawStartPos,
+					new Vector2Int(1, 1),
+					selectedBlocks[0],
+					selectedBlocks[1],
+					useBlueVariant ? selectedBlocks[2] : selectedBlocks[1],
+					BrushSettings));
 				Repaint();
 			}
 
@@ -379,7 +621,11 @@ namespace VRC_MINE.Tools
 					zoneDrawCurrentPos = Vector2Int.Min(zoneDrawCurrentPos, (Vector2Int)size - Vector2Int.one);
 					var zoneDrawSize = zoneDrawCurrentPos - zoneDrawStartPos;
 					zoneDrawSize = new Vector2Int(Mathf.Abs(zoneDrawSize.x), Mathf.Abs(zoneDrawSize.y)) + Vector2Int.one;
-					zones[layer + (int)stage * size.z][zones[layer + (int)stage * size.z].Count - 1] = (Vector2Int.Min(zoneDrawStartPos, zoneDrawCurrentPos), zoneDrawSize, selectedBlock);
+					int editedZone = zones[layer].Count - 1;
+					ZoneData zone = zones[layer][editedZone];
+					zone.pos = Vector2Int.Min(zoneDrawStartPos, zoneDrawCurrentPos);
+					zone.size = zoneDrawSize;
+					zones[layer][editedZone] = zone;
 					Repaint();
 				}
 			}
@@ -390,128 +636,62 @@ namespace VRC_MINE.Tools
 				ApplyModifiedProperties();
 			}
 
-			byte delete = 255;
+			int zoneToDelete = -1;
 			{
-				var layerZone = zones[layer + (int)stage * size.z];
+				var layerZone = zones[layer];
 				float gridCellSize = editorRect.height / size.y;
 				for (byte i = 0; i < layerZone.Count; i++)
 				{
 					var zone = layerZone[i];
 					var zoneRect = new Rect(gridRect.min + new Vector2(zone.pos.x, size.y - zone.pos.y - zone.size.y) * gridCellSize, (Vector2)zone.size * gridCellSize);
-					var b = blockList.ContainsKey(zone.id) ? blockList[zone.id] : null;
+					var displayRect = new Rect(
+						zoneRect.x,
+						zoneRect.y,
+						Mathf.Max(0, zoneRect.width - 2),
+						Mathf.Max(0, zoneRect.height - 2));
+					var b = blockList.ContainsKey(zone.red) ? blockList[zone.red] : null;
 					var color = b == null ? Color.magenta : b.previewColor;
 					var fillColor = new Color(color.r, color.g, color.b, 0.2f);
-					Handles.DrawSolidRectangleWithOutline(zoneRect, fillColor, color);
+					EditorGUI.DrawRect(displayRect, fillColor);
+					DrawZoneVisualization(displayRect, zone, color);
+					Color zoneOutline = (zone.settings & (1 << 5)) != 0
+						? Color.black
+						: (zone.settings & (1 << 4)) != 0 ? Color.white : color;
+					Handles.DrawSolidRectangleWithOutline(displayRect, Color.clear, zoneOutline);
 					if (Event.current.type == EventType.MouseDown && Event.current.button == 1 && zoneRect.Contains(Event.current.mousePosition))
 					{
-						delete = i;
+						zoneToDelete = i;
 					}
 				}
-				if (delete < zones.Length)
+				if (zoneToDelete >= 0 && zoneToDelete < layerZone.Count)
 				{
-					zones[layer + (int)stage * size.z].RemoveAt(delete);
+					zones[layer].RemoveAt(zoneToDelete);
 					ApplyModifiedProperties();
 				}
 			}
 			#endregion
 			#region block list
-			float blockSize = (blockListViewportRect.width - 13) / 2;
-			Rect blockListContentRect = new Rect(0, 0, blockListViewportRect.width - 13, Mathf.Max(blockListViewportRect.height + 0.1f, Mathf.Ceil((targetComponent.blockList.Length + 1f) / 2) * blockSize));
-			EditorGUI.BeginDisabledGroup(blockListContentRect.height < blockListViewportRect.height + 1);
-			blockListScroll = GUI.BeginScrollView(
-				blockListViewportRect,
-				blockListScroll,
-				blockListContentRect
-			);
-			EditorGUI.EndDisabledGroup();
-
-			Rect block = new Rect(0, 0, blockSize - 2, blockSize - 2);
-			GUIStyle blockStyle = new GUIStyle(GUI.skin.button);
-			blockStyle.alignment = TextAnchor.MiddleCenter;
-			blockStyle.fontSize = Mathf.RoundToInt(blockSize / 3);
-			GUIContent content = null;
-			delete = 255;
-			var _i = 0;
-			foreach (var blockTex in blockList)
+			float panelGap = 3;
+			float panelWidth = (blockListViewportRect.width - panelGap) * .5f;
+			float panelHeight = (blockListViewportRect.height - panelGap) * .5f;
+			Rect[] panels =
 			{
-				content = new GUIContent("", blockTex.Value == null ? "" : blockTex.Value.name);
-				block.x = (_i % 2) * blockSize + 1;
-				block.y = (_i / 2) * blockSize + 1;
-				if (GUI.Button(block, content, blockStyle))
-				{
-					switch (Event.current.button)
-					{
-						case 0:
-							selectedBlock = blockTex.Key;
-							break;
-
-						case 1:
-							delete = blockTex.Key;
-							break;
-					}
-				}
-				if (blockTex.Key == selectedBlock) Handles.DrawSolidRectangleWithOutline(
-					block,
-					Color.clear,
-					Color.white
-				);
-				_i++;
-			}
-			rot = Vector2.one * 0.3f;
-			CacheCubeRotation();
-			Rect GLViewRect = new Rect(blockListScroll.x, blockListScroll.y, blockListContentRect.width, blockListViewportRect.height);
-			_i = 0;
-			foreach (var blockTex in blockList)
-			{
-				block.x = (_i % 2) * blockSize + 1;
-				block.y = (_i / 2) * blockSize + 1;
-				DrawCubeInRect(GLViewRect, blockTex.Value, new Rect(block.x + 4, block.y + 4, blockSize - 8, blockSize - 8));
-				_i++;
-			}
-
-			if (blockList.ContainsKey(delete) &&
-				(!IsBlockUsed(delete) || EditorUtility.DisplayDialog(
-					"Delete Block",
-					"Deleting this block may remove all placed structure parts that use it.\r\n\r\nContinue?",
-					"Yes",
-					"No"))
-			)
+				new Rect(blockListViewportRect.x, blockListViewportRect.y, panelWidth, panelHeight),
+				new Rect(blockListViewportRect.x + panelWidth + panelGap, blockListViewportRect.y, panelWidth, panelHeight),
+				new Rect(blockListViewportRect.x, blockListViewportRect.y + panelHeight + panelGap, panelWidth, panelHeight),
+				new Rect(blockListViewportRect.x + panelWidth + panelGap, blockListViewportRect.y + panelHeight + panelGap, panelWidth, panelHeight)
+			};
+			byte delete = DrawBlockPanel(panels[0], 0, new Color(.12f, .12f, .12f, .45f), true);
+			DrawBlockPanel(panels[1], 1, new Color(.35f, .05f, .05f, .28f), false);
+			DrawBlockPanel(panels[2], 2, new Color(.05f, .35f, .05f, .28f), false);
+			DrawBlockPanel(panels[3], 3, new Color(.05f, .12f, .4f, .28f), false);
+			if (blockList.ContainsKey(delete) && (!IsBlockUsed(delete) || EditorUtility.DisplayDialog(
+				"Delete Block", "Deleting this block may remove all placed structure parts that use it.\r\n\r\nContinue?", "Yes", "No")))
 			{
 				blockList.Remove(delete);
-				targetComponent.blockList = new int[blockList.Count];
-				for (int i = 0; i < blockList.Count; i++) targetComponent.blockList[i] = i;
-				MarkDirty();
+				for (int i = 0; i < selectedBlocks.Length; i++) if (selectedBlocks[i] == delete) selectedBlocks[i] = 255;
+				SyncBlockList();
 			}
-
-			block.x = (targetComponent.blockList.Length % 2) * blockSize + 1;
-			block.y = (targetComponent.blockList.Length / 2) * blockSize + 1;
-
-			content = new GUIContent(
-				"+",
-				atlas == null
-					? "Select a MineAtlas first."
-					: "Add a block."
-			);
-
-			EditorGUI.BeginDisabledGroup(atlas == null);
-			if (GUI.Button(block, content, blockStyle))
-			{
-				MineStructureBlockCreator.Open((block) =>
-				{
-					if (blockList.ContainsKey(block.id)) return;
-					blockList.Add(block.id, block.blockTex);
-					targetComponent.blockList = new int[blockList.Count];
-					_i = 0;
-					foreach (var blockTex in blockList)
-					{
-						targetComponent.blockList[_i] = blockTex.Key;
-						_i++;
-					}
-					MarkDirty();
-				});
-			}
-			EditorGUI.EndDisabledGroup();
-			GUI.EndScrollView();
 			#endregion
 			#region preview
 			GUILayout.Space(4);
@@ -545,9 +725,9 @@ namespace VRC_MINE.Tools
 			if (!previewRotateStarted)
 			{
 				//draw black rect
-				Handles.DrawSolidRectangleWithOutline(new Rect(previewRect.min, new Vector2(previewRect.width, previewRect.height / (2 + previewRot.y * 2))), new Color(0, 1, 1, 0.3f), Color.clear);
+				Handles.DrawSolidRectangleWithOutline(new Rect(previewRect.min, new Vector2(previewRect.width, previewRect.height / (2 + previewRot.y * 2))), new Color(0, 0.25f, 0.25f, 0.3f), Color.clear);
 				//draw black rect
-				Handles.DrawSolidRectangleWithOutline(new Rect(previewRect.min + Vector2.up * previewRect.height / (2 + previewRot.y * 2), new Vector2(previewRect.width, previewRect.height - (previewRect.height / (2 + previewRot.y * 2)))), new Color(0, 0.5f, 0, 0.3f), Color.clear);
+				Handles.DrawSolidRectangleWithOutline(new Rect(previewRect.min + Vector2.up * previewRect.height / (2 + previewRot.y * 2), new Vector2(previewRect.width, previewRect.height - (previewRect.height / (2 + previewRot.y * 2)))), new Color(0, 0.125f, 0, 0.3f), Color.clear);
 				var k = layer;
 				for (int i = xFor.x; i < size.x && i > -1; i += xFor.y)
 				{

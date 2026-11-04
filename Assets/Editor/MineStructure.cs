@@ -15,8 +15,11 @@ namespace VRC_MINE.Tools
 		#region main
 		[SerializeField] private Vector2Int[] positions = new Vector2Int[0];
 		[SerializeField] private Vector2Int[] sizes = new Vector2Int[0];
-		[SerializeField] private int[] IDs = new int[0];
-		[SerializeField] private Vector2Int[] layers = new Vector2Int[9];
+		[SerializeField] private int[] redIDs = new int[0];
+		[SerializeField] private int[] greenIDs = new int[0];
+		[SerializeField] private int[] blueIDs = new int[0];
+		[SerializeField] private int[] settings = new int[0];
+		[SerializeField] private Vector2Int[] layers = new Vector2Int[3];
 		#endregion
 
 		[SerializeField] public int[] blockList = new int[0];
@@ -44,15 +47,28 @@ namespace VRC_MINE.Tools
 			root = new Vector3Int((newSize.x - 1) / 2, 0, (newSize.z - 1) / 2);
 			positions = new Vector2Int[0];
 			sizes = new Vector2Int[0];
-			IDs = new int[0];
-			layers = new Vector2Int[newSize.z * 3];
+			redIDs = new int[0];
+			greenIDs = new int[0];
+			blueIDs = new int[0];
+			settings = new int[0];
+			layers = new Vector2Int[newSize.z];
 		}
 
-		public void UpdateProperties(Vector2Int[] positions, Vector2Int[] sizes, int[] IDs, Vector2Int[] layers)
+		public void UpdateProperties(
+			Vector2Int[] positions,
+			Vector2Int[] sizes,
+			int[] redIDs,
+			int[] greenIDs,
+			int[] blueIDs,
+			int[] settings,
+			Vector2Int[] layers)
 		{
 			this.positions = positions;
 			this.sizes = sizes;
-			this.IDs = IDs;
+			this.redIDs = redIDs;
+			this.greenIDs = greenIDs;
+			this.blueIDs = blueIDs;
+			this.settings = settings;
 			this.layers = layers;
 		}
 	}

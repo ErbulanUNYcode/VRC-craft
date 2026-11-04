@@ -522,7 +522,7 @@ Shader "VRC_MINE/WorldGenerator"
                 o.structureRaster = 0;
                 o.structureInfo = 0;
 
-                if (base.primitiveID != 0 && base.primitiveID != 265)
+                if (base.primitiveID != 0 && base.primitiveID != 409)
                 {
                     int2 zoneCenter = GetZonePosition(batchZoneIndex);
                     int2 zoneWorldPosition = int2(_ChunkPosX, _ChunkPosY) + zoneCenter;
@@ -648,7 +648,7 @@ Shader "VRC_MINE/WorldGenerator"
                 if (i.primitiveID == 0)
                     return 0;
 
-                if (i.primitiveID != 265)
+                if (i.primitiveID != 409)
                 {
                     int2 outputPixel = min(
                         (int2)(i.globalTexcoord.xy * TEXTURE_SIZE),
@@ -670,30 +670,39 @@ Shader "VRC_MINE/WorldGenerator"
                         (int)i.structureMetadata.g + atlasY
                     ));
 
-                    if (structurePixel.a == 0u)
+                    if ((structurePixel.r | structurePixel.g | structurePixel.b | structurePixel.a) == 0u)
                         discard;
 
-                    bool mandatoryPass = i.primitiveID > 265;
-                    if (mandatoryPass != (structurePixel.b != 0u))
+                    uint settings = structurePixel.a;
+                    bool protectedPixel = (settings & 16u) != 0u;
+                    bool mandatoryPixel = (settings & 32u) != 0u;
+                    bool protectedPass = i.primitiveID >= 265 && i.primitiveID <= 408;
+                    bool mandatoryPass = i.primitiveID >= 410;
+                    bool optionalPass = i.primitiveID <= 264;
+                    if ((optionalPass && (protectedPixel || mandatoryPixel)) ||
+                        (protectedPass && (!protectedPixel || mandatoryPixel)) ||
+                        (mandatoryPass && !mandatoryPixel))
                         discard;
 
-                    uint block = structurePixel.r;
-                    bool hasRandomBlock = structurePixel.g != 0u;
-                    if (hasRandomBlock)
-                    {
-                        int3 worldPosition = int3(
-                            _ChunkPosX + (outputPixel.x & 15),
-                            outputPixel.y,
-                            _ChunkPosY + (outputPixel.x >> 4)
-                        );
-                        uint randomBlock = hash2D(worldPosition.xz);
-                        randomBlock ^= asuint(worldPosition.y) * 0x9E3779B9u;
-                        if ((randomBlock & 1u) != 0u)
-                            block = structurePixel.g;
-                    }
-
-                    if (hasRandomBlock && block == 0u)
+                    int3 worldPosition = int3(
+                        _ChunkPosX + (outputPixel.x & 15),
+                        outputPixel.y,
+                        _ChunkPosY + (outputPixel.x >> 4)
+                    );
+                    uint appearanceHash = hash2D(worldPosition.xz + int2(atlasX * 131, atlasY * 197));
+                    if ((settings & 4u) != 0u)
+                        appearanceHash ^= asuint(worldPosition.y) * 0x9E3779B9u;
+                    if ((appearanceHash & 3u) > (settings & 3u))
                         discard;
+
+                    uint variantHash = hash2D(worldPosition.xz + int2(atlasX * 269, atlasY * 353));
+                    if ((settings & 8u) != 0u)
+                        variantHash ^= asuint(worldPosition.y) * 0x85EBCA6Bu;
+                    uint variantCount = (settings & 64u) != 0u ? 3u : 2u;
+                    uint variant = variantHash % variantCount;
+                    uint block = variant == 0u ? structurePixel.r :
+                        (variant == 1u ? structurePixel.g : structurePixel.b);
+                    if (block == 0u) discard;
 
                     return (fixed)block / 255.0;
                 }
