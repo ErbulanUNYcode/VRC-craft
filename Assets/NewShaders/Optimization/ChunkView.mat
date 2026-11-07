@@ -27,6 +27,14 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _BlockAtlas:
+        m_Texture: {fileID: 18700000, guid: 43916061f3f030647b245cdfd622292e, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BlockFaces:
+        m_Texture: {fileID: 18700000, guid: ca46fafb8515cff4a93a22fa23668836, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _BumpMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -110,6 +118,7 @@ Material:
     - _Flip: {r: 1, g: 1, b: 1, a: 1}
     - _ForestColor: {r: 0.4745098, g: 0.88235295, b: 0, a: 1}
     - _JungleColor: {r: 0, g: 1, b: 0, a: 1}
+    - _LeafTint: {r: 0.34999996, g: 1, b: 0.34999996, a: 1}
     - _OceanColor: {r: 0, g: 0.5, b: 1, a: 1}
     - _PlainColor: {r: 0, g: 0.6603774, b: 0, a: 1}
     - _PolarColor: {r: 0, g: 0, b: 1, a: 1}

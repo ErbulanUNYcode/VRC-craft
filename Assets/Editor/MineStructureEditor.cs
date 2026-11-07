@@ -138,7 +138,7 @@ namespace VRC_MINE.Tools
 		private void OnEnable()
 		{
 			CreateProbabilityPatterns();
-			Shader shader = Shader.Find("Unlit/Transparent");
+			Shader shader = Shader.Find("Hidden/MineTools/StructurePreview");
 
 			mat = new Material(shader)
 			{
@@ -265,7 +265,8 @@ namespace VRC_MINE.Tools
 			#endregion
 			UpdatePreview();
 		}
-		private int lastRandomTick = 0;
+		private int previewRandomSeed;
+		private bool showCurrentLayer = true;
 
 		private static uint PreviewHash(int x, int y, int z, int salt)
 		{
@@ -281,11 +282,6 @@ namespace VRC_MINE.Tools
 			if (preview != null) DestroyImmediate(preview);
 			preview = new Texture2D(size.x * size.z, size.y, TextureFormat.R8, false, true);
 			preview.LoadRawTextureData(new byte[preview.width * preview.height]);
-			if (lastRandomTick != DateTime.Now.Second)
-			{
-				lastRandomTick = DateTime.Now.Second;
-				Repaint();
-			}
 			for (int i = 0; i < zones.Length; i++)
 			{
 				var layerZones = zones[i];
@@ -298,12 +294,12 @@ namespace VRC_MINE.Tools
 							int px = zone.pos.x + x;
 							int py = zone.pos.y + y;
 							bool appearanceUsesY = (zone.settings & (1 << 2)) != 0;
-							uint appearanceHash = PreviewHash(px, appearanceUsesY ? py : 0, i, lastRandomTick);
+							uint appearanceHash = PreviewHash(px, appearanceUsesY ? py : 0, i, previewRandomSeed);
 							int probability = (zone.settings & 3) + 1;
 							if ((appearanceHash & 3u) >= probability) continue;
 
 							bool variantUsesY = (zone.settings & (1 << 3)) != 0;
-							uint variantHash = PreviewHash(px, variantUsesY ? py : 0, i, lastRandomTick + 7919);
+							uint variantHash = PreviewHash(px, variantUsesY ? py : 0, i, previewRandomSeed + 7919);
 							int variantCount = (zone.settings & (1 << 6)) != 0 ? 3 : 2;
 							int variant = (int)(variantHash % (uint)variantCount);
 							byte id = variant == 0 ? zone.red : variant == 1 ? zone.green : zone.blue;
@@ -406,6 +402,12 @@ namespace VRC_MINE.Tools
 				if (GUI.Button(button, new GUIContent("", entry.Value == null ? "" : entry.Value.name), style))
 				{
 					if (library && Event.current.button == 1) delete = entry.Key;
+					else if (library && Event.current.button == 0)
+					{
+						selectedBlocks[0] = entry.Key;
+						selectedBlocks[1] = entry.Key;
+						selectedBlocks[2] = entry.Key;
+					}
 					else if (!library && Event.current.button == 0) selectedBlocks[panel - 1] = entry.Key;
 				}
 				if (!library && entry.Key == selectedBlocks[panel - 1])
@@ -650,7 +652,7 @@ namespace VRC_MINE.Tools
 						Mathf.Max(0, zoneRect.width - 2),
 						Mathf.Max(0, zoneRect.height - 2));
 					var b = blockList.ContainsKey(zone.red) ? blockList[zone.red] : null;
-					var color = b == null ? Color.magenta : b.previewColor;
+					var color = b == null ? Color.magenta : b.GetPreviewColor();
 					var fillColor = new Color(color.r, color.g, color.b, 0.2f);
 					EditorGUI.DrawRect(displayRect, fillColor);
 					DrawZoneVisualization(displayRect, zone, color);
@@ -658,6 +660,20 @@ namespace VRC_MINE.Tools
 						? Color.black
 						: (zone.settings & (1 << 4)) != 0 ? Color.white : color;
 					Handles.DrawSolidRectangleWithOutline(displayRect, Color.clear, zoneOutline);
+					if (Event.current.type == EventType.MouseDown && Event.current.button == 2 && zoneRect.Contains(Event.current.mousePosition))
+					{
+						selectedBlocks[0] = zone.red;
+						selectedBlocks[1] = zone.green;
+						selectedBlocks[2] = zone.blue;
+						appearanceProbability = zone.settings & 3;
+						appearanceXYZ = (zone.settings & (1 << 2)) != 0;
+						variantXYZ = (zone.settings & (1 << 3)) != 0;
+						protectedPriority = (zone.settings & (1 << 4)) != 0;
+						mandatoryPriority = (zone.settings & (1 << 5)) != 0;
+						useBlueVariant = (zone.settings & (1 << 6)) != 0;
+						Event.current.Use();
+						Repaint();
+					}
 					if (Event.current.type == EventType.MouseDown && Event.current.button == 1 && zoneRect.Contains(Event.current.mousePosition))
 					{
 						zoneToDelete = i;
@@ -694,6 +710,7 @@ namespace VRC_MINE.Tools
 			}
 			#endregion
 			#region preview
+			#if false // Temporarily disabled while the inspector preview is being rebuilt.
 			GUILayout.Space(4);
 			EditorGUILayout.BeginHorizontal();
 			Rect previewRect = GUILayoutUtility.GetAspectRect(1);
@@ -775,7 +792,191 @@ namespace VRC_MINE.Tools
 				previewRotateStarted = false;
 				Repaint();
 			}
+			#endif
 			#endregion
+		}
+
+		private void DrawStructurePreviewHeader(Rect rect)
+		{
+			rect.x = 0f;
+			rect.width = EditorGUIUtility.currentViewWidth;
+
+			const float lineThickness = 1f;
+			const float lineGap = 20f;
+			Color black = Color.black;
+			Color titleColor = new Color32(190, 190, 190, 255);
+			Color dividerColor = new Color32(105, 105, 105, 255);
+
+			EditorGUI.DrawRect(
+				new Rect(rect.x, rect.yMax - lineThickness, rect.width, lineThickness),
+				black);
+			EditorGUI.DrawRect(
+				new Rect(rect.x, rect.yMax - lineThickness - lineGap - 2f, rect.width, lineThickness),
+				black);
+
+			GUIStyle titleStyle = new GUIStyle(EditorStyles.boldLabel)
+			{
+				alignment = TextAnchor.MiddleLeft,
+				padding = new RectOffset(0, 0, 0, 0),
+				fontSize = 12
+			};
+			titleStyle.normal.textColor = titleColor;
+			string title = target != null ? target.name : string.Empty;
+			EditorGUI.LabelField(
+				new Rect(rect.x + 6f, rect.yMax - lineGap, rect.width - 14f, lineGap - 2f),
+				title,
+				titleStyle);
+
+			float dividerStart = rect.x + 6f + titleStyle.CalcSize(new GUIContent(title)).x + 5f;
+			float dividerEnd = rect.xMax - 5f;
+			if (dividerEnd > dividerStart)
+			{
+				float centerY = rect.yMax - lineGap * 0.5f;
+				EditorGUI.DrawRect(
+					new Rect(dividerStart, centerY - 2f, dividerEnd - dividerStart, 1f),
+					dividerColor);
+				EditorGUI.DrawRect(
+					new Rect(dividerStart, centerY + 1f, dividerEnd - dividerStart, 1f),
+					dividerColor);
+			}
+		}
+
+		public override bool HasPreviewGUI()
+		{
+			return true;
+		}
+
+		public override void OnPreviewSettings()
+		{
+			string layerLabel = showCurrentLayer ? "Layer  [x]" : "Layer  [  ]";
+			if (GUILayout.Button(layerLabel, EditorStyles.toolbarButton, GUILayout.Width(90f)))
+			{
+				showCurrentLayer = !showCurrentLayer;
+				Repaint();
+			}
+
+			GUILayout.Label("Seed", EditorStyles.miniLabel, GUILayout.Width(30f));
+			EditorGUI.BeginChangeCheck();
+			int newSeed = EditorGUILayout.IntSlider(
+				GUIContent.none,
+				previewRandomSeed,
+				0,
+				31,
+				GUILayout.Width(105f));
+			if (EditorGUI.EndChangeCheck() && newSeed != previewRandomSeed)
+			{
+				previewRandomSeed = newSeed;
+				UpdatePreview();
+				Repaint();
+			}
+		}
+
+		public override void OnPreviewGUI(Rect rect, GUIStyle background)
+		{
+			DrawStructurePreview(rect);
+		}
+
+		private void DrawStructurePreview(Rect previewRect)
+		{
+			if (preview == null || size.x <= 0 || size.y <= 0 || size.z <= 0)
+				return;
+
+			float horizon = previewRect.height / (2f + previewRot.y * 2f);
+			EditorGUI.DrawRect(previewRect, new Color(0.08f, 0.08f, 0.08f, 1f));
+			EditorGUI.DrawRect(
+				new Rect(previewRect.x, previewRect.y, previewRect.width, horizon),
+				new Color(0f, 1f, 1f, 1f));
+			EditorGUI.DrawRect(
+				new Rect(previewRect.x, previewRect.y + horizon, previewRect.width, previewRect.height - horizon),
+				new Color(0f, 0.5f, 0f, 1f));
+
+			rot = previewRot;
+			CacheCubeRotation();
+
+			var xFor = rot.x > Mathf.PI
+				? new Vector2Int(size.x - 1, -1)
+				: new Vector2Int(0, 1);
+			var yFor = rot.y > 0
+				? new Vector2Int(0, 1)
+				: new Vector2Int(size.y - 1, -1);
+			var zFor = Mathf.Abs(rot.x - Mathf.PI) < Mathf.PI / 2f
+				? new Vector2Int(0, 1)
+				: new Vector2Int(size.z - 1, -1);
+
+			for (int k = zFor.x; k < size.z && k > -1; k += zFor.y)
+			for (int i = xFor.x; i < size.x && i > -1; i += xFor.y)
+			for (int j = yFor.x; j < size.y && j > -1; j += yFor.y)
+			{
+				var blockId = ((Color32)preview.GetPixel(i + k * size.x, j)).r;
+				if (blockId == 0) continue;
+				var blockTex = blockList.ContainsKey(blockId) ? blockList[blockId] : null;
+				DrawCubeInSpace(previewRect, blockTex, new Vector3Int(i, j, k));
+			}
+
+			Handles.color = Color.black;
+			Vector2 axisOrigin = GetPreviewPosition(previewRect, root);
+			Handles.DrawAAPolyLine(9f, axisOrigin, axisOrigin + (p[3] - p[0]) * 1.52f);
+			Handles.DrawAAPolyLine(9f, axisOrigin, axisOrigin + (p[0] - p[4]) * 1.52f);
+			Handles.DrawAAPolyLine(9f, axisOrigin, axisOrigin + (p[1] - p[0]) * 1.52f);
+			Handles.color = Color.red;
+			Handles.DrawAAPolyLine(5f, axisOrigin, axisOrigin + (p[3] - p[0]) * 1.5f);
+			Handles.color = Color.green;
+			Handles.DrawAAPolyLine(5f, axisOrigin, axisOrigin + (p[0] - p[4]) * 1.5f);
+			Handles.color = Color.blue;
+			Handles.DrawAAPolyLine(5f, axisOrigin, axisOrigin + (p[1] - p[0]) * 1.5f);
+			Handles.color = Color.white;
+
+			if (showCurrentLayer)
+			{
+				EditorGUI.DrawRect(
+					new Rect(previewRect.x, previewRect.y, previewRect.width, horizon),
+					new Color(0f, 0.25f, 0.25f, 0.55f));
+				EditorGUI.DrawRect(
+					new Rect(previewRect.x, previewRect.y + horizon, previewRect.width, previewRect.height - horizon),
+					new Color(0f, 0.125f, 0f, 0.55f));
+			}
+
+			// Restore the old focused-layer pass: the layer currently being edited
+			// is rendered again above the dimmed full-structure preview.
+			if (showCurrentLayer)
+			{
+				int focusedLayer = Mathf.Clamp(layer, 0, size.z - 1);
+				for (int i = xFor.x; i < size.x && i > -1; i += xFor.y)
+				for (int j = yFor.x; j < size.y && j > -1; j += yFor.y)
+				{
+					var blockId = ((Color32)preview.GetPixel(i + focusedLayer * size.x, j)).r;
+					if (blockId == 0) continue;
+					var blockTex = blockList.ContainsKey(blockId) ? blockList[blockId] : null;
+					DrawCubeInSpace(previewRect, blockTex, new Vector3Int(i, j, focusedLayer));
+				}
+			}
+
+			if (Event.current.type == EventType.MouseDown &&
+				Event.current.button == 0 && previewRect.Contains(Event.current.mousePosition))
+			{
+				previewRotateStarted = true;
+				GUIUtility.hotControl = GUIUtility.GetControlID(FocusType.Passive);
+				Event.current.Use();
+			}
+
+			if (previewRotateStarted && Event.current.type == EventType.MouseDrag)
+			{
+				Vector2 delta = Event.current.delta;
+				previewRot.x -= 0.006f * delta.x;
+				previewRot.y += 0.009f * delta.y;
+				previewRot.x = (previewRot.x + Mathf.PI * 2f) % (Mathf.PI * 2f);
+				previewRot.y = Mathf.Clamp(previewRot.y, -0.6f, 0.6f);
+				Repaint();
+				Event.current.Use();
+			}
+
+			if (previewRotateStarted && Event.current.type == EventType.MouseUp && Event.current.button == 0)
+			{
+				previewRotateStarted = false;
+				GUIUtility.hotControl = 0;
+				Event.current.Use();
+				Repaint();
+			}
 		}
 
 		private static readonly Vector3[] cubeVertices =
@@ -856,12 +1057,12 @@ namespace VRC_MINE.Tools
 				);
 			}
 
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Left), 5, 1, 0, 4);
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Right), 7, 3, 2, 6);
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Down), 5, 4, 7, 6);
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Up), 0, 1, 2, 3);
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Back), 4, 0, 3, 7);
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Front), 6, 2, 1, 5);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Left, blockTex.GetSide(BlockTexture.BlockSide.Left), 5, 1, 0, 4);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Right, blockTex.GetSide(BlockTexture.BlockSide.Right), 7, 3, 2, 6);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Down, blockTex.GetSide(BlockTexture.BlockSide.Down), 5, 4, 7, 6);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Up, blockTex.GetSide(BlockTexture.BlockSide.Up), 0, 1, 2, 3);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Back, blockTex.GetSide(BlockTexture.BlockSide.Back), 4, 0, 3, 7);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Front, blockTex.GetSide(BlockTexture.BlockSide.Front), 6, 2, 1, 5);
 		}
 
 		private Vector2 GetPreviewPosition(Rect viewPort, Vector3Int position)
@@ -896,16 +1097,18 @@ namespace VRC_MINE.Tools
 				);
 			}
 
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Left), 5, 1, 0, 4);
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Right), 7, 3, 2, 6);
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Down), 5, 4, 7, 6);
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Up), 0, 1, 2, 3);
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Back), 4, 0, 3, 7);
-			DrawSide(viewPort, blockTex.GetSide(BlockTexture.BlockSide.Front), 6, 2, 1, 5);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Left, blockTex.GetSide(BlockTexture.BlockSide.Left), 5, 1, 0, 4);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Right, blockTex.GetSide(BlockTexture.BlockSide.Right), 7, 3, 2, 6);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Down, blockTex.GetSide(BlockTexture.BlockSide.Down), 5, 4, 7, 6);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Up, blockTex.GetSide(BlockTexture.BlockSide.Up), 0, 1, 2, 3);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Back, blockTex.GetSide(BlockTexture.BlockSide.Back), 4, 0, 3, 7);
+			DrawSide(viewPort, blockTex, BlockTexture.BlockSide.Front, blockTex.GetSide(BlockTexture.BlockSide.Front), 6, 2, 1, 5);
 		}
 
 		private void DrawSide(
 			Rect viewPort,
+			BlockTexture blockTex,
+			BlockTexture.BlockSide side,
 			BlockTexture.SideData s,
 			int a,
 			int b,
@@ -957,6 +1160,15 @@ namespace VRC_MINE.Tools
 			}
 
 			mat.mainTexture = s.texture;
+			var mask = blockTex.GetLeave(side);
+			mat.SetTexture("_MaskTex", mask.texture == null ? Texture2D.blackTexture : mask.texture);
+			mat.SetFloat("_HasMask", mask.texture == null ? 0f : 1f);
+			mat.SetColor("_LeafTint", blockTex.leafTint);
+			mat.SetFloat("_FaceBrightness", side == BlockTexture.BlockSide.Up ? 1.08f :
+				side == BlockTexture.BlockSide.Down ? 0.72f :
+				side == BlockTexture.BlockSide.Left ? 0.91f :
+				side == BlockTexture.BlockSide.Right ? 1.00f :
+				side == BlockTexture.BlockSide.Front ? 0.96f : 0.86f);
 
 			if (!mat.SetPass(0))
 				return;
@@ -1078,7 +1290,11 @@ namespace VRC_MINE.Tools
 
 		private void LoadAtlas()
 		{
-			mat = new Material(Shader.Find("Unlit/Transparent"));
+			mat = new Material(Shader.Find("Hidden/MineTools/StructurePreview"))
+			{
+				hideFlags = HideFlags.HideAndDontSave,
+				color = Color.white
+			};
 			atlas = AssetDatabase.LoadAssetAtPath<MineAtlas>(AssetDatabase.GUIDToAssetPath(EditorPrefs.GetString("MineStructureEditorAtlas")));
 		}
 
@@ -1158,7 +1374,7 @@ namespace VRC_MINE.Tools
 		Vector2 rot = Vector2.up * 0.3f;
 		private void CacheCubeRotation()
 		{
-			rot.x += Time.deltaTime / 3;
+			rot.x = (float)(EditorApplication.timeSinceStartup * 0.5);
 
 			float sx = Mathf.Sin(rot.x);
 			float cx = Mathf.Cos(rot.x);
@@ -1189,7 +1405,7 @@ namespace VRC_MINE.Tools
 
 			if (mat == null)
 			{
-				Shader shader = Shader.Find("Unlit/Transparent");
+				Shader shader = Shader.Find("Hidden/MineTools/StructurePreview");
 
 				if (shader == null)
 					return;
@@ -1212,15 +1428,17 @@ namespace VRC_MINE.Tools
 				);
 			}
 
-			DrawSide(blockTex.GetSide(BlockTexture.BlockSide.Left), 5, 1, 0, 4);
-			DrawSide(blockTex.GetSide(BlockTexture.BlockSide.Right), 7, 3, 2, 6);
-			DrawSide(blockTex.GetSide(BlockTexture.BlockSide.Down), 5, 4, 7, 6);
-			DrawSide(blockTex.GetSide(BlockTexture.BlockSide.Up), 0, 1, 2, 3);
-			DrawSide(blockTex.GetSide(BlockTexture.BlockSide.Back), 4, 0, 3, 7);
-			DrawSide(blockTex.GetSide(BlockTexture.BlockSide.Front), 6, 2, 1, 5);
+			DrawSide(blockTex, BlockTexture.BlockSide.Left, blockTex.GetSide(BlockTexture.BlockSide.Left), 5, 1, 0, 4);
+			DrawSide(blockTex, BlockTexture.BlockSide.Right, blockTex.GetSide(BlockTexture.BlockSide.Right), 7, 3, 2, 6);
+			DrawSide(blockTex, BlockTexture.BlockSide.Down, blockTex.GetSide(BlockTexture.BlockSide.Down), 5, 4, 7, 6);
+			DrawSide(blockTex, BlockTexture.BlockSide.Up, blockTex.GetSide(BlockTexture.BlockSide.Up), 0, 1, 2, 3);
+			DrawSide(blockTex, BlockTexture.BlockSide.Back, blockTex.GetSide(BlockTexture.BlockSide.Back), 4, 0, 3, 7);
+			DrawSide(blockTex, BlockTexture.BlockSide.Front, blockTex.GetSide(BlockTexture.BlockSide.Front), 6, 2, 1, 5);
 		}
 
 		private void DrawSide(
+			BlockTexture blockTex,
+			BlockTexture.BlockSide side,
 			BlockTexture.SideData s,
 			int a,
 			int b,
@@ -1272,6 +1490,15 @@ namespace VRC_MINE.Tools
 			}
 
 			mat.mainTexture = s.texture;
+			var mask = blockTex.GetLeave(side);
+			mat.SetTexture("_MaskTex", mask.texture == null ? Texture2D.blackTexture : mask.texture);
+			mat.SetFloat("_HasMask", mask.texture == null ? 0f : 1f);
+			mat.SetColor("_LeafTint", blockTex.leafTint);
+			mat.SetFloat("_FaceBrightness", side == BlockTexture.BlockSide.Up ? 1.08f :
+				side == BlockTexture.BlockSide.Down ? 0.72f :
+				side == BlockTexture.BlockSide.Left ? 0.91f :
+				side == BlockTexture.BlockSide.Right ? 1.00f :
+				side == BlockTexture.BlockSide.Front ? 0.96f : 0.86f);
 
 			if (!mat.SetPass(0))
 				return;

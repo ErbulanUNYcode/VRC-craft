@@ -14,42 +14,85 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   previewColor: {r: 0, g: 0, b: 0, a: 1}
   sides:
-  - texture: {fileID: 2800000, guid: 694d3ca7202d21847bdda3cc63145f9f, type: 3}
+  - texture: {fileID: 2800000, guid: dcdec11053101ed45b032a01cb0360a1, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: 694d3ca7202d21847bdda3cc63145f9f, type: 3}
+  - texture: {fileID: 2800000, guid: dcdec11053101ed45b032a01cb0360a1, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: d0eafc2329a74ee4c8058cf6c160d12f, type: 3}
+  - texture: {fileID: 2800000, guid: 89e7ae5ca45fd4f4e861f27c07b03708, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: 3c907b0ac984c09459d5a7235d57c905, type: 3}
+  - texture: {fileID: 2800000, guid: dd87b8f4f64b63a40ae328a8753d9c8d, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: ef16c6f1578aeb1429fab0215e02499b, type: 3}
+  - texture: {fileID: 2800000, guid: cc17c591b900af441852ae4a81ef2e99, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: ef16c6f1578aeb1429fab0215e02499b, type: 3}
+  - texture: {fileID: 2800000, guid: cc17c591b900af441852ae4a81ef2e99, type: 3}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  leaves:
+  - texture: {fileID: 0}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  - texture: {fileID: 0}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  - texture: {fileID: 0}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  - texture: {fileID: 0}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  - texture: {fileID: 0}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  - texture: {fileID: 0}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0

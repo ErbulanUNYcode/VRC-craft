@@ -12,44 +12,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 308259b427290d54d85ab2a59c9e69e6, type: 3}
   m_Name: LeavesBirch
   m_EditorClassIdentifier: 
-  previewColor: {r: 0.248309, g: 0.5660378, b: 0.37286404, a: 1}
+  leafTint: {r: 0.09411765, g: 1, b: 0.4392157, a: 1}
   sides:
-  - texture: {fileID: 2800000, guid: eea116e37a8c5514998c2611241c2ccb, type: 3}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: eea116e37a8c5514998c2611241c2ccb, type: 3}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: eea116e37a8c5514998c2611241c2ccb, type: 3}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: eea116e37a8c5514998c2611241c2ccb, type: 3}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: eea116e37a8c5514998c2611241c2ccb, type: 3}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: eea116e37a8c5514998c2611241c2ccb, type: 3}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
@@ -57,42 +57,42 @@ MonoBehaviour:
     randomFlipHorizontal: 0
     randomFlipVertical: 0
   leaves:
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: fad8cc57733c3694682470b0f225b318, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0

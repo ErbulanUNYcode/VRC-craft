@@ -13,43 +13,44 @@ MonoBehaviour:
   m_Name: LeavesOak
   m_EditorClassIdentifier: 
   previewColor: {r: 0.03529412, g: 0.227451, b: 0.007843138, a: 1}
+  leafTint: {r: 0, g: 1, b: 0, a: 1}
   sides:
-  - texture: {fileID: 2800000, guid: 1d7b293b3b2881b4d82817c3f8d8f7ff, type: 3}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 1
     randomFlipVertical: 1
-  - texture: {fileID: 2800000, guid: 1d7b293b3b2881b4d82817c3f8d8f7ff, type: 3}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 1
     randomFlipVertical: 1
-  - texture: {fileID: 2800000, guid: 1d7b293b3b2881b4d82817c3f8d8f7ff, type: 3}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 1
     randomFlipVertical: 1
-  - texture: {fileID: 2800000, guid: 1d7b293b3b2881b4d82817c3f8d8f7ff, type: 3}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 1
     randomFlipVertical: 1
-  - texture: {fileID: 2800000, guid: 1d7b293b3b2881b4d82817c3f8d8f7ff, type: 3}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 1
     randomFlipVertical: 1
-  - texture: {fileID: 2800000, guid: 1d7b293b3b2881b4d82817c3f8d8f7ff, type: 3}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
@@ -57,42 +58,42 @@ MonoBehaviour:
     randomFlipHorizontal: 0
     randomFlipVertical: 0
   leaves:
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
     randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 0}
+  - texture: {fileID: 2800000, guid: 092cd9a9b5898a8439a03b585656d967, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0

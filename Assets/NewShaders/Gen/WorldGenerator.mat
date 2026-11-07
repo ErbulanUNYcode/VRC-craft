@@ -78,8 +78,8 @@ Material:
     m_Ints: []
     m_Floats:
     - _BumpScale: 1
-    - _ChunkPosX: 8.84
-    - _ChunkPosY: -7155
+    - _ChunkPosX: 42
+    - _ChunkPosY: -7138
     - _Cutoff: 0.5
     - _DebugBiome: 10
     - _DebugStructureSize: 0
@@ -93,7 +93,7 @@ Material:
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _Scale: 16
-    - _Seed: 1364
+    - _Seed: 1367.91
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1

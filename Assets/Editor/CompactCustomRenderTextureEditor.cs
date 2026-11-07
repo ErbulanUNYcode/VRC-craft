@@ -21,6 +21,7 @@ public class CompactCustomRenderTextureEditor : Editor
 	private ReorderableList.AddDropdownCallbackDelegate savedAddDropdownCallback;
 	private float savedHeaderHeight;
 	private bool savedDraggable;
+	private bool hasExplicitZoneSelection;
 
 	private void CreateUnityEditor()
 	{
@@ -68,6 +69,7 @@ public class CompactCustomRenderTextureEditor : Editor
 			return;
 
 		savedZoneList = list;
+		hasExplicitZoneSelection = false;
 		savedHeaderCallback = list.drawHeaderCallback;
 		savedElementCallback = list.drawElementCallback;
 		savedElementHeightCallback = list.elementHeightCallback;
@@ -190,6 +192,8 @@ public class CompactCustomRenderTextureEditor : Editor
 		SerializedProperty updateZones = GetUnityUpdateZones();
 		if (updateZones == null)
 			return;
+		if (active || focused)
+			hasExplicitZoneSelection = true;
 
 		if (!IsZoneVisible(index, updateZones))
 		{
@@ -251,11 +255,7 @@ public class CompactCustomRenderTextureEditor : Editor
 		int height = Mathf.Max(1, ReadInt(serializedObject, "m_Height", 1));
 		int depth = Mathf.Max(1, ReadInt(serializedObject, "m_VolumeDepth", 1));
 
-		SerializedProperty dimension = serializedObject.FindProperty("m_Dimension");
-		bool is3D = dimension != null &&
-			(TextureDimension)dimension.enumValueIndex == TextureDimension.Tex3D;
-
-		return new Vector3(width, height, is3D ? depth : 1);
+		return new Vector3(width, height, depth);
 	}
 
 	private static void SetZoneVector3(
@@ -342,7 +342,10 @@ public class CompactCustomRenderTextureEditor : Editor
 		serializedObject.ApplyModifiedProperties();
 		SerializedProperty zonesAfterAdd = serializedObject.FindProperty("m_UpdateZones");
 		if (zonesAfterAdd != null && zonesAfterAdd.isArray && list.index >= 0)
+		{
+			hasExplicitZoneSelection = true;
 			updateZonePage = list.index / zonesPerPage;
+		}
 	}
 
 	private void DuplicateSelectedZone(ReorderableList list)
@@ -405,7 +408,7 @@ public class CompactCustomRenderTextureEditor : Editor
 	private void ShowAddZoneMenu(Rect buttonRect, ReorderableList list)
 	{
 		var menu = new GenericMenu();
-		bool canDuplicate = list.index >= 0 &&
+		bool canDuplicate = hasExplicitZoneSelection && list.index >= 0 &&
 			GetUnityUpdateZones() != null &&
 			list.index < GetUnityUpdateZones().arraySize;
 
@@ -484,5 +487,28 @@ public class CompactCustomRenderTextureEditor : Editor
 	public override void OnInspectorGUI()
 	{
 		DrawUnityInspector();
+	}
+
+	// Keep Unity's native Custom Render Texture preview while replacing only
+	// the inspector presentation of update zones.
+	public override bool HasPreviewGUI()
+	{
+		CreateUnityEditor();
+		return unityCustomRenderTextureEditor != null &&
+			unityCustomRenderTextureEditor.HasPreviewGUI();
+	}
+
+	public override void OnPreviewSettings()
+	{
+		CreateUnityEditor();
+		if (unityCustomRenderTextureEditor != null)
+			unityCustomRenderTextureEditor.OnPreviewSettings();
+	}
+
+	public override void OnPreviewGUI(Rect rect, GUIStyle background)
+	{
+		CreateUnityEditor();
+		if (unityCustomRenderTextureEditor != null)
+			unityCustomRenderTextureEditor.OnPreviewGUI(rect, background);
 	}
 }

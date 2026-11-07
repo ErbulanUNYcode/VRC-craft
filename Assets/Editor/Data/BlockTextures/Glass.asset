@@ -12,46 +12,90 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 308259b427290d54d85ab2a59c9e69e6, type: 3}
   m_Name: Glass
   m_EditorClassIdentifier: 
+  previewColor: {r: 0, g: 0, b: 0, a: 1}
   sides:
-  - texture: {fileID: 2800000, guid: 9de24de5102219d4dae09f0d4e09ae2b, type: 3}
+  - texture: {fileID: 2800000, guid: 2ba074d5f990c294db63b6acc06bb655, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    randomFlipDiagonal: 1
+    randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: 9de24de5102219d4dae09f0d4e09ae2b, type: 3}
+  - texture: {fileID: 2800000, guid: 2ba074d5f990c294db63b6acc06bb655, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    randomFlipDiagonal: 1
+    randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: 9de24de5102219d4dae09f0d4e09ae2b, type: 3}
+  - texture: {fileID: 2800000, guid: 2ba074d5f990c294db63b6acc06bb655, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    randomFlipDiagonal: 1
+    randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: 9de24de5102219d4dae09f0d4e09ae2b, type: 3}
+  - texture: {fileID: 2800000, guid: 2ba074d5f990c294db63b6acc06bb655, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    randomFlipDiagonal: 1
+    randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: 9de24de5102219d4dae09f0d4e09ae2b, type: 3}
+  - texture: {fileID: 2800000, guid: 2ba074d5f990c294db63b6acc06bb655, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    randomFlipDiagonal: 1
+    randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0
-  - texture: {fileID: 2800000, guid: 9de24de5102219d4dae09f0d4e09ae2b, type: 3}
+  - texture: {fileID: 2800000, guid: 2ba074d5f990c294db63b6acc06bb655, type: 3}
     flipDiagonal: 0
     flipHorizontal: 0
     flipVertical: 0
-    randomFlipDiagonal: 1
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  leaves:
+  - texture: {fileID: 0}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  - texture: {fileID: 0}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  - texture: {fileID: 0}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  - texture: {fileID: 0}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  - texture: {fileID: 0}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
+    randomFlipHorizontal: 0
+    randomFlipVertical: 0
+  - texture: {fileID: 0}
+    flipDiagonal: 0
+    flipHorizontal: 0
+    flipVertical: 0
+    randomFlipDiagonal: 0
     randomFlipHorizontal: 0
     randomFlipVertical: 0

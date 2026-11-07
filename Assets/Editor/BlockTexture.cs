@@ -9,7 +9,7 @@ namespace VRC_MINE.Tools
 	public class BlockTexture : ScriptableObject
 	{
 		[SerializeField]
-		public Color previewColor = Color.black;
+		public Color leafTint = Color.white;
 
 		[HideInInspector]
 		[SerializeField]
@@ -35,6 +35,46 @@ namespace VRC_MINE.Tools
 		public SideData GetLeave(BlockSide side)
 		{
 			return leaves[(int)side];
+		}
+
+		public Color GetPreviewColor()
+		{
+			Color sum = Color.black;
+			int count = 0;
+			var previewBiomeLeafColor = new Color(0.45f, 1f, 0.45f, 1f);
+			for (int i = 0; i < sides.Length; i++)
+			{
+				var texture = sides[i].texture;
+				if (texture == null || !texture.isReadable) continue;
+
+				int lastMip = Mathf.Max(0, texture.mipmapCount - 1);
+				Color color = texture.GetPixel(0, 0, lastMip);
+				var maskTexture = leaves[i].texture;
+				if (maskTexture != null && maskTexture.isReadable)
+				{
+					int maskMip = Mathf.Max(0, maskTexture.mipmapCount - 1);
+					Color mask = maskTexture.GetPixel(0, 0, maskMip);
+					if (mask.a > 0.5f)
+					{
+						float strength = mask.g * leafTint.g;
+						color = previewBiomeLeafColor * strength;
+						color.r += leafTint.r * mask.g;
+						color.b += leafTint.b * mask.g;
+						color.r = Mathf.Clamp01(color.r);
+						color.g = Mathf.Clamp01(color.g);
+						color.b = Mathf.Clamp01(color.b);
+						color.a = Mathf.Clamp01(color.a);
+					}
+				}
+
+				sum += color;
+				count++;
+			}
+
+			if (count == 0) return Color.black;
+			var average = sum / count;
+			average.a = 1f;
+			return average;
 		}
 
 		internal Color32[] GetSideData(BlockSide side)
@@ -147,6 +187,22 @@ namespace VRC_MINE.Tools
 		}
 	}
 
+	public class BlockTextureImportSettings : AssetPostprocessor
+	{
+		private void OnPreprocessTexture()
+		{
+			const string folder = "Assets/Editor/Data/Textures/Blocks/";
+			if (!assetPath.Replace('\\', '/').StartsWith(folder, StringComparison.OrdinalIgnoreCase)) return;
+
+			var importer = (TextureImporter)assetImporter;
+			importer.filterMode = FilterMode.Point;
+			importer.isReadable = true;
+			importer.mipmapEnabled = true;
+			importer.textureCompression = TextureImporterCompression.Uncompressed;
+			importer.wrapMode = TextureWrapMode.Clamp;
+		}
+	}
+
 	public class BlockTextureEditorWindow : EditorWindow
 	{
 		private BlockTexture asset;
@@ -156,6 +212,8 @@ namespace VRC_MINE.Tools
 		private Vector2 lastMouse;
 		private Vector2 firstMouse;
 		private Material mat;
+		private Texture2D checkerBackground;
+		private Texture2D transparentMask;
 
 		[MenuItem("Tools/Block Texture Window")]
 		public static void Open()
@@ -163,18 +221,70 @@ namespace VRC_MINE.Tools
 			GetWindow<BlockTextureEditorWindow>("BlockTexture Editor");
 		}
 
+		private void OnEnable()
+		{
+			mat = new Material(Shader.Find("Hidden/MineTools/BlockTextureMaskPreview"))
+			{
+				hideFlags = HideFlags.HideAndDontSave
+			};
+			transparentMask = new Texture2D(1, 1, TextureFormat.RGBA32, false, true)
+			{
+				name = "BlockTexture Transparent Mask",
+				filterMode = FilterMode.Point,
+				wrapMode = TextureWrapMode.Clamp,
+				hideFlags = HideFlags.HideAndDontSave
+			};
+			transparentMask.SetPixel(0, 0, new Color(0, 0, 0, 0));
+			transparentMask.Apply(false, true);
+
+			checkerBackground = new Texture2D(16, 16, TextureFormat.RGBA32, false, true)
+			{
+				name = "BlockTexture Preview Checker",
+				filterMode = FilterMode.Point,
+				wrapMode = TextureWrapMode.Repeat,
+				hideFlags = HideFlags.HideAndDontSave
+			};
+			var pixels = new Color32[16 * 16];
+			for (int y = 0; y < 16; y++)
+				for (int x = 0; x < 16; x++)
+					pixels[x + y * 16] = ((x + y) & 1) == 0
+						? new Color32(82, 82, 82, 255)
+						: new Color32(104, 104, 104, 255);
+			checkerBackground.SetPixels32(pixels);
+			checkerBackground.Apply(false, true);
+		}
+
+		private void OnDestroy()
+		{
+			if (checkerBackground != null) DestroyImmediate(checkerBackground);
+			if (transparentMask != null) DestroyImmediate(transparentMask);
+			if (mat != null) DestroyImmediate(mat);
+		}
+
 		public void SetAsset(BlockTexture bt)
 		{
 			asset = bt;
-			mat = new Material(Shader.Find("Unlit/Transparent Cutout"));
-			mat.color = new Color(2f, 2f, 2f, 1f);
-			mat.SetFloat("_Cutoff", 0.5f);
+			if (mat == null) mat = new Material(Shader.Find("Hidden/MineTools/BlockTextureMaskPreview"));
 			Repaint();
 		}
 
 		void OnGUI()
 		{
+			if (checkerBackground != null)
+				GUI.DrawTexture(new Rect(0, 0, position.width, position.height), checkerBackground, ScaleMode.StretchToFill, false);
+
 			asset = EditorGUILayout.ObjectField(asset, typeof(BlockTexture), false) as BlockTexture;
+			if (asset != null)
+			{
+				EditorGUI.BeginChangeCheck();
+				var leafTint = EditorGUILayout.ColorField("Leaf Tint", asset.leafTint);
+				if (EditorGUI.EndChangeCheck())
+				{
+					Undo.RecordObject(asset, "Change Leaf Tint");
+					asset.leafTint = leafTint;
+					EditorUtility.SetDirty(asset);
+				}
+			}
 			EditorGUILayout.LabelField("rotation: " + rot);
 			if (asset == null)
 			{
@@ -266,7 +376,11 @@ namespace VRC_MINE.Tools
 			if ((p[b].x - p[a].x) * (p[c].y - p[a].y) - (p[b].y - p[a].y) * (p[c].x - p[a].x) < 0f) return;
 
 			var s = asset.GetSide(side);
-			mat.mainTexture = s.texture;
+			mat.SetTexture("_MainTex", s.texture == null ? Texture2D.blackTexture : s.texture);
+			var mask = asset.GetLeave(side);
+			mat.SetTexture("_MaskTex", mask.texture == null ? transparentMask : mask.texture);
+			mat.SetColor("_LeafTint", asset.leafTint);
+			mat.SetColor("_BiomeLeafColor", new Color(0.45f, 1f, 0.45f, 1f));
 			GL.PushMatrix();
 			mat.SetPass(0);
 			GL.LoadPixelMatrix();
@@ -448,8 +562,10 @@ namespace VRC_MINE.Tools
 	{
 		private static System.Action<Texture2D> onSelect;
 		private Texture2D[] textures;
+		private Vector2 scrollPosition;
+		private float previewScale = 1f;
 
-		private static readonly string targetPath = "Assets/Textures/Atlas/TextureSides";
+		private static readonly string targetPath = "Assets/Editor/Data/Textures/Blocks";
 
 		private string hoveredName = "";
 		private Texture2D hoveredTexture = null;
@@ -474,8 +590,29 @@ namespace VRC_MINE.Tools
 			for (int i = 0; i < guids.Length; i++)
 			{
 				string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+				ConfigureBlockTexture(path);
 				textures[i + 1] = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
 			}
+		}
+
+		private static void ConfigureBlockTexture(string path)
+		{
+			var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+			if (importer == null) return;
+
+			bool changed = importer.filterMode != FilterMode.Point ||
+				!importer.isReadable ||
+				!importer.mipmapEnabled ||
+				importer.textureCompression != TextureImporterCompression.Uncompressed ||
+				importer.wrapMode != TextureWrapMode.Clamp;
+			if (!changed) return;
+
+			importer.filterMode = FilterMode.Point;
+			importer.isReadable = true;
+			importer.mipmapEnabled = true;
+			importer.textureCompression = TextureImporterCompression.Uncompressed;
+			importer.wrapMode = TextureWrapMode.Clamp;
+			importer.SaveAndReimport();
 		}
 
 		private void OnGUI()
@@ -486,13 +623,21 @@ namespace VRC_MINE.Tools
 				return;
 			}
 
-			int size = 24;
+			Event e = Event.current;
+			if (e.type == EventType.ScrollWheel && (e.modifiers & EventModifiers.Control) != 0)
+			{
+				previewScale = Mathf.Clamp(previewScale - e.delta.y * 0.08f, 0.55f, 2.5f);
+				e.Use();
+				Repaint();
+			}
+
+			int size = Mathf.RoundToInt(32f * previewScale);
 			int columns = Mathf.Max(1, (int)(position.width - 3) / (size + 3));
 
-			Event e = Event.current;
 			hoveredTexture = null;
 			hoveredName = "";
 
+			scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, false, true);
 			for (int i = 0; i < textures.Length; i++)
 			{
 				if (i % columns == 0)
@@ -533,6 +678,7 @@ namespace VRC_MINE.Tools
 				if (isLastInRow || isLastItem)
 					EditorGUILayout.EndHorizontal();
 			}
+			EditorGUILayout.EndScrollView();
 
 			DrawHoverTooltip();
 			Repaint(); // чтобы tooltip двигался за мышью

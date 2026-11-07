@@ -643,7 +643,7 @@ Shader "VRC_MINE/WorldGenerator"
                 return o;
             }
             
-            fixed frag(MineCustomRenderTextureV2F i) : SV_Target
+            uint frag(MineCustomRenderTextureV2F i) : SV_Target
             {
                 if (i.primitiveID == 0)
                     return 0;
@@ -704,16 +704,16 @@ Shader "VRC_MINE/WorldGenerator"
                         (variant == 1u ? structurePixel.g : structurePixel.b);
                     if (block == 0u) discard;
 
-                    return (fixed)block / 255.0;
+                    return block;
                 }
 
                 int2 uv = (int2)(i.globalTexcoord.xy * TEXTURE_SIZE);
                 int3 pos = int3((uv.x&15)+(_ChunkPosX), uv.y, (uv.x>>4)+(_ChunkPosY));
-                if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16.0/255;//bedrock
+                if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16;//bedrock
 
                 int result = GenerateTerrainValue(pos, false);
                 if(result==0) discard;
-                return float(result)/255;
+                return (uint)result;
             }
             
             ENDHLSL
