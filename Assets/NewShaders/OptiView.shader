@@ -4,7 +4,7 @@ Shader "VRC_MINE/Editor/UintTexView"
     {
         _MainTex ("Texture", 2D) = "white" {}
         _ShowDetails ("Show Details", Int) = 0
-        [IntRange] _BiomeIndex ("Debug Biome Index (-1: all)", Range(-1,21)) = -1
+        [KeywordEnum(None,Ocean,Tundra,SnowForest,SnowTaiga,SnowPlain,Taiga,DarkForest,Swamp,DenseForest,Plain,Forest,BirchForest,SakuraForest,Desert,Savanna,Jungle,Wasteland,Polar,Cold,Temperate,Warm,Continent)] _BiomeIndex ("Preview Biome", Float) = 0
     }
 
     SubShader
@@ -74,6 +74,8 @@ Shader "VRC_MINE/Editor/UintTexView"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                int previewBiome = (int)_BiomeIndex - 1;
+
                 if(dot(i.uv-_MainTex_TexelSize.z/2,i.uv-_MainTex_TexelSize.z/2)<_MainTex_TexelSize.z*_MainTex_TexelSize.z/400000) return fixed4(1,0,0,1);
 
                 uint r = _MainTex.Load(int3(i.uv, 0));
@@ -97,10 +99,10 @@ Shader "VRC_MINE/Editor/UintTexView"
                         else
                         {
                             bool debugOceanChecker =
-                                _BiomeIndex == 0 &&
+                                previewBiome == 0 &&
                                 ((((int)i.uv.x >> 3) + ((int)i.uv.y >> 3)) & 1) != 0;
                             bool debugTundraChecker =
-                                _BiomeIndex == 1 &&
+                                previewBiome == 1 &&
                                 ((((int)i.uv.x >> 3) + ((int)i.uv.y >> 3)) & 1) != 0;
                             return (r&63)==0
                                 ? biomeColors[0] * (debugOceanChecker ? 0.72 : 1.0)
@@ -134,9 +136,9 @@ Shader "VRC_MINE/Editor/UintTexView"
                 float shoreline = (r & 63) >> 5 ? 0.5 : 1;
                 result *= shoreline;
                 bool debugChecker =
-                    _BiomeIndex >= 0 &&
-                    biome == (uint)_BiomeIndex &&
-                    (_BiomeIndex != 0 || (r >> 6) == 0) &&
+                    previewBiome >= 0 &&
+                    biome == (uint)previewBiome &&
+                    (previewBiome != 0 || (r >> 6) == 0) &&
                     ((((int)i.uv.x >> 3) + ((int)i.uv.y >> 3)) & 1) != 0;
                 result *= debugChecker ? 0.72 : 1.0;
                 return result;

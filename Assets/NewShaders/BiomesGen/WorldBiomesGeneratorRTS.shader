@@ -22,14 +22,9 @@ Shader "VRC_MINE/WorldBiomesGeneratorRiverToSea"
             #pragma fragment frag
 
             #include "UnityCG.cginc"
+            #include "UnityCustomRenderTexture.cginc"
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct v2f
+            struct BiomeRtsV2F
             {
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
@@ -64,12 +59,12 @@ Shader "VRC_MINE/WorldBiomesGeneratorRiverToSea"
             int _OceanShoreKeyChance;
             int _RiverShoreKeyChance;
 
-            v2f vert(appdata v)
+            BiomeRtsV2F vert(appdata_customrendertexture v)
             {
-                v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-
-                o.uv = v.uv * _Size;
+                v2f_customrendertexture base = CustomRenderTextureVertexShader(v);
+                BiomeRtsV2F o;
+                o.pos = base.vertex;
+                o.uv = base.globalTexcoord.xy * _Size;
 
                 return o;
             }
@@ -90,7 +85,7 @@ Shader "VRC_MINE/WorldBiomesGeneratorRiverToSea"
                 return h;
             }
 
-            uint frag(v2f i) : SV_Target
+            uint frag(BiomeRtsV2F i) : SV_Target
             {
                 int2 pos = floor(i.uv);
                 

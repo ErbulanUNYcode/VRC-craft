@@ -1,4 +1,4 @@
-Shader "VRC_MINE/WorldGenerator"
+Shader "VRC_MINE/Gen/ChunkGenerator"
 {
     Properties
     {
@@ -380,15 +380,6 @@ Shader "VRC_MINE/WorldGenerator"
             int GenerateTerrainValue(int3 pos, bool surfaceOnly)
             {
                 uint4 h = ReadTerrainData(pos.xz);
-
-                if(!surfaceOnly && pos.y==255)
-                {
-                    uint terrainHeight = h.x&127;
-                    if(terrainHeight!=0) terrainHeight += 40;
-                    return terrainHeight;
-                }
-                if(!surfaceOnly && pos.y==254)
-                    return h.y&31;
 
                 bool m = h.x>>7;
                 h.x&=127;

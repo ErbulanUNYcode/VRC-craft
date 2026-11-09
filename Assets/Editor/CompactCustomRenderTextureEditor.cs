@@ -1,4 +1,5 @@
 using System;
+using System;
 using System.Reflection;
 using UnityEditor;
 using UnityEditorInternal;
@@ -22,6 +23,34 @@ public class CompactCustomRenderTextureEditor : Editor
 	private float savedHeaderHeight;
 	private bool savedDraggable;
 	private bool hasExplicitZoneSelection;
+	private static MethodInfo getStorageMemorySizeLongMethod;
+	private static MethodInfo getTextureFormatStringMethod;
+	private MethodInfo getInfoStringMethod;
+
+	private void DrawMemoryUsage()
+	{
+		Texture texture = target as Texture;
+		if (texture == null)
+			return;
+
+		if (getStorageMemorySizeLongMethod == null)
+		{
+			Type textureUtilType = typeof(Editor).Assembly.GetType("UnityEditor.TextureUtil");
+			getStorageMemorySizeLongMethod = textureUtilType?.GetMethod(
+				"GetStorageMemorySizeLong",
+				BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+				null,
+				new[] { typeof(Texture) },
+				null);
+		}
+
+		if (getStorageMemorySizeLongMethod == null)
+			return;
+
+		object value = getStorageMemorySizeLongMethod.Invoke(null, new object[] { texture });
+		if (value is long bytes && bytes > 0)
+			EditorGUILayout.LabelField("Memory", EditorUtility.FormatBytes(bytes));
+	}
 
 	private void CreateUnityEditor()
 	{
@@ -509,6 +538,118 @@ public class CompactCustomRenderTextureEditor : Editor
 	{
 		CreateUnityEditor();
 		if (unityCustomRenderTextureEditor != null)
+		{
 			unityCustomRenderTextureEditor.OnPreviewGUI(rect, background);
+			DrawMemoryFooter(rect);
+		}
+	}
+
+	private void DrawMemoryFooter(Rect rect)
+	{
+		if (unityCustomRenderTextureEditor == null)
+			return;
+
+		if (getInfoStringMethod == null)
+		{
+			getInfoStringMethod = unityCustomRenderTextureEditor.GetType().GetMethod(
+				"GetInfoString",
+				BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+				null,
+				Type.EmptyTypes,
+				null);
+		}
+
+		string info = string.Empty;
+		try
+		{
+			info = getInfoStringMethod == null
+				? string.Empty
+				: getInfoStringMethod.Invoke(unityCustomRenderTextureEditor, null) as string;
+		}
+		catch
+		{
+			info = string.Empty;
+		}
+
+		if (string.IsNullOrEmpty(info))
+			return;
+
+		Texture texture = target as Texture;
+		if (texture == null)
+			return;
+
+		string firstLine = texture.name;
+		string secondLine = info;
+
+		GUIStyle style = new GUIStyle(EditorStyles.miniLabel)
+		{
+			alignment = TextAnchor.MiddleCenter,
+			fontSize = 12,
+			clipping = TextClipping.Clip
+		};
+		Color textColor = Color.white;
+		SetStaticLabelColor(style, textColor);
+
+		float lineHeight = 17f;
+		float textWidth = Mathf.Max(1f, rect.width - 8f);
+		Rect firstRect = new Rect(rect.x + 4f, rect.yMax - lineHeight * 2f - 1f, textWidth, lineHeight);
+		Rect secondRect = new Rect(rect.x + 4f, rect.yMax - lineHeight - 1f, textWidth, lineHeight);
+		DrawOutlinedLabel(firstRect, firstLine, style);
+		DrawOutlinedLabel(secondRect, secondLine, style);
+	}
+
+	private string GetPreviewFormat(RenderTexture renderTexture)
+	{
+		if (renderTexture == null)
+			return "Unknown format";
+
+		string format = renderTexture.graphicsFormat.ToString();
+		int bitsPerPixel = GetPreviewBitsPerPixel(renderTexture);
+		if (format.Contains("R8G8B8A8") || format.Contains("R16G16B16A16"))
+			return "RGBA " + bitsPerPixel + " bit";
+		if (format.Contains("R8G8B8") || format.Contains("R16G16B16"))
+			return "RGB " + bitsPerPixel + " bit";
+		if (format.Contains("R8G8") || format.Contains("R16G16"))
+			return "RG " + bitsPerPixel + " bit";
+		if (format.Contains("R8") || format.Contains("R16"))
+			return "R " + bitsPerPixel + " bit";
+		return format;
+	}
+
+	private int GetPreviewBitsPerPixel(RenderTexture renderTexture)
+	{
+		if (renderTexture == null)
+			return 0;
+
+		string format = renderTexture.graphicsFormat.ToString();
+		if (format.Contains("R16G16B16A16")) return 64;
+		if (format.Contains("R8G8B8A8")) return 32;
+		if (format.Contains("R16G16B16")) return 48;
+		if (format.Contains("R8G8B8")) return 24;
+		if (format.Contains("R16G16")) return 32;
+		if (format.Contains("R8G8")) return 16;
+		if (format.Contains("R16")) return 16;
+		if (format.Contains("R8")) return 8;
+		return 32;
+	}
+
+	private void DrawOutlinedLabel(Rect rect, string text, GUIStyle style)
+	{
+		GUIStyle outlineStyle = new GUIStyle(style);
+		SetStaticLabelColor(outlineStyle, Color.black);
+		GUI.Label(new Rect(rect.x + 1f, rect.y + 1f, rect.width, rect.height), text, outlineStyle);
+		GUI.Label(rect, text, style);
+	}
+
+	private void SetStaticLabelColor(GUIStyle style, Color color)
+	{
+		style.normal.textColor = color;
+		style.hover.textColor = color;
+		style.active.textColor = color;
+		style.focused.textColor = color;
+		style.onNormal.textColor = color;
+		style.onHover.textColor = color;
+		style.onActive.textColor = color;
+		style.onFocused.textColor = color;
 	}
 }

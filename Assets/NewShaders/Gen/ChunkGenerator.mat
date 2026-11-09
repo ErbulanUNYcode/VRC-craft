@@ -7,13 +7,12 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: VoxelWorld
-  m_Shader: {fileID: 4800000, guid: bf25d11bf7281cf4bb50aed15733730f, type: 3}
+  m_Name: ChunkGenerator
+  m_Shader: {fileID: 4800000, guid: 9e42964e173c8664f8dd4769745a87d9, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
-  m_InvalidKeywords:
-  - _SHOWRED_ON
+  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -26,6 +25,10 @@ Material:
     m_TexEnvs:
     - _BumpMap:
         m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Data:
+        m_Texture: {fileID: 8600000, guid: d65bda60d484dd44d954f3efbb995118, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
@@ -45,11 +48,15 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 8600000, guid: d65bda60d484dd44d954f3efbb995118, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
         m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NoiseTex:
+        m_Texture: {fileID: 2800000, guid: 2596320971d42844aa657403eb88f255, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -60,10 +67,22 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _StructureAtlas:
+        m_Texture: {fileID: 2800000, guid: ca5303f630220db49b1c3e63e7cc7765, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VolumeTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BumpScale: 1
+    - _ChunkPosX: 496
+    - _ChunkPosY: 496
     - _Cutoff: 0.5
+    - _DebugBiome: 10
+    - _DebugStructureSize: 0
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _GlossMapScale: 1
@@ -72,19 +91,25 @@ Material:
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
-    - _OffsetX: 63
-    - _OffsetY: 32
-    - _OffsetZ: 0
     - _Parallax: 0.02
-    - _ShowBlue: 0
-    - _ShowGreen: 0
-    - _ShowRed: 1
+    - _Scale: 16
+    - _Seed: -1.377558e+9
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
+    - _AndesiteOffset: {r: -8510, g: 8855, b: 7216, a: 0}
+    - _CavesOffset: {r: 4172, g: -509, b: 5026, a: 0}
+    - _Chunk: {r: 0, g: 0, b: 0, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _DioriteOffset: {r: -6705, g: -6107, b: -2059, a: 0}
+    - _DirtOffset: {r: -2581, g: -5683, b: 3316, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _GraniteOffset: {r: 4995, g: -1412, b: -1434, a: 0}
+    - _GravelOffset: {r: -1531, g: -5566, b: 3516, a: 0}
+    - _Ore1Offset: {r: 8424, g: 8109, b: -7506, a: 0}
+    - _Ore2Offset: {r: -5463, g: -4542, b: 6504, a: 0}
+    - _Ore3Offset: {r: -4662, g: 4371, b: -4000, a: 0}
   m_BuildTextureStacks: []

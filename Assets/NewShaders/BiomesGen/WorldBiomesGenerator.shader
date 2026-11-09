@@ -29,14 +29,9 @@ Shader "VRC_MINE/WorldBiomesGenerator"
             #pragma fragment frag
 
             #include "UnityCG.cginc"
+            #include "UnityCustomRenderTexture.cginc"
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct v2f
+            struct BiomeGeneratorV2F
             {
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
@@ -61,7 +56,7 @@ Shader "VRC_MINE/WorldBiomesGenerator"
             {
                 40,15,30,15,
                 30,20,10,40,
-                35,30,20,2,
+                35,30,10,2,
                 30,25,30,10,10
             };
             //int _Weights[22];
@@ -79,13 +74,13 @@ Shader "VRC_MINE/WorldBiomesGenerator"
             int _OffsetX;
             int _OffsetY;
 
-            v2f vert(appdata v)
+            BiomeGeneratorV2F vert(appdata_customrendertexture v)
             {
-                v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-
-                o.uv = v.uv * _Size + int2(_OffsetX, _OffsetY);
-                o.climateUV = v.uv;
+                v2f_customrendertexture base = CustomRenderTextureVertexShader(v);
+                BiomeGeneratorV2F o;
+                o.pos = base.vertex;
+                o.uv = base.globalTexcoord.xy * _Size + int2(_OffsetX, _OffsetY);
+                o.climateUV = base.globalTexcoord.xy;
 
                 return o;
             }
@@ -179,7 +174,7 @@ Shader "VRC_MINE/WorldBiomesGenerator"
                 return 0;
             }
 
-            uint frag(v2f i) : SV_Target
+            uint frag(BiomeGeneratorV2F i) : SV_Target
             {
                 int2 pos = floor(i.uv);
                 uint result = 0;
@@ -264,7 +259,7 @@ Shader "VRC_MINE/WorldBiomesGenerator"
                     bool isSpawnCenter =
                         pos.x == ((_Size - 1) >> 1) &&
                         pos.y == ((_Size - 1) >> 1);
-                    result = (h&63) < _AddIslands*(isSpawnCenter?16:1);
+                    result = (h&63) < _AddIslands*(isSpawnCenter?4:1);
                     result = result || (_CheckSpawn && isSpawnCenter);
                     result*=21;
                     isIsland = true;
@@ -318,7 +313,14 @@ Shader "VRC_MINE/WorldBiomesGenerator"
                     result = (result&~31u)+biome;
                 }
 
-                if(_InitRivers && result>1 && result<64) result+=((h&1)<<6)+64;
+                // The mini-biome selection above changes only the biome ID.
+                // Clear an inherited river key after the final biome is known.
+                if(isMiniBiome && (result&31u)==1)
+                    result &= 63u;
+
+                uint baseBiome = result & 31;
+                if(_InitRivers && baseBiome > 1 && result < 64)
+                    result += ((h&1)<<6) + 64;
 
                 return result;
             }

@@ -298,7 +298,7 @@ Shader "VRC_MINE/TerrainGenerator"
             uint4 frag(v2f i) : SV_Target
             {
                 int2 uv = i.uv;
-                int2 pos = int2(uv.x, uv.y) + int2(_ChunkPosX, _ChunkPosY) * 16 - 8;
+                int2 pos = int2(uv.x, uv.y) + int2(_ChunkPosX, _ChunkPosY) - 8;
                 int2 rPos = pos>>2;
                 uint b[64];//read 8x8
                 for(int x = 0; x < 8; x++)

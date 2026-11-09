@@ -18,9 +18,9 @@ Shader "VRC_MINE/DDA"
         _WorldTex13 ("World Texture 13", 2D) = "black" {}
         _WorldTex14 ("World Texture 14", 2D) = "black" {}
         _WorldTex15 ("World Texture 15", 2D) = "black" {}
-        _LodTex1 ("LOD Texture 1", 2D) = "black" {}
-        _LodTex2 ("LOD Texture 2", 2D) = "black" {}
-        _LodTex3 ("LOD Texture 3", 2D) = "black" {}
+        _LodTex1 ("LOD Texture 1", 3D) = "black" {}
+        _LodTex2 ("LOD Texture 2", 3D) = "black" {}
+        _LodTex3 ("LOD Texture 3", 3D) = "black" {}
         _Offset ("Depth Scale", Float) = 1.0
         _Mul ("Mul", Float) = 1.0
     }
@@ -63,9 +63,9 @@ Shader "VRC_MINE/DDA"
             Texture2D<fixed> _WorldTex13;
             Texture2D<fixed> _WorldTex14;
             Texture2D<fixed> _WorldTex15;
-            Texture2D<uint> _LodTex1;
-            Texture2D<uint> _LodTex2;
-            Texture2D<uint> _LodTex3;
+            Texture3D<uint> _LodTex1;
+            Texture3D<uint> _LodTex2;
+            Texture3D<uint> _LodTex3;
             float _Offset;
             float _Mul;
 
@@ -124,7 +124,7 @@ Shader "VRC_MINE/DDA"
                 else
                 {
                     int3 pullVox = voxel&1023;
-                    uint lodVoxel = _LodTex3.Load(int3(((pullVox.xz)>>6)+int2((pullVox.y>>6&1)<<4,pullVox.y>>7<<4), 0));
+                    uint lodVoxel = _LodTex3.Load(int4(pullVox.x>>6, pullVox.z>>6, pullVox.y>>6, 0));
                     if(lodVoxel == 0) currentLod = 7;
                     else if(lodVoxel >> 
                         ( pullVox.x >> 5 & 1) + 
@@ -132,7 +132,7 @@ Shader "VRC_MINE/DDA"
                         ((pullVox.z >> 5 & 1) << 2)
                         & 1)
                     {
-                        lodVoxel = _LodTex2.Load(int3(((pullVox.xz)>>4)+int2((pullVox.y>>4&3)<<6,pullVox.y>>6<<6), 0));
+                        lodVoxel = _LodTex2.Load(int4(pullVox.x>>4, pullVox.z>>4, pullVox.y>>4, 0));
                         if(lodVoxel == 0) currentLod = 5;
                         else if(lodVoxel >>
                             ( pullVox.x >> 3 & 1) +
@@ -140,7 +140,7 @@ Shader "VRC_MINE/DDA"
                             ((pullVox.z >> 3 & 1) << 2)
                             & 1)
                         {
-                            lodVoxel = _LodTex1.Load(int3(((pullVox.xz)>>2)+int2((pullVox.y>>2&7)<<8,pullVox.y>>5<<8), 0));
+                            lodVoxel = _LodTex1.Load(int4(pullVox.x>>2, pullVox.z>>2, pullVox.y>>2, 0));
                             if(lodVoxel == 0) currentLod = 3;
                             else if(lodVoxel >>
                                 ( pullVox.x >> 1 & 1) +

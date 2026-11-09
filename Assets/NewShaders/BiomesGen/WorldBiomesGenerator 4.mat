@@ -34,11 +34,11 @@ Material:
     - _ChunkPosX: 0
     - _ChunkPosY: 0
     - _ClimateScale: 9
-    - _ClimateSeed: 8
+    - _ClimateSeed: -221022200
     - _InitRivers: 0
     - _OffsetX: 0
     - _OffsetY: 0
-    - _Seed: 1.7561647e+9
+    - _Seed: 1.5310373e+9
     - _SetBiomes: 1
     - _SetClimateZones: 1
     - _SetMiniBiomes: 0

@@ -7,12 +7,14 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Lod2Gen
-  m_Shader: {fileID: 4800000, guid: 8a9bc3d7c22b9fb49a6fd9eef708d009, type: 3}
+  m_Name: VoxelWorld
+  m_Shader: {fileID: 4800000, guid: bf25d11bf7281cf4bb50aed15733730f, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
-  m_InvalidKeywords: []
+  m_InvalidKeywords:
+  - _DEBUGVIEW_CHUNK
+  - _SHOWRED_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -24,10 +26,6 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BumpMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _CtrlTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -63,14 +61,19 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
-    - _PrevLodTex:
-        m_Texture: {fileID: 8600000, guid: 37331a7f0383e2b45bbdea2a4a736c1d, type: 2}
+    - _TerrainTexture:
+        m_Texture: {fileID: 8600000, guid: d65bda60d484dd44d954f3efbb995118, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _WorldGeneratorTexture:
+        m_Texture: {fileID: 8600000, guid: a8255170b2343714fb0b68f20e161a98, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BumpScale: 1
     - _Cutoff: 0.5
+    - _DebugView: 0
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _GlossMapScale: 1
@@ -79,7 +82,13 @@ Material:
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
+    - _OffsetX: 31
+    - _OffsetY: 31
+    - _OffsetZ: 0
     - _Parallax: 0.02
+    - _ShowBlue: 0
+    - _ShowGreen: 0
+    - _ShowRed: 1
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1

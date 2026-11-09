@@ -18,14 +18,9 @@ Shader "VRC_MINE/WorldBiomesGenerator/InitContinents"
             #pragma fragment frag
 
             #include "UnityCG.cginc"
+            #include "UnityCustomRenderTexture.cginc"
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct v2f
+            struct BiomeInitV2F
             {
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
@@ -34,12 +29,12 @@ Shader "VRC_MINE/WorldBiomesGenerator/InitContinents"
             int _Seed;
             int _Size;
 
-            v2f vert(appdata v)
+            BiomeInitV2F vert(appdata_customrendertexture v)
             {
-                v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-
-                o.uv = v.uv * _Size;
+                v2f_customrendertexture base = CustomRenderTextureVertexShader(v);
+                BiomeInitV2F o;
+                o.pos = base.vertex;
+                o.uv = base.globalTexcoord.xy * _Size;
 
                 return o;
             }
@@ -56,7 +51,7 @@ Shader "VRC_MINE/WorldBiomesGenerator/InitContinents"
                 return n;
             }
 
-            uint frag(v2f i) : SV_Target
+            uint frag(BiomeInitV2F i) : SV_Target
             {
                 return (hash3DUint((int2)i.uv) % 9 == 0)?21:0;
             }

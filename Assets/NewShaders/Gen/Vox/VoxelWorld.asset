@@ -6,7 +6,7 @@ CustomRenderTexture:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Lod1Gen
+  m_Name: VoxelWorld
   m_ImageContentsHash:
     serializedVersion: 2
     Hash: 00000000000000000000000000000000
@@ -14,12 +14,12 @@ CustomRenderTexture:
   m_DownscaleFallback: 0
   m_IsAlphaChannelOptional: 0
   serializedVersion: 5
-  m_Width: 2048
-  m_Height: 2048
+  m_Width: 1024
+  m_Height: 1024
   m_AntiAliasing: 1
   m_MipCount: -1
   m_DepthStencilFormat: 0
-  m_ColorFormat: 13
+  m_ColorFormat: 5
   m_MipMap: 0
   m_GenerateMips: 1
   m_SRGB: 0
@@ -32,22 +32,27 @@ CustomRenderTexture:
     m_FilterMode: 0
     m_Aniso: 0
     m_MipBias: 0
-    m_WrapU: 1
-    m_WrapV: 1
-    m_WrapW: 1
-  m_Dimension: 2
-  m_VolumeDepth: 1
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_Dimension: 3
+  m_VolumeDepth: 258
   m_ShadowSamplingMode: 2
-  m_Material: {fileID: 2100000, guid: b170afee3807296498ecd30b01383f4c, type: 2}
+  m_Material: {fileID: 2100000, guid: 694052af905b6444fbf8681d270b2c1f, type: 2}
   m_InitSource: 1
-  m_InitMaterial: {fileID: 2100000, guid: b170afee3807296498ecd30b01383f4c, type: 2}
-  m_InitColor: {r: 0, g: 0, b: 0, a: 0}
+  m_InitMaterial: {fileID: 2100000, guid: 694052af905b6444fbf8681d270b2c1f, type: 2}
+  m_InitColor: {r: 1, g: 1, b: 1, a: 1}
   m_InitTexture: {fileID: 0}
   m_UpdateMode: 1
   m_InitializationMode: 2
-  m_UpdateZoneSpace: 0
-  m_CurrentUpdateZoneSpace: 0
-  m_UpdateZones: []
+  m_UpdateZoneSpace: 1
+  m_CurrentUpdateZoneSpace: 1
+  m_UpdateZones:
+  - updateZoneCenter: {x: 8, y: 8, z: 129}
+    updateZoneSize: {x: 16, y: 16, z: 258}
+    rotation: 0
+    passIndex: -1
+    needSwap: 0
   m_UpdatePeriod: 0
   m_ShaderPass: 0
   m_CubemapFaceMask: 4294967295

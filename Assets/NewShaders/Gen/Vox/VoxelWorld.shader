@@ -4,9 +4,9 @@ Shader "VRC_MINE/Gen/VoxelWorld"
     {
         [IntRange] _OffsetX ("Offset X", Range(0, 63)) = 1
         [IntRange] _OffsetY ("Offset Y", Range(0, 63)) = 1
-        [Toggle] _ShowRed ("Red", Float) = 1
-        [Toggle] _ShowGreen ("Green", Float) = 0
-        [Toggle] _ShowBlue ("Blue", Float) = 0
+        [KeywordEnum(Chunk, GradientX, GradientY, GradientZ)] _DebugView ("Preview", Float) = 0
+        _WorldGeneratorTexture ("World Generator Texture", 2D) = "black" {}
+        _TerrainTexture ("Terrain Texture", 2D) = "black" {}
     }
 
     SubShader
@@ -33,9 +33,9 @@ Shader "VRC_MINE/Gen/VoxelWorld"
 
             int _OffsetX;
             int _OffsetY;
-            float _ShowRed;
-            float _ShowGreen;
-            float _ShowBlue;
+            float _DebugView;
+            Texture2D<uint> _WorldGeneratorTexture;
+            Texture2D<uint> _TerrainTexture;
 
             VoxelWorldV2F vert(appdata_customrendertexture v)
             {
@@ -68,18 +68,46 @@ Shader "VRC_MINE/Gen/VoxelWorld"
                 return o;
             }
 
-            fixed4 frag(VoxelWorldV2F i) : SV_Target
+            fixed frag(VoxelWorldV2F i) : SV_Target
             {
                 if (i.primitiveID != 0)
-					return fixed4(0.0, 0.0, 0.0, 1.0);
+					return 0.0;
 
-				float3 uv = saturate(i.globalTexcoord.xyz);
-				uv.y = 1.0 - uv.y;
+				// The update zone represents one chunk: 16 x 16 x 258.
+				int3 local = (int3)floor(saturate(i.localTexcoord) * float3(16.0, 16.0, 258.0));
+				local = min(local, int3(15, 15, 257));
 
-				float3 channelMask = float3(_ShowRed, _ShowGreen, _ShowBlue);
-				float3 remappedUV = float3(uv.x, uv.z, uv.y);
-				float3 color = remappedUV * channelMask;
-				return fixed4(color, 1.0);
+
+				if (_DebugView > 0.5 && _DebugView < 1.5)
+					return saturate(i.localTexcoord.x);
+				if (_DebugView > 1.5 && _DebugView < 2.5)
+				{
+				// Texture Y represents world depth Z with the opposite direction.
+					return 1.0 - saturate(i.localTexcoord.y);
+				}
+				if (_DebugView > 2.5)
+					return saturate(i.localTexcoord.z);
+
+				// WorldGenerator stores a chunk as 16 horizontal columns packed
+				// into X and 256 vertical values in Y.
+				// The zone Y axis maps to world Z in the opposite direction.
+				int sourceColumnZ = 15 - local.y;
+
+				// The two upper layers store terrain metadata:
+				// layer 256 = surface height (R), layer 257 = biome index (G).
+				if (local.z >= 256)
+				{
+					uint4 terrainData = _TerrainTexture.Load(int3(local.x, sourceColumnZ, 0));
+					uint terrainHeight = (terrainData.r & 127u) + 40u;
+					uint biomeId = terrainData.g & 31u;
+					uint metadata = local.z == 256 ? terrainHeight : biomeId;
+					return (float)metadata / 255.0;
+				}
+
+				int sourceX = local.x + (sourceColumnZ << 4);
+				int sourceY = local.z;
+				uint block = _WorldGeneratorTexture.Load(int3(sourceX, sourceY, 0));
+				return (float)block / 255.0;
             }
 
             ENDHLSL

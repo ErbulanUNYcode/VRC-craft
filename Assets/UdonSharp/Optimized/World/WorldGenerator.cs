@@ -6,7 +6,6 @@ using UnityEngine;
 using VRC.SDK3.Rendering;
 using VRC.SDKBase;
 using VRC_MINE.World;
-using Random = UnityEngine.Random;
 
 
 
@@ -15,15 +14,6 @@ namespace VRC_MINE.World
 	[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 	public class WorldGenerator : UdonSharpBehaviour
 	{
-		#region biomes	
-		[SerializeField] private GameObject dataGameObject;
-		//private MineStructure[] biomesData;
-		private Vector2Int[] biomesIndex;
-		[SerializeField] private Material[] genLayers;
-		[SerializeField] private CustomRenderTexture[] genTextures;
-		[SerializeField] private CustomRenderTexture miniGenTexture;
-		#endregion
-
 		#region prefabs
 		[SerializeField] private GameObject colliderPrefab;
 		#endregion
@@ -42,6 +32,9 @@ namespace VRC_MINE.World
 		[SerializeField] private Renderer[] worldTextureDebugRenderers;
 		[SerializeField] private Material chunkGeneratorMaterial;
 		[SerializeField] private Material chunkTerrainGeneratorMaterial;
+		[SerializeField] private Material lod1Material;
+		[SerializeField] private Material lod2Material;
+		[SerializeField] private Material lod3Material;
 		#endregion
 
 		#region shadows
@@ -64,7 +57,9 @@ namespace VRC_MINE.World
 		//private Texture2D lightTexture;
 		private Texture2D[] ctrlTextures = new Texture2D[2];
 		private Texture2D convertor;
-		private Texture2D initTexture;
+		private Texture2D initTextureLegacy;
+		private Texture2D initTextureGPU;
+		private Texture2D initTextureCPU;
 		#endregion
 
 		// Temporary API probe. Do not call from the generation pipeline yet.
@@ -80,10 +75,29 @@ namespace VRC_MINE.World
 		[SerializeField] private CustomRenderTexture[] optimizators;
 		[SerializeField] private CustomRenderTexture chunkGenerator;
 		[SerializeField] private CustomRenderTexture chunkTerrainGenerator;
+		[SerializeField] private CustomRenderTexture voxelWorld;
 		[SerializeField] private ChunkMeshGenerator chunkMeshGenerator;
 		#endregion
 
+		// Legacy CPU/readback queue index. The new GPU and future CPU pipelines
+		// keep their progress independently.
 		private int currentIndex;
+		private int gpuCurrentIndex;
+		private int cpuCurrentIndex;
+		private bool gpuRealtimeShutdownPending;
+
+		// Udon serialization/API probe. Intentionally unused by the generation pipeline.
+		[SerializeField] private CustomRenderTexture serializedZoneTarget;
+		/*[SerializeField] private CustomRenderTextureUpdateZone serializedStandaloneTestZone;
+		[SerializeField] private CustomRenderTextureUpdateZone[] serializedTestZones = new CustomRenderTextureUpdateZone[2];*/
+		[SerializeField] private CustomRenderTextureUpdateZone[] serializedSourceZones = new CustomRenderTextureUpdateZone[2];
+		[SerializeField] private CustomRenderTextureUpdateZone[] serializedDestinationZones = new CustomRenderTextureUpdateZone[2];
+
+		public void ApplySerializedZonesArrayTest()
+		{
+			Array.Copy(serializedSourceZones, 0, serializedDestinationZones, 0, 1);
+			serializedZoneTarget.SetUpdateZones(serializedDestinationZones);
+		}
 		private int[] chunksQueueRadiusSq;
 		private int lastGeneratedIndex = -1;
 		private int renderingQueueIndex = -1;
@@ -100,8 +114,6 @@ namespace VRC_MINE.World
 		private const string debugLogo = "<color=#00ff00><<<</color><color=#0000ff>MCGE</color><color=#00ff00>>>></color>  ";
 		private const string debugWarningLogo = "<color=#00ff00><<<</color><color=#ff0000>MCGE</color><color=#00ff00>>>></color>  ";
 
-		int seed;// int.MinValue;
-
 		#region cache
 		private Collider[] colliders = new Collider[36];
 		private Color[] clearColor = new Color[4_096];//0
@@ -116,16 +128,12 @@ namespace VRC_MINE.World
 		private void Start()
 		{
 			InitWorld();
-			seed = Networking.GetUniqueName(gameObject).GetHashCode();
-			StartBiomeGenerator();
-			// Keep the world-generation Update loop disabled while biome layers are running.
-			enabled = false;
 		}
 
 		public void OnPlayerTeleport()
 		{
 			var pos = Vector3Int.FloorToInt(localPlayer.GetPosition()) / 16;
-			if (initTexture.GetPixel(pos.x & 63, pos.z & 63).r == 1)
+			if (initTextureLegacy.GetPixel(pos.x & 63, pos.z & 63).r == 1)
 			{
 				localPlayer.SetGravityStrength(3);
 				localPlayer.Immobilize(false);
@@ -146,7 +154,7 @@ namespace VRC_MINE.World
 			if (player == localPlayer) OnPlayerTeleport();
 		}
 
-		private void InitWorld()
+		private void InitWorldLegacy()
 		{
 			BuildQueueRadiusData();
 			#region base
@@ -157,21 +165,6 @@ namespace VRC_MINE.World
 			// The optimizers use the raw R8 value: 1 means "ignore/discard".
 			ignoreColors[0] = 255;
 			for (int i = 1; i < ignoreColors.Length; i <<= 1) Array.Copy(ignoreColors, 0, ignoreColors, i, Mathf.Min(i, ignoreColors.Length - i));
-			#endregion
-
-			#region biomes/structures
-			/*var biomes = dataGameObject.GetComponents<MineBiome>();
-			Debug.LogWarning(debugLogo + biomes.Length + " biomes found");
-			var oldCount = 0;
-			biomesData = new MineStructure[0];
-			biomesIndex = new Vector2Int[biomes.Length];
-			for (int i = 0; i < biomes.Length; i++)
-			{
-				var biome = biomes[i];
-				biomesData = biome.SplitThis(biomesData);
-				biomesIndex[i] = new Vector2Int(oldCount, biomesData.Length - oldCount);
-				oldCount = biomesData.Length;
-			}*/
 			#endregion
 
 			#region cameras
@@ -226,10 +219,10 @@ namespace VRC_MINE.World
 			ctrlTextures[1].LoadRawTextureData(ignoreColors);
 			ctrlTextures[1].Apply();
 
-			initTexture = new Texture2D(64, 64, TextureFormat.R8, false, true);
-			initTexture.filterMode = FilterMode.Point;
-			initTexture.LoadRawTextureData(new byte[4096]);
-			initTexture.Apply();
+			initTextureLegacy = new Texture2D(64, 64, TextureFormat.R8, false, true);
+			initTextureLegacy.filterMode = FilterMode.Point;
+			initTextureLegacy.LoadRawTextureData(new byte[4096]);
+			initTextureLegacy.Apply();
 			#endregion
 
 			#region materials
@@ -249,37 +242,48 @@ namespace VRC_MINE.World
 			blockSelector.SetData(worldTextures);
 		}
 
-		public override void OnDeserialization() { SendCustomEventDelayedFrames(nameof(StartBiomeGenerator), 2); }
-		private void StartBiomeGenerator()
+		// New visual GPU-generation pipeline initialization entry point.
+		private void InitWorld()
 		{
-			Debug.Log(debugLogo + "seed is " + seed);
-			Random.InitState(seed);
-			var climateSeed = seed ^ 0x5F3759DF;
-			chunkTerrainGeneratorMaterial.SetInt("_Seed", seed);
-			chunkGeneratorMaterial.SetInt("_Seed", seed);
-			chunkGeneratorMaterial.SetVector("_CavesOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
-			chunkGeneratorMaterial.SetVector("_Ore1Offset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
-			chunkGeneratorMaterial.SetVector("_Ore2Offset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
-			chunkGeneratorMaterial.SetVector("_Ore3Offset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
-			chunkGeneratorMaterial.SetVector("_DirtOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
-			chunkGeneratorMaterial.SetVector("_GravelOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
-			chunkGeneratorMaterial.SetVector("_GraniteOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
-			chunkGeneratorMaterial.SetVector("_AndesiteOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
-			chunkGeneratorMaterial.SetVector("_DioriteOffset", new Vector3(Random.Range(-10000, 10000), Random.Range(-10000, 10000), Random.Range(-10000, 10000)));
-			foreach (var genLayer in genLayers)
+			// Bind the runtime-generated textures, not stale asset references.
+			if (lod1Material != null && voxelWorld != null)
+				lod1Material.SetTexture("_VoxelWorld", voxelWorld);
+			if (lod2Material != null && optimizators != null && optimizators.Length > 0)
+				lod2Material.SetTexture("_PrevLodTex", optimizators[0]);
+			if (lod3Material != null && optimizators != null && optimizators.Length > 1)
+				lod3Material.SetTexture("_PrevLodTex", optimizators[1]);
+
+			// The serialized optimizators array contains Lod1, Lod2 and Lod3.
+			for (int i = 0; i < 3 && i < optimizators.Length; i++)
+				if (optimizators[i] != null)
+					optimizators[i].initializationMode = CustomRenderTextureUpdateMode.Realtime;
+
+			if (chunkTerrainGenerator != null)
+				chunkTerrainGenerator.initializationMode = CustomRenderTextureUpdateMode.Realtime;
+			if (chunkGenerator != null)
+				chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.Realtime;
+			if (voxelWorld != null)
 			{
-				genLayer.SetInt("_Seed", Random.Range(0, int.MaxValue));
-				genLayer.SetInt("_ClimateSeed", climateSeed);
+				voxelWorld.initializationMode = CustomRenderTextureUpdateMode.Realtime;
+				Material voxelMaterial = voxelWorld.material;
+				if (voxelMaterial != null)
+				{
+					if (chunkGenerator != null)
+						voxelMaterial.SetTexture("_WorldGeneratorTexture", chunkGenerator);
+					if (chunkTerrainGenerator != null)
+						voxelMaterial.SetTexture("_TerrainTexture", chunkTerrainGenerator);
+				}
 			}
-			foreach (var texture in genTextures) texture.Initialize();
-			SendCustomEventDelayedFrames(nameof(FinishBiomeGenerator), 2);
-		}
-		public void FinishBiomeGenerator()
-		{
-			miniGenTexture.Initialize();
-			// The legacy asynchronous chunk pipeline is disabled while the new architecture is rebuilt.
-			asyncWorking = false;
-			enabled = false;
+
+			initTextureGPU = new Texture2D(64, 64, TextureFormat.R8, false, true);
+			initTextureGPU.filterMode = FilterMode.Point;
+			initTextureGPU.wrapMode = TextureWrapMode.Clamp;
+			initTextureGPU.LoadRawTextureData(new byte[64 * 64]);
+
+			initTextureCPU = new Texture2D(64, 64, TextureFormat.R8, false, true);
+			initTextureCPU.filterMode = FilterMode.Point;
+			initTextureCPU.wrapMode = TextureWrapMode.Clamp;
+			initTextureCPU.LoadRawTextureData(new byte[64 * 64]);
 		}
 
 		private bool TryNext()
@@ -287,7 +291,7 @@ namespace VRC_MINE.World
 			while (currentIndex < chunksQueueData.Length)
 			{
 				var pos = chunksQueueData[currentIndex] + worldPos;
-				if (initTexture.GetPixel(pos.x & 63, pos.y & 63).r != 0 || renderingChunk == pos || readingChunk == pos)
+				if (initTextureLegacy.GetPixel(pos.x & 63, pos.y & 63).r != 0 || renderingChunk == pos || readingChunk == pos)
 				{
 					currentIndex++;
 				}
@@ -360,7 +364,6 @@ namespace VRC_MINE.World
 			renderingChunk = pos;
 			chunkTerrainGeneratorMaterial.SetInt("_ChunkPosX", pos.x);
 			chunkTerrainGeneratorMaterial.SetInt("_ChunkPosY", pos.y);
-			pos *= 16;
 			chunkGeneratorMaterial.SetInt("_ChunkPosX", pos.x);
 			chunkGeneratorMaterial.SetInt("_ChunkPosY", pos.y);
 			chunkTerrainGenerator.Initialize();
@@ -409,7 +412,7 @@ namespace VRC_MINE.World
 					worldTextureEdited[page] = false;
 					worldTexturePendingApply = true;
 					lastGeneratedIndex = renderingQueueIndex;
-					initTexture.SetPixel(readingChunk.x & 63, readingChunk.y & 63, Color.red);
+					initTextureLegacy.SetPixel(readingChunk.x & 63, readingChunk.y & 63, Color.red);
 					updateChunk = new Vector2Int(readingChunk.x & 63, readingChunk.y & 63);
 				}
 				else
@@ -445,7 +448,7 @@ namespace VRC_MINE.World
 		private bool ctrl0Update;
 		private bool ctrl1Update;
 
-		private void Update()
+		private void UpdateLegacy()
 		{
 			bool ctrl0Edited = false;
 			bool ctrl1Edited = false;
@@ -617,7 +620,7 @@ namespace VRC_MINE.World
 					if (Mathf.Abs(offset.x) > 63 || Mathf.Abs(offset.y) > 63)
 					{
 						ctrlTextures[1].SetPixels(clearColor);
-						initTexture.SetPixels(clearColor);
+						initTextureLegacy.SetPixels(clearColor);
 					}
 					else
 					{
@@ -630,7 +633,7 @@ namespace VRC_MINE.World
 							{
 								var ind = (i + 32) & 63;
 								ctrlTextures[1].SetPixels(ind, 0, 1, 64, clearColor);
-								initTexture.SetPixels(ind, 0, 1, 64, clearColor);
+								initTextureLegacy.SetPixels(ind, 0, 1, 64, clearColor);
 							}
 						}
 
@@ -643,7 +646,7 @@ namespace VRC_MINE.World
 							{
 								var ind = (i + 32) & 63;
 								ctrlTextures[1].SetPixels(0, ind, 64, 1, clearColor);
-								initTexture.SetPixels(0, ind, 64, 1, clearColor);
+								initTextureLegacy.SetPixels(0, ind, 64, 1, clearColor);
 							}
 						}
 
@@ -680,13 +683,93 @@ namespace VRC_MINE.World
 			if (lod3Update) optimizators[2].initializationMode = CustomRenderTextureUpdateMode.Realtime;
 		}
 
+		// New visual GPU-generation pipeline entry point.
+		private void Update()
+		{
+			if (chunksQueueData == null || chunksQueueData.Length == 0)
+				return;
+
+			if (gpuRealtimeShutdownPending)
+			{
+				if (chunkTerrainGenerator != null)
+					chunkTerrainGenerator.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
+				if (chunkGenerator != null)
+					chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
+				if (voxelWorld != null)
+					voxelWorld.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
+				for (int i = 0; i < 3 && i < optimizators.Length; i++)
+					if (optimizators[i] != null)
+						optimizators[i].initializationMode = CustomRenderTextureUpdateMode.OnDemand;
+				gpuRealtimeShutdownPending = false;
+				return;
+			}
+
+			if (gpuCurrentIndex >= chunksQueueData.Length)
+				return;
+
+			Vector2Int queueChunk = chunksQueueData[gpuCurrentIndex];
+			Vector2Int worldChunk = queueChunk + worldPos;
+
+			// Terrain and chunk generators receive block-space coordinates.
+			if (chunkTerrainGeneratorMaterial != null)
+			{
+				chunkTerrainGeneratorMaterial.SetInt("_ChunkPosX", worldChunk.x * 16);
+				chunkTerrainGeneratorMaterial.SetInt("_ChunkPosY", worldChunk.y * 16);
+			}
+			if (chunkGeneratorMaterial != null)
+			{
+				chunkGeneratorMaterial.SetInt("_ChunkPosX", worldChunk.x * 16);
+				chunkGeneratorMaterial.SetInt("_ChunkPosY", worldChunk.y * 16);
+			}
+
+			// VoxelWorld addresses its 64x64 chunk ring by the low six bits.
+			if (voxelWorld != null)
+			{
+				Material voxelMaterial = voxelWorld.material;
+				if (voxelMaterial != null)
+				{
+					voxelMaterial.SetInt("_OffsetX", worldChunk.x & 63);
+					voxelMaterial.SetInt("_OffsetY", worldChunk.y & 63);
+				}
+			}
+			if (lod1Material != null)
+			{
+				lod1Material.SetInt("_OffsetX", worldChunk.x & 63);
+				lod1Material.SetInt("_OffsetY", worldChunk.y & 63);
+			}
+			if (lod2Material != null)
+			{
+				lod2Material.SetInt("_OffsetX", worldChunk.x & 63);
+				lod2Material.SetInt("_OffsetY", worldChunk.y & 63);
+			}
+			if (optimizatorMaterials != null)
+			{
+				if (optimizatorMaterials.Length > 0 && optimizatorMaterials[0] != null)
+				{
+					optimizatorMaterials[0].SetInt("_OffsetX", worldChunk.x & 63);
+					optimizatorMaterials[0].SetInt("_OffsetY", worldChunk.y & 63);
+				}
+				if (optimizatorMaterials.Length > 1 && optimizatorMaterials[1] != null)
+				{
+					optimizatorMaterials[1].SetInt("_OffsetX", worldChunk.x & 63);
+					optimizatorMaterials[1].SetInt("_OffsetY", worldChunk.y & 63);
+				}
+			}
+
+			gpuCurrentIndex++;
+			if (gpuCurrentIndex >= chunksQueueData.Length)
+				gpuRealtimeShutdownPending = true;
+		}
+
 		private void OnDestroy()
 		{
 			//destroy textures
 			foreach (var texture in worldTextures) Destroy(texture);
 			//Destroy(lightTexture);
 			Destroy(convertor);
-			Destroy(initTexture);
+			Destroy(initTextureLegacy);
+			Destroy(initTextureGPU);
+			Destroy(initTextureCPU);
 			foreach (var tex in ctrlTextures) Destroy(tex);
 		}
 
@@ -758,14 +841,7 @@ public class ChunkMeshGeneratorEditor : Editor
 	private void OnEnable()
 	{
 		folderGrups.Clear();
-		var group = new FolderGrup() { name = "BiomeGenerator", properties = new List<SerializedProperty>() };
-		group.properties.Add(serializedObject.FindProperty("dataGameObject"));
-		group.properties.Add(serializedObject.FindProperty("genLayers"));
-		group.properties.Add(serializedObject.FindProperty("genTextures"));
-		group.properties.Add(serializedObject.FindProperty("miniGenTexture"));
-		folderGrups.Add(group);
-
-		group = new FolderGrup() { name = "Prefabs", properties = new List<SerializedProperty>() };
+		var group = new FolderGrup() { name = "Prefabs", properties = new List<SerializedProperty>() };
 		group.properties.Add(serializedObject.FindProperty("colliderPrefab"));
 		folderGrups.Add(group);
 
@@ -792,6 +868,7 @@ public class ChunkMeshGeneratorEditor : Editor
 		group.properties.Add(serializedObject.FindProperty("optimizators"));
 		group.properties.Add(serializedObject.FindProperty("chunkGenerator"));
 		group.properties.Add(serializedObject.FindProperty("chunkTerrainGenerator"));
+		group.properties.Add(serializedObject.FindProperty("voxelWorld"));
 		group.properties.Add(serializedObject.FindProperty("chunkMeshGenerator"));
 		folderGrups.Add(group);
 
