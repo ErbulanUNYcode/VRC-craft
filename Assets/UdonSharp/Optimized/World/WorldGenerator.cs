@@ -132,6 +132,7 @@ namespace VRC_MINE.World
 
 		public void OnPlayerTeleport()
 		{
+			return;
 			var pos = Vector3Int.FloorToInt(localPlayer.GetPosition()) / 16;
 			if (initTextureLegacy.GetPixel(pos.x & 63, pos.z & 63).r == 1)
 			{
@@ -245,6 +246,11 @@ namespace VRC_MINE.World
 		// New visual GPU-generation pipeline initialization entry point.
 		private void InitWorld()
 		{
+			localPlayer = Networking.LocalPlayer;
+
+			// The DDA ray travels up to 500 blocks; keep the screen camera beyond it.
+			VRCCameraSettings.ScreenCamera.FarClipPlane = 512;
+
 			// Bind the runtime-generated textures, not stale asset references.
 			if (lod1Material != null && voxelWorld != null)
 				lod1Material.SetTexture("_VoxelWorld", voxelWorld);
@@ -253,18 +259,37 @@ namespace VRC_MINE.World
 			if (lod3Material != null && optimizators != null && optimizators.Length > 1)
 				lod3Material.SetTexture("_PrevLodTex", optimizators[1]);
 
+			// Visible and shadow DDA passes share the same runtime world.
+			if (worldMaterial != null && voxelWorld != null)
+			{
+				worldMaterial.SetTexture("_VoxelWorld", voxelWorld);
+				if (optimizators != null && optimizators.Length >= 3)
+				{
+					worldMaterial.SetTexture("_LodTex1", optimizators[0]);
+					worldMaterial.SetTexture("_LodTex2", optimizators[1]);
+					worldMaterial.SetTexture("_LodTex3", optimizators[2]);
+				}
+			}
+			if (replacementShader != null)
+			{
+				if (shadowCam != null)
+					shadowCam.SetReplacementShader(replacementShader, "RenderType");
+				if (shadowCam1 != null)
+					shadowCam1.SetReplacementShader(replacementShader, "RenderType");
+			}
+
 			// The serialized optimizators array contains Lod1, Lod2 and Lod3.
 			for (int i = 0; i < 3 && i < optimizators.Length; i++)
 				if (optimizators[i] != null)
-					optimizators[i].initializationMode = CustomRenderTextureUpdateMode.Realtime;
+					optimizators[i].updateMode = CustomRenderTextureUpdateMode.Realtime;
 
 			if (chunkTerrainGenerator != null)
-				chunkTerrainGenerator.initializationMode = CustomRenderTextureUpdateMode.Realtime;
+				chunkTerrainGenerator.updateMode = CustomRenderTextureUpdateMode.Realtime;
 			if (chunkGenerator != null)
-				chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.Realtime;
+				chunkGenerator.updateMode = CustomRenderTextureUpdateMode.Realtime;
 			if (voxelWorld != null)
 			{
-				voxelWorld.initializationMode = CustomRenderTextureUpdateMode.Realtime;
+				voxelWorld.updateMode = CustomRenderTextureUpdateMode.Realtime;
 				Material voxelMaterial = voxelWorld.material;
 				if (voxelMaterial != null)
 				{
@@ -684,22 +709,64 @@ namespace VRC_MINE.World
 		}
 
 		// New visual GPU-generation pipeline entry point.
+		private bool shadowPositionReady;
+		private Vector3Int shadowRenderPos;
+
+		private void UpdateShadowRendering()
+		{
+			if (localPlayer == null || shadowControl == null || shadowCam == null || shadowCam1 == null || worldMaterial == null)
+				return;
+
+			shadowCam1.enabled = false;
+			if ((Time.frameCount & 20) == 0)
+				shadowCam1.enabled = true;
+
+			Vector3Int pos = Vector3Int.FloorToInt(localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime + Vector3.up * 0.5f);
+			if (shadowPositionReady && shadowRenderPos == pos)
+				return;
+
+			Vector3 oldCamPos = shadowCam.transform.position;
+			Vector3 oldCamPos1 = shadowCam1.transform.position;
+			shadowControl.localPosition = pos;
+
+			shadowCam.transform.position = oldCamPos;
+			shadowCam.transform.position = shadowCam.transform.TransformPoint(
+				Vector3Int.RoundToInt(shadowCam.transform.InverseTransformPoint(
+					shadowControl.TransformPoint(new Vector3(0, 0, -327.68f)))));
+			shadowCam1.transform.position = oldCamPos1;
+			shadowCam1.transform.position = shadowCam1.transform.TransformPoint(
+				Vector3Int.RoundToInt(shadowCam1.transform.InverseTransformPoint(
+					shadowControl.TransformPoint(new Vector3(0, 0, -327.68f)))));
+
+			Vector3 shadowCam1Offset = shadowCam.transform.InverseTransformPoint(shadowCam1.transform.position);
+			shadowCam1Offset.x /= 1000f;
+			shadowCam1Offset.y /= 1000f;
+			shadowCam1Offset.z /= 65536f;
+			worldMaterial.SetVector("_ShadowLodOffset", shadowCam1Offset);
+			worldMaterial.SetMatrix("_ShadowMatrix", shadowCam.projectionMatrix * shadowCam.worldToCameraMatrix);
+			shadowCam1.enabled = true;
+			shadowRenderPos = pos;
+			shadowPositionReady = true;
+		}
+
 		private void Update()
 		{
+			UpdateShadowRendering();
+
 			if (chunksQueueData == null || chunksQueueData.Length == 0)
 				return;
 
 			if (gpuRealtimeShutdownPending)
 			{
 				if (chunkTerrainGenerator != null)
-					chunkTerrainGenerator.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
+					chunkTerrainGenerator.updateMode = CustomRenderTextureUpdateMode.OnDemand;
 				if (chunkGenerator != null)
-					chunkGenerator.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
+					chunkGenerator.updateMode = CustomRenderTextureUpdateMode.OnDemand;
 				if (voxelWorld != null)
-					voxelWorld.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
+					voxelWorld.updateMode = CustomRenderTextureUpdateMode.OnDemand;
 				for (int i = 0; i < 3 && i < optimizators.Length; i++)
 					if (optimizators[i] != null)
-						optimizators[i].initializationMode = CustomRenderTextureUpdateMode.OnDemand;
+						optimizators[i].updateMode = CustomRenderTextureUpdateMode.OnDemand;
 				gpuRealtimeShutdownPending = false;
 				return;
 			}

@@ -400,7 +400,7 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
 
                 uint delay = h.x-pos.y;
 
-                if(cave&&(h.x>42||(h.x<43&&delay>5))) return 0;
+                if(cave&&(h.x>82||(h.x<83&&delay>5))) return 0;
 
                 int per = fbm2D(pos.xz*0.07,3)*3;
                 int result=0;
@@ -415,19 +415,19 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                 {
                     if(b>15 && delay<7) result = (hash1D(pos.y)%7)+31;
                 }
-                else if(h.y>>7&&h.x<39)
+                else if(h.y>>7&&h.x<79)
                 {
                     result = delay<5?_ClayGeology[per][delay]:17;
                 }
                 else if(h.y>>5&1)
                 {
                     int Btype = b;
-                    Btype = h.x<39?0:Btype<5?1:2;
+                    Btype = h.x<79?0:Btype<5?1:2;
                     result = delay<5?_ShoreGeology[Btype][h.y>>6&1][per][delay]:17;
                 }
                 else
                 {
-                    if(h.x<39&&delay==0)delay++;
+                    if(h.x<79&&delay==0)delay++;
                     result = delay<7?_BiomeGeology[per][min(h.y,16)][delay]:17;
                 }
 
@@ -490,10 +490,16 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                 float2 originalCenter = CustomRenderTextureCenters[batchZoneIndex].xy;
                 float2 originalSize = CustomRenderTextureSizesAndRotations[batchZoneIndex].xy;
                 float2 originalCenterClip = originalCenter * (2.0 / TEXTURE_SIZE) - 1.0;
+                float2 targetCenterClip = zone.xy * (2.0 / TEXTURE_SIZE) - 1.0;
+                // CustomRenderTextureVertexShader reverses the clip-space Y axis
+                // for OpenGL-style render targets. Match its orientation here.
+                #if !UNITY_UV_STARTS_AT_TOP
+                    originalCenterClip.y = -originalCenterClip.y;
+                    targetCenterClip.y = -targetCenterClip.y;
+                #endif
                 float2 scaledVertexOffset =
                     (originalVertexPosition - originalCenterClip) * (zone.zw / originalSize);
-                float2 centerOffset = (zone.xy - originalCenter) * (2.0 / TEXTURE_SIZE);
-                return originalCenterClip + scaledVertexOffset + centerOffset;
+                return targetCenterClip + scaledVertexOffset;
             }
 
             MineCustomRenderTextureV2F vert(appdata_customrendertexture v)

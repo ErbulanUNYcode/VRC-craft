@@ -17,7 +17,7 @@ Shader "VRC_MINE/Lod1Gen"
             #include "UnityCG.cginc"
             #include "UnityCustomRenderTexture.cginc"
 
-            Texture3D<float> _VoxelWorld;
+            Texture3D<uint> _VoxelWorld;
             int _OffsetX;
             int _OffsetY;
 
@@ -29,7 +29,11 @@ Shader "VRC_MINE/Lod1Gen"
                 if (o.primitiveID == 0)
                 {
                     float2 textureSize=float2(_CustomRenderTextureWidth,_CustomRenderTextureHeight);
-                    o.vertex.xy += float2(_OffsetX,_OffsetY)*4.0*(2.0/textureSize);
+                    float2 clipOffset=float2(_OffsetX,_OffsetY)*4.0*(2.0/textureSize);
+                    #if !UNITY_UV_STARTS_AT_TOP
+                    clipOffset.y=-clipOffset.y;
+                    #endif
+                    o.vertex.xy+=clipOffset;
                     o.globalTexcoord.xy=o.vertex.xy*0.5+0.5;
                     #if UNITY_UV_STARTS_AT_TOP
                     o.globalTexcoord.y=1.0-o.globalTexcoord.y;
@@ -41,13 +45,12 @@ Shader "VRC_MINE/Lod1Gen"
             bool Block(int3 p)
             {
                 // LOD texture axes already match VoxelWorld: X=X, Y=world Z, Z=world Y.
-                return _VoxelWorld.Load(int4(p, 0)) > 0.0;
+                return _VoxelWorld.Load(int4(p, 0)) > 0u;
             }
 
-            fixed4 frag(V2F i):SV_Target
+            uint frag(V2F i):SV_Target
             {
-                fixed3 debugRgb=saturate(i.globalTexcoord);
-                if(i.primitiveID!=0)return fixed4(debugRgb,0.0);
+                if(i.primitiveID!=0)return 0u;
                 int3 base=(int3)floor(saturate(i.globalTexcoord)*float3(256.0,256.0,64.0));
                 bool occupied=false;
                 int3 sourceBase=base*4;
@@ -65,7 +68,7 @@ Shader "VRC_MINE/Lod1Gen"
                         }
                     }
                 }
-                return fixed4(debugRgb,occupied?1.0:0.0);
+                return occupied ? 1u : 0u;
             }
             ENDHLSL
         }

@@ -32,9 +32,9 @@ Shader "VRC_MINE/Editor/LodView3D"
 
             fixed4 frag(v2f i):SV_Target
             {
-                int2 p=(int2)floor(saturate(i.uv)*_Size);
+                int2 p=clamp((int2)floor(saturate(i.uv)*_Size),0,max(0,(int)_Size-1));
                 int z=clamp(_Slice,0,max(0,(int)_Depth-1));
-                return (fixed)_MainTex.Load(int4(p.x,p.y,z,0));
+                return _MainTex.Load(int4(p.x,p.y,z,0))>0u ? 1.0 : 0.0;
             }
             ENDHLSL
         }

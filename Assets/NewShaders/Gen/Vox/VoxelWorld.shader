@@ -4,7 +4,6 @@ Shader "VRC_MINE/Gen/VoxelWorld"
     {
         [IntRange] _OffsetX ("Offset X", Range(0, 63)) = 1
         [IntRange] _OffsetY ("Offset Y", Range(0, 63)) = 1
-        [KeywordEnum(Chunk, GradientX, GradientY, GradientZ)] _DebugView ("Preview", Float) = 0
         _WorldGeneratorTexture ("World Generator Texture", 2D) = "black" {}
         _TerrainTexture ("Terrain Texture", 2D) = "black" {}
     }
@@ -33,7 +32,6 @@ Shader "VRC_MINE/Gen/VoxelWorld"
 
             int _OffsetX;
             int _OffsetY;
-            float _DebugView;
             Texture2D<uint> _WorldGeneratorTexture;
             Texture2D<uint> _TerrainTexture;
 
@@ -54,7 +52,11 @@ Shader "VRC_MINE/Gen/VoxelWorld"
                         _CustomRenderTextureHeight
                     );
                     float2 pixelOffset = float2(_OffsetX, _OffsetY) * 16.0;
-                    o.vertex.xy += pixelOffset * (2.0 / textureSize);
+                    float2 clipOffset = pixelOffset * (2.0 / textureSize);
+                    #if !UNITY_UV_STARTS_AT_TOP
+                        clipOffset.y = -clipOffset.y;
+                    #endif
+                    o.vertex.xy += clipOffset;
 
                     // Rebuild UV from the final vertex position, as in the working
                     // world-generator shader. This keeps UV synchronized with the
@@ -68,25 +70,14 @@ Shader "VRC_MINE/Gen/VoxelWorld"
                 return o;
             }
 
-            fixed frag(VoxelWorldV2F i) : SV_Target
+            uint frag(VoxelWorldV2F i) : SV_Target
             {
                 if (i.primitiveID != 0)
-					return 0.0;
+					return 0u;
 
 				// The update zone represents one chunk: 16 x 16 x 258.
 				int3 local = (int3)floor(saturate(i.localTexcoord) * float3(16.0, 16.0, 258.0));
 				local = min(local, int3(15, 15, 257));
-
-
-				if (_DebugView > 0.5 && _DebugView < 1.5)
-					return saturate(i.localTexcoord.x);
-				if (_DebugView > 1.5 && _DebugView < 2.5)
-				{
-				// Texture Y represents world depth Z with the opposite direction.
-					return 1.0 - saturate(i.localTexcoord.y);
-				}
-				if (_DebugView > 2.5)
-					return saturate(i.localTexcoord.z);
 
 				// WorldGenerator stores a chunk as 16 horizontal columns packed
 				// into X and 256 vertical values in Y.
@@ -101,13 +92,13 @@ Shader "VRC_MINE/Gen/VoxelWorld"
 					uint terrainHeight = (terrainData.r & 127u) + 40u;
 					uint biomeId = terrainData.g & 31u;
 					uint metadata = local.z == 256 ? terrainHeight : biomeId;
-					return (float)metadata / 255.0;
+					return metadata;
 				}
 
 				int sourceX = local.x + (sourceColumnZ << 4);
 				int sourceY = local.z;
 				uint block = _WorldGeneratorTexture.Load(int3(sourceX, sourceY, 0));
-				return (float)block / 255.0;
+				return block;
             }
 
             ENDHLSL

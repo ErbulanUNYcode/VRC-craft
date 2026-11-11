@@ -93,23 +93,23 @@ Material:
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _Scale: 16
-    - _Seed: -1.377558e+9
+    - _Seed: 1.3796466e+9
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
-    - _AndesiteOffset: {r: -8510, g: 8855, b: 7216, a: 0}
-    - _CavesOffset: {r: 4172, g: -509, b: 5026, a: 0}
+    - _AndesiteOffset: {r: -8357, g: 6621, b: 5351, a: 0}
+    - _CavesOffset: {r: 8329, g: -3691, b: 7238, a: 0}
     - _Chunk: {r: 0, g: 0, b: 0, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _DioriteOffset: {r: -6705, g: -6107, b: -2059, a: 0}
-    - _DirtOffset: {r: -2581, g: -5683, b: 3316, a: 0}
+    - _DioriteOffset: {r: 8835, g: -9167, b: 5975, a: 0}
+    - _DirtOffset: {r: -4356, g: 5206, b: 912, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _GraniteOffset: {r: 4995, g: -1412, b: -1434, a: 0}
-    - _GravelOffset: {r: -1531, g: -5566, b: 3516, a: 0}
-    - _Ore1Offset: {r: 8424, g: 8109, b: -7506, a: 0}
-    - _Ore2Offset: {r: -5463, g: -4542, b: 6504, a: 0}
-    - _Ore3Offset: {r: -4662, g: 4371, b: -4000, a: 0}
+    - _GraniteOffset: {r: -3911, g: -1739, b: -154, a: 0}
+    - _GravelOffset: {r: -7685, g: 4205, b: -1774, a: 0}
+    - _Ore1Offset: {r: -4576, g: -4899, b: -37, a: 0}
+    - _Ore2Offset: {r: -9404, g: -1692, b: -8614, a: 0}
+    - _Ore3Offset: {r: -7587, g: -2923, b: -4292, a: 0}
   m_BuildTextureStacks: []

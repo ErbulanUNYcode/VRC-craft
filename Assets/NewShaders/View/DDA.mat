@@ -12,7 +12,9 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
-  m_InvalidKeywords: []
+  m_InvalidKeywords:
+  - _ANDROIDDEPTH_ON
+  - _SPECIAL_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -23,6 +25,14 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _Atlas:
+        m_Texture: {fileID: 18700000, guid: 43916061f3f030647b245cdfd622292e, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _AtlasFlipMap:
+        m_Texture: {fileID: 18700000, guid: fa679e24ac9819241bbfa9dc0e4d7ae9, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _BumpMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -135,6 +145,18 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _ShadowMap:
+        m_Texture: {fileID: 8400000, guid: 30a39e4ac9121bd49a3a5301cffb4268, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ShadowMap1:
+        m_Texture: {fileID: 8400000, guid: 4f8af640da160024eb1e812b52bc3e43, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VoxelWorld:
+        m_Texture: {fileID: 8600000, guid: 8be6e812bbf7afc4885eb10c6e7646ad, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _WorldTex0:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -201,11 +223,14 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _AndroidDepth: 1
     - _BumpScale: 1
     - _Cutoff: 0.5
+    - _DebugReads: 0
     - _DepthScale: 1
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
+    - _FogDistance: 445.6
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
@@ -216,11 +241,21 @@ Material:
     - _Offset: 0
     - _Parallax: 0.02
     - _SmoothnessTextureChannel: 0
+    - _Special: 1
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
+    - _BackLightColor: {r: 0.8326551, g: 0.8251755, b: 0.80524194, a: 0}
+    - _BiomeLeafColor: {r: 0.45, g: 1, b: 0.45, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _DownLightColor: {r: 0.67950267, g: 0.6787013, b: 0.67923445, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _FogColor: {r: 0.1990477, g: 0.4364763, b: 0.6698113, a: 1}
+    - _FrontLightColor: {r: 1, g: 0.9997139, b: 1, a: 0.40000916}
+    - _LeafColor: {r: 0.45, g: 1, b: 0.45, a: 1}
+    - _LeftLightColor: {r: 0.84635925, g: 0.8425275, b: 0.8751832, a: 0}
+    - _RightLightColor: {r: 0.8494103, g: 0.8413882, b: 0.8767326, a: 0.60002136}
+    - _UpLightColor: {r: 1, g: 1, b: 1, a: 0.78618836}
   m_BuildTextureStacks: []

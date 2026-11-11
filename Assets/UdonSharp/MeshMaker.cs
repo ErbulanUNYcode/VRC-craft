@@ -12,6 +12,10 @@ public class MeshMaker : MonoBehaviour
 	[NonSerialized]
 	public MeshFilter meshFilter;
 
+	[SerializeField] public bool useCustomBounds;
+	[SerializeField] public Vector3 customBoundsCenter;
+	[SerializeField] public Vector3 customBoundsSize;
+
 	[ContextMenu("Create base")]
 	private void CreateBase()
 	{
@@ -58,6 +62,7 @@ public class MeshMaker : MonoBehaviour
 
 		mesh.vertices = points;
 		mesh.uv = uv;
+		mesh.RecalculateBounds();
 		mesh.name = meshF.name;
 		meshF.sharedMesh = mesh;
 		//save new mesh in assets
@@ -109,6 +114,11 @@ public class MeshMakerEditor : Editor
 		triangles = mesh.triangles;
 		colors = mesh.colors;
 		uv = mesh.uv;
+		if (!maker.useCustomBounds)
+		{
+			maker.customBoundsCenter = mesh.bounds.center;
+			maker.customBoundsSize = mesh.bounds.size;
+		}
 		if (colors.Length != positions.Length)
 		{
 			colors = new Color[positions.Length];
@@ -117,6 +127,15 @@ public class MeshMakerEditor : Editor
 		}
 		if (uv.Length != positions.Length) uv = new Vector2[positions.Length];
 		selected = new bool[positions.Length];
+		ApplyStoredBounds(maker);
+	}
+
+	private void ApplyStoredBounds(MeshMaker maker)
+	{
+		if (maker.useCustomBounds)
+			mesh.bounds = new Bounds(maker.customBoundsCenter, maker.customBoundsSize);
+		else
+			mesh.RecalculateBounds();
 	}
 
 	private void OnDisable()
@@ -127,6 +146,7 @@ public class MeshMakerEditor : Editor
 	public override void OnInspectorGUI()
 	{
 		var maker = (MeshMaker)target;
+
 		#region EDIT MODE TOGGLE
 		//toggle button for edit mode
 		GUIContent editIcon = EditorGUIUtility.IconContent("EditCollider");
@@ -143,6 +163,35 @@ public class MeshMakerEditor : Editor
 		#endregion
 
 		if (!editMode) return;
+
+		EditorGUI.BeginChangeCheck();
+		maker.customBoundsCenter = EditorGUILayout.Vector3Field("Bounds Center", maker.customBoundsCenter);
+		maker.customBoundsSize = EditorGUILayout.Vector3Field("Bounds Size", maker.customBoundsSize);
+		maker.customBoundsSize.x = Mathf.Max(0f, maker.customBoundsSize.x);
+		maker.customBoundsSize.y = Mathf.Max(0f, maker.customBoundsSize.y);
+		maker.customBoundsSize.z = Mathf.Max(0f, maker.customBoundsSize.z);
+		if (EditorGUI.EndChangeCheck())
+		{
+			Undo.RecordObject(maker, "Change Mesh Bounds Settings");
+			Undo.RecordObject(mesh, "Change Mesh Bounds");
+			mesh.bounds = new Bounds(maker.customBoundsCenter, maker.customBoundsSize);
+			maker.useCustomBounds = true;
+			EditorUtility.SetDirty(maker);
+			EditorUtility.SetDirty(mesh);
+		}
+
+		if (GUILayout.Button("Auto Bounds"))
+		{
+			Undo.RecordObject(maker, "Auto Mesh Bounds Settings");
+			Undo.RecordObject(mesh, "Auto Recalculate Mesh Bounds");
+			mesh.RecalculateBounds();
+			maker.customBoundsCenter = mesh.bounds.center;
+			maker.customBoundsSize = mesh.bounds.size;
+			maker.useCustomBounds = true;
+			EditorUtility.SetDirty(maker);
+			EditorUtility.SetDirty(mesh);
+		}
+
 		#region UV maker
 		GUILayout.BeginHorizontal();
 		showUVEditor = EditorGUILayout.Foldout(showUVEditor, "UV Editor", true);
@@ -396,7 +445,7 @@ public class MeshMakerEditor : Editor
 			if (TriangleControl(maker.transform))
 			{
 				mesh.triangles = triangles.ToArray();
-				mesh.RecalculateBounds();
+				ApplyStoredBounds(maker);
 				mesh.RecalculateNormals();
 
 				return;
@@ -416,7 +465,7 @@ public class MeshMakerEditor : Editor
 		if (MoveControl(maker.transform))
 		{
 			mesh.vertices = positions.ToArray();
-			mesh.RecalculateBounds();
+			ApplyStoredBounds(maker);
 			mesh.RecalculateNormals();
 			Repaint();
 			return;
@@ -802,7 +851,7 @@ public static class Drag2D
 						GUIUtility.hotControl = id;
 						GUIUtility.keyboardControl = id;
 
-						GUI.changed = true; // ключевой момент
+						GUI.changed = true; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 
 						e.Use();
 					}
@@ -820,7 +869,7 @@ public static class Drag2D
 						value.x = Mathf.Clamp01(value.x);
 						value.y = Mathf.Clamp01(value.y);
 
-						GUI.changed = true; // говорит Unity: "контрол изменился"
+						GUI.changed = true; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ Unity: "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ"
 
 						e.Use();
 					}
