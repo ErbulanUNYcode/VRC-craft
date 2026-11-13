@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Lod3Gen
-  m_Shader: {fileID: 4800000, guid: caf83c946bce784439971ac6a646a316, type: 3}
+  m_Name: LodGen
+  m_Shader: {fileID: 4800000, guid: 97803c1a5acb4cd4bac8eff489d62fc9, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -63,8 +63,8 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
-    - _PrevLodTex:
-        m_Texture: {fileID: 8600000, guid: a2f2f87c873b8d847b396fec5894f600, type: 2}
+    - _VoxelWorld:
+        m_Texture: {fileID: 8600000, guid: 8be6e812bbf7afc4885eb10c6e7646ad, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -79,6 +79,8 @@ Material:
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
+    - _OffsetX: 31
+    - _OffsetY: 31
     - _Parallax: 0.02
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1

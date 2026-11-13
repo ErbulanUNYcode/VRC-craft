@@ -17,10 +17,10 @@ namespace VRC_MINE.World
 		[SerializeField] private Material chunkTerrainGeneratorMaterial;
 		[SerializeField] private Material[] genLayers;
 		[SerializeField] private CustomRenderTexture[] genTextures;
-		[SerializeField] private CustomRenderTexture[] voxelTextures;
+		[SerializeField] private CustomRenderTexture voxelWorld;
+		[SerializeField] private CustomRenderTexture voxelLod;
 		[SerializeField] private CustomRenderTextureUpdateZone[] voxelWorldZones = new CustomRenderTextureUpdateZone[1];
-		[SerializeField] private CustomRenderTextureUpdateZone[] lod1Zones = new CustomRenderTextureUpdateZone[1];
-		[SerializeField] private CustomRenderTextureUpdateZone[] lod2Zones = new CustomRenderTextureUpdateZone[1];
+		[SerializeField] private CustomRenderTextureUpdateZone[] voxelLodZones = new CustomRenderTextureUpdateZone[5];
 		[SerializeField] private CustomRenderTextureUpdateZone[] noZones = new CustomRenderTextureUpdateZone[0];
 		[SerializeField] private WorldGenerator worldGenerator;
 
@@ -91,36 +91,33 @@ namespace VRC_MINE.World
 
 		private void ClearVoxelTextures()
 		{
-			if (voxelTextures == null) return;
+			ClearVoxelTexture(voxelWorld);
+			ClearVoxelTexture(voxelLod);
+		}
 
-			for (int i = 0; i < voxelTextures.Length; i++)
-			{
-				CustomRenderTexture texture = voxelTextures[i];
-				if (texture == null) continue;
-				texture.initializationSource = CustomRenderTextureInitializationSource.TextureAndColor;
-				texture.initializationTexture = null;
-				texture.initializationColor = Color.clear;
-				texture.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
-				texture.SetUpdateZones(noZones);
-				texture.Initialize();
-			}
+		private void ClearVoxelTexture(CustomRenderTexture texture)
+		{
+			if (texture == null) return;
+			texture.initializationSource = CustomRenderTextureInitializationSource.TextureAndColor;
+			texture.initializationTexture = null;
+			texture.initializationColor = Color.clear;
+			texture.initializationMode = CustomRenderTextureUpdateMode.OnDemand;
+			texture.SetUpdateZones(noZones);
+			texture.Initialize();
 		}
 
 		public void RestoreVoxelUpdateZones()
 		{
-			if (voxelTextures == null) return;
-			for (int i = 0; i < voxelTextures.Length; i++)
-				if (voxelTextures[i] != null)
-					voxelTextures[i].initializationSource = CustomRenderTextureInitializationSource.Material;
-
-			if (voxelTextures.Length > 0 && voxelTextures[0] != null)
-				voxelTextures[0].SetUpdateZones(voxelWorldZones);
-			if (voxelTextures.Length > 1 && voxelTextures[1] != null)
-				voxelTextures[1].SetUpdateZones(lod1Zones);
-			if (voxelTextures.Length > 2 && voxelTextures[2] != null)
-				voxelTextures[2].SetUpdateZones(lod2Zones);
-			if (voxelTextures.Length > 3 && voxelTextures[3] != null)
-				voxelTextures[3].SetUpdateZones(noZones);
+			if (voxelWorld != null)
+			{
+				voxelWorld.initializationSource = CustomRenderTextureInitializationSource.Material;
+				voxelWorld.SetUpdateZones(voxelWorldZones);
+			}
+			if (voxelLod != null)
+			{
+				voxelLod.initializationSource = CustomRenderTextureInitializationSource.Material;
+				voxelLod.SetUpdateZones(voxelLodZones);
+			}
 		}
 
 		public void FinishBiomeGeneration()

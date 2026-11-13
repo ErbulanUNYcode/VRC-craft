@@ -436,6 +436,16 @@ public class MeshMakerEditor : Editor
 		if (!editMode) return;
 		//target component
 		var maker = (MeshMaker)target;
+		if (maker.useCustomBounds)
+		{
+			var oldMatrix = Handles.matrix;
+			var oldColor = Handles.color;
+			Handles.matrix = maker.transform.localToWorldMatrix;
+			Handles.color = new Color(1f, 0.65f, 0.1f, 0.9f);
+			Handles.DrawWireCube(maker.customBoundsCenter, maker.customBoundsSize);
+			Handles.matrix = oldMatrix;
+			Handles.color = oldColor;
+		}
 		if (maker.meshFilter.sharedMesh == null) UpdateData();
 		if (maker.meshFilter.sharedMesh != mesh) UpdateData();
 		Event e = Event.current;

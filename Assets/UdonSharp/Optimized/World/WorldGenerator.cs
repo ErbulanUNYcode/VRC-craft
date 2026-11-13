@@ -27,14 +27,10 @@ namespace VRC_MINE.World
 
 		#region materials
 		[SerializeField] private Material worldMaterial;
-		[SerializeField] private Material worldShadowMaterial;
-		[SerializeField] private Material[] optimizatorMaterials;
+		[SerializeField] private Material[] optimizerMaterials = new Material[2];
 		[SerializeField] private Renderer[] worldTextureDebugRenderers;
 		[SerializeField] private Material chunkGeneratorMaterial;
 		[SerializeField] private Material chunkTerrainGeneratorMaterial;
-		[SerializeField] private Material lod1Material;
-		[SerializeField] private Material lod2Material;
-		[SerializeField] private Material lod3Material;
 		#endregion
 
 		#region shadows
@@ -52,8 +48,6 @@ namespace VRC_MINE.World
 
 		#region textures
 		private Texture2D[] worldTextures = new Texture2D[16];
-		// Temporary API probe: intentionally unused, only to test UdonSharp support.
-		[SerializeField] private Texture2DArray worldTextureArrayProbe;
 		//private Texture2D lightTexture;
 		private Texture2D[] ctrlTextures = new Texture2D[2];
 		private Texture2D convertor;
@@ -61,13 +55,6 @@ namespace VRC_MINE.World
 		private Texture2D initTextureGPU;
 		private Texture2D initTextureCPU;
 		#endregion
-
-		// Temporary API probe. Do not call from the generation pipeline yet.
-		private void ProbeTexture2DArraySupport()
-		{
-			//worldTextureArrayProbe = new Texture2DArray(256, 256, 16, TextureFormat.R8, false, true);
-			//worldTextureArrayProbe.Apply(false, false);
-		}
 
 		private Vector3Int oldPos = Vector3Int.down;
 
@@ -227,15 +214,12 @@ namespace VRC_MINE.World
 			#endregion
 
 			#region materials
-			for (int i = 0; i < optimizatorMaterials.Length; i++)
+			foreach (var optimizatorMaterial in optimizerMaterials)
+			if (optimizatorMaterial != null)
 			{
 				for (int page = 0; page < worldTextures.Length; page++)
-					optimizatorMaterials[i].SetTexture("_WorldTex" + page, worldTextures[page]);
-				if (i < ctrlTextures.Length) optimizatorMaterials[i].SetTexture("_CtrlTex", ctrlTextures[i]);
-				optimizators[i].initializationMode = CustomRenderTextureUpdateMode.Realtime;
+					optimizatorMaterial.SetTexture("_WorldTex" + page, worldTextures[page]);
 			}
-			optimizatorMaterials[1].SetTexture("_PrevLodTex", optimizators[0]);
-			optimizatorMaterials[2].SetTexture("_PrevLodTex", optimizators[1]);
 			for (int page = 0; page < worldTextures.Length; page++)
 				worldMaterial.SetTexture("_WorldTex" + page, worldTextures[page]);
 			#endregion
@@ -252,12 +236,8 @@ namespace VRC_MINE.World
 			VRCCameraSettings.ScreenCamera.FarClipPlane = 512;
 
 			// Bind the runtime-generated textures, not stale asset references.
-			if (lod1Material != null && voxelWorld != null)
-				lod1Material.SetTexture("_VoxelWorld", voxelWorld);
-			if (lod2Material != null && optimizators != null && optimizators.Length > 0)
-				lod2Material.SetTexture("_PrevLodTex", optimizators[0]);
-			if (lod3Material != null && optimizators != null && optimizators.Length > 1)
-				lod3Material.SetTexture("_PrevLodTex", optimizators[1]);
+			foreach (var material in optimizerMaterials)
+				if (material != null && material.HasProperty("_VoxelWorld")) material.SetTexture("_VoxelWorld", voxelWorld);
 
 			// Visible and shadow DDA passes share the same runtime world.
 			if (worldMaterial != null && voxelWorld != null)
@@ -279,7 +259,7 @@ namespace VRC_MINE.World
 			}
 
 			// The serialized optimizators array contains Lod1, Lod2 and Lod3.
-			for (int i = 0; i < 3 && i < optimizators.Length; i++)
+			for (int i = 0; i < optimizators.Length; i++)
 				if (optimizators[i] != null)
 					optimizators[i].updateMode = CustomRenderTextureUpdateMode.Realtime;
 
@@ -764,7 +744,7 @@ namespace VRC_MINE.World
 					chunkGenerator.updateMode = CustomRenderTextureUpdateMode.OnDemand;
 				if (voxelWorld != null)
 					voxelWorld.updateMode = CustomRenderTextureUpdateMode.OnDemand;
-				for (int i = 0; i < 3 && i < optimizators.Length; i++)
+				for (int i = 0; i < optimizators.Length; i++)
 					if (optimizators[i] != null)
 						optimizators[i].updateMode = CustomRenderTextureUpdateMode.OnDemand;
 				gpuRealtimeShutdownPending = false;
@@ -799,28 +779,11 @@ namespace VRC_MINE.World
 					voxelMaterial.SetInt("_OffsetY", worldChunk.y & 63);
 				}
 			}
-			if (lod1Material != null)
+			foreach (var optimizatorMaterial in optimizerMaterials)
+			if (optimizatorMaterial != null)
 			{
-				lod1Material.SetInt("_OffsetX", worldChunk.x & 63);
-				lod1Material.SetInt("_OffsetY", worldChunk.y & 63);
-			}
-			if (lod2Material != null)
-			{
-				lod2Material.SetInt("_OffsetX", worldChunk.x & 63);
-				lod2Material.SetInt("_OffsetY", worldChunk.y & 63);
-			}
-			if (optimizatorMaterials != null)
-			{
-				if (optimizatorMaterials.Length > 0 && optimizatorMaterials[0] != null)
-				{
-					optimizatorMaterials[0].SetInt("_OffsetX", worldChunk.x & 63);
-					optimizatorMaterials[0].SetInt("_OffsetY", worldChunk.y & 63);
-				}
-				if (optimizatorMaterials.Length > 1 && optimizatorMaterials[1] != null)
-				{
-					optimizatorMaterials[1].SetInt("_OffsetX", worldChunk.x & 63);
-					optimizatorMaterials[1].SetInt("_OffsetY", worldChunk.y & 63);
-				}
+				optimizatorMaterial.SetInt("_OffsetX", worldChunk.x & 63);
+				optimizatorMaterial.SetInt("_OffsetY", worldChunk.y & 63);
 			}
 
 			gpuCurrentIndex++;
@@ -883,6 +846,30 @@ namespace VRC_MINE.World
 [CustomEditor(typeof(WorldGenerator))]
 public class ChunkMeshGeneratorEditor : Editor
 {
+	[DrawGizmo(GizmoType.Selected | GizmoType.NonSelected)]
+	private static void DrawSectionGrid(WorldGenerator generator, GizmoType gizmoType)
+	{
+		Matrix4x4 oldMatrix = Gizmos.matrix;
+		Color oldColor = Gizmos.color;
+		Gizmos.matrix = generator.transform.localToWorldMatrix;
+		Gizmos.color = new Color(0f, 0f, 0f, 0.125f);
+
+		// Shared grid edges: 16-block sections over 1024 x 256 x 1024.
+		for (int y = 0; y <= 256; y += 16)
+		{
+			for (int x = -512; x <= 512; x += 16)
+				Gizmos.DrawLine(new Vector3(x, y, -512), new Vector3(x, y, 512));
+			for (int z = -512; z <= 512; z += 16)
+				Gizmos.DrawLine(new Vector3(-512, y, z), new Vector3(512, y, z));
+		}
+		for (int x = -512; x <= 512; x += 16)
+			for (int z = -512; z <= 512; z += 16)
+				Gizmos.DrawLine(new Vector3(x, 0, z), new Vector3(x, 256, z));
+
+		Gizmos.matrix = oldMatrix;
+		Gizmos.color = oldColor;
+	}
+
 	Color GetColor(ChunkMeshType type)
 	{
 		switch (type)
@@ -918,8 +905,7 @@ public class ChunkMeshGeneratorEditor : Editor
 
 		group = new FolderGrup() { name = "Materials", properties = new List<SerializedProperty>() };
 		group.properties.Add(serializedObject.FindProperty("worldMaterial"));
-		group.properties.Add(serializedObject.FindProperty("worldShadowMaterial"));
-		group.properties.Add(serializedObject.FindProperty("optimizatorMaterials"));
+		group.properties.Add(serializedObject.FindProperty("optimizerMaterials"));
 		group.properties.Add(serializedObject.FindProperty("chunkGeneratorMaterial"));
 		group.properties.Add(serializedObject.FindProperty("chunkTerrainGeneratorMaterial"));
 		folderGrups.Add(group);
@@ -941,7 +927,6 @@ public class ChunkMeshGeneratorEditor : Editor
 
 		group = new FolderGrup() { name = "Systems", properties = new List<SerializedProperty>() };
 		group.properties.Add(serializedObject.FindProperty("blockSelector"));
-		group.properties.Add(serializedObject.FindProperty("worldTextureArrayProbe"));
 		folderGrups.Add(group);
 	}
 	public override void OnInspectorGUI()
