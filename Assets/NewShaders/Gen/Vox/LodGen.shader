@@ -23,15 +23,12 @@ Shader "VRC_MINE/Gen/LodGen"
                 int2(0, 0), int2(0, -1), int2(1, 0), int2(0, 1), int2(-1, 0)
             };
 
-            uint ReadWorldVoxel(int3 worldPosition)
+            uint ReadTextureVoxel(int3 texturePosition)
             {
-                if (worldPosition.y < 0 || worldPosition.y >= 256)
+                if (texturePosition.z < 0 || texturePosition.z >= 256)
                     return 0u;
-                uint textureX = (uint)worldPosition.x & 1023u;
-                uint textureY = 1023u - ((uint)worldPosition.z & 1023u);
-                return _VoxelWorld.Load(int4((int)textureX,
-                                             (int)textureY,
-                                             (int)worldPosition.y, 0));
+                texturePosition.xy &= 1023;
+                return _VoxelWorld.Load(int4(texturePosition, 0));
             }
 
             bool ShouldDrawFaceBidirectional(uint firstID, uint secondID)
@@ -78,7 +75,7 @@ Shader "VRC_MINE/Gen/LodGen"
                 uint zoneId = min(input.primitiveID, 4u);
                 int2 zoneOffset = ZoneOffsets[zoneId];
                 int sectionY = min((int)floor(saturate(input.globalTexcoord.z) * 16.0), 15);
-                int3 worldSectionPosition = int3((_OffsetX+zoneOffset.x)&63, sectionY, (_OffsetY+zoneOffset.y)&63)<<4;
+                int3 textureSectionPosition = int3(((_OffsetX+zoneOffset.x)&63)<<4, 1023 - (((_OffsetY+zoneOffset.y)&63)<<4), sectionY<<4);
                 uint3 minSideOffset = 16u;
                 uint3 maxSideOffset = 0u;
                 uint3 oldBlockID;
@@ -86,11 +83,11 @@ Shader "VRC_MINE/Gen/LodGen"
                 uint i = pixel.x;
                 uint j = pixel.y;
 
-                oldBlockID.x = ReadWorldVoxel(worldSectionPosition + int3(-1, i, j));
-                oldBlockID.y = ReadWorldVoxel(worldSectionPosition + int3(i, -1, j));
-                oldBlockID.z = ReadWorldVoxel(worldSectionPosition + int3(i, j, -1));
+                oldBlockID.x = ReadTextureVoxel(textureSectionPosition + int3(-1, -(int)j, i));
+                oldBlockID.y = ReadTextureVoxel(textureSectionPosition + int3(i, -(int)j, -1));
+                oldBlockID.z = ReadTextureVoxel(textureSectionPosition + int3(i, 1, j));
 
-                uint blockID = ReadWorldVoxel(worldSectionPosition + int3(0, i, j));
+                uint blockID = ReadTextureVoxel(textureSectionPosition + int3(0, -(int)j, i));
                 if (ShouldDrawFaceOneWay(oldBlockID.x, blockID))
                 {
                     minSideOffset.x = 0u;
@@ -101,7 +98,7 @@ Shader "VRC_MINE/Gen/LodGen"
                 }
                 oldBlockID.x = blockID;
 
-                blockID = ReadWorldVoxel(worldSectionPosition + int3(i, 0, j));
+                blockID = ReadTextureVoxel(textureSectionPosition + int3(i, -(int)j, 0));
                 if (ShouldDrawFaceOneWay(oldBlockID.y, blockID))
                 {
                     minSideOffset.y = 0u;
@@ -112,7 +109,7 @@ Shader "VRC_MINE/Gen/LodGen"
                 }
                 oldBlockID.y = blockID;
 
-                blockID = ReadWorldVoxel(worldSectionPosition + int3(i, j, 0));
+                blockID = ReadTextureVoxel(textureSectionPosition + int3(i, 0, j));
                 if (ShouldDrawFaceOneWay(oldBlockID.z, blockID))
                 {
                     minSideOffset.z = 0u;
@@ -125,7 +122,7 @@ Shader "VRC_MINE/Gen/LodGen"
 
                 [loop] for (int k = 1; k < 16; k++)
                 {
-                    blockID = ReadWorldVoxel(worldSectionPosition + int3(k, i, j));
+                    blockID = ReadTextureVoxel(textureSectionPosition + int3(k, -(int)j, i));
                     if (ShouldDrawFaceBidirectional(oldBlockID.x, blockID))
                     {
                         minSideOffset.x = min(minSideOffset.x, (uint)k);
@@ -137,7 +134,7 @@ Shader "VRC_MINE/Gen/LodGen"
                     }
                     oldBlockID.x = blockID;
 
-                    blockID = ReadWorldVoxel(worldSectionPosition + int3(i, k, j));
+                    blockID = ReadTextureVoxel(textureSectionPosition + int3(i, -(int)j, k));
                     if (ShouldDrawFaceBidirectional(oldBlockID.y, blockID))
                     {
                         minSideOffset.y = min(minSideOffset.y, (uint)k);
@@ -149,7 +146,7 @@ Shader "VRC_MINE/Gen/LodGen"
                     }
                     oldBlockID.y = blockID;
 
-                    blockID = ReadWorldVoxel(worldSectionPosition + int3(i, j, k));
+                    blockID = ReadTextureVoxel(textureSectionPosition + int3(i, -k, j));
                     if (ShouldDrawFaceBidirectional(oldBlockID.z, blockID))
                     {
                         minSideOffset.z = min(minSideOffset.z, (uint)k);
@@ -162,7 +159,7 @@ Shader "VRC_MINE/Gen/LodGen"
                     oldBlockID.z = blockID;
                 }
 
-                blockID = ReadWorldVoxel(worldSectionPosition + int3(16, i, j));
+                blockID = ReadTextureVoxel(textureSectionPosition + int3(16, -(int)j, i));
                 if (ShouldDrawFaceOneWay(blockID, oldBlockID.x))
                 {
                     maxSideOffset.x = 16u;
@@ -172,7 +169,7 @@ Shader "VRC_MINE/Gen/LodGen"
                     maxSideOffset.z = max(maxSideOffset.z, (uint)(j + 1));
                 }
 
-                blockID = ReadWorldVoxel(worldSectionPosition + int3(i, 16, j));
+                blockID = ReadTextureVoxel(textureSectionPosition + int3(i, -(int)j, 16));
                 if (ShouldDrawFaceOneWay(blockID, oldBlockID.y))
                 {
                     maxSideOffset.y = 16u;
@@ -182,7 +179,7 @@ Shader "VRC_MINE/Gen/LodGen"
                     maxSideOffset.z = max(maxSideOffset.z, (uint)(j + 1));
                 }
 
-                blockID = ReadWorldVoxel(worldSectionPosition + int3(i, j, 16));
+                blockID = ReadTextureVoxel(textureSectionPosition + int3(i, -16, j));
                 if (ShouldDrawFaceOneWay(blockID, oldBlockID.z))
                 {
                     maxSideOffset.z = 16u;

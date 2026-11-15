@@ -233,7 +233,7 @@ namespace VRC_MINE.World
 			localPlayer = Networking.LocalPlayer;
 
 			// The DDA ray travels up to 500 blocks; keep the screen camera beyond it.
-			VRCCameraSettings.ScreenCamera.FarClipPlane = 512;
+			VRCCameraSettings.ScreenCamera.FarClipPlane = 600;
 
 			// Bind the runtime-generated textures, not stale asset references.
 			foreach (var material in optimizerMaterials)

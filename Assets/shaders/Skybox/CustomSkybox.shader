@@ -88,7 +88,6 @@ Shader "Unlit/CustomSkybox"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                return fixed4(0.0, 0.0, 0.0, 1.0);
                 float3 dir = i.viewDirRot;
                 float r = i.r;
                 float time = i.time;
