@@ -68,7 +68,7 @@ Shader "VRC_MINE/Gen/LodGen"
                 return o;
             }
 
-            uint4 frag(V2F input) : SV_Target
+            uint frag(V2F input) : SV_Target
             {
                 uint2 pixel = (uint2)floor(saturate(input.localTexcoord.xy) * 16.0);
                 pixel&=15u;
@@ -194,22 +194,11 @@ Shader "VRC_MINE/Gen/LodGen"
                                   minSideOffset.y <= maxSideOffset.y &&
                                   minSideOffset.z <= maxSideOffset.z;
                 if (!hasSurface)
-                    return uint4(0u, 0u, 0u, 0u);
+                    return 0u;
 
-                uint maxX = maxSideOffset.x;
-                uint maxY = maxSideOffset.y;
-                uint maxZ = maxSideOffset.z;
-                uint red = (minSideOffset.x & 15u) | ((maxX & 15u) << 4);
-                uint green = (minSideOffset.z & 15u) | ((maxZ & 15u) << 4);
-                uint blue = (minSideOffset.y & 15u) | ((maxY & 15u) << 4);
-                uint alpha = 1u |
-                             ((minSideOffset.x >> 4) << 1) |
-                             ((maxX >> 4) << 2) |
-                             ((maxZ >> 4) << 3) |
-                             ((minSideOffset.z >> 4) << 4) |
-                             ((minSideOffset.y >> 4) << 5) |
-                             ((maxY >> 4) << 6);
-                return uint4(red, green, blue, alpha);
+                return 1u | minSideOffset.x << 1 | maxSideOffset.x << 6 |
+                       minSideOffset.y << 11 | maxSideOffset.y << 16 |
+                       minSideOffset.z << 21 | maxSideOffset.z << 26;
             }
             ENDHLSL
         }

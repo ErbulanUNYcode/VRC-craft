@@ -80,8 +80,8 @@ Material:
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
-    - _OffsetX: 31
-    - _OffsetY: 31
+    - _OffsetX: 15
+    - _OffsetY: 15
     - _OffsetZ: 0
     - _Parallax: 0.02
     - _ShowBlue: 0

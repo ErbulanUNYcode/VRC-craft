@@ -2,8 +2,8 @@ Shader "VRC_MINE/Gen/VoxelWorld"
 {
     Properties
     {
-        [IntRange] _OffsetX ("Offset X", Range(0, 63)) = 1
-        [IntRange] _OffsetY ("Offset Y", Range(0, 63)) = 1
+        [IntRange] _OffsetX ("Offset X", Range(0, 31)) = 1
+        [IntRange] _OffsetY ("Offset Y", Range(0, 31)) = 1
         _WorldGeneratorTexture ("World Generator Texture", 2D) = "black" {}
         _TerrainTexture ("Terrain Texture", 2D) = "black" {}
     }
@@ -75,23 +75,23 @@ Shader "VRC_MINE/Gen/VoxelWorld"
                 if (i.primitiveID != 0)
 					return 0u;
 
-				// The update zone represents one chunk: 16 x 16 x 258.
-				int3 local = (int3)floor(saturate(i.localTexcoord) * float3(16.0, 16.0, 258.0));
-				local = min(local, int3(15, 15, 257));
+				// The update zone represents one chunk: 16 x 16 x 130.
+				int3 local = (int3)floor(saturate(i.localTexcoord) * float3(16.0, 16.0, 130.0));
+				local = min(local, int3(15, 15, 129));
 
 				// WorldGenerator stores a chunk as 16 horizontal columns packed
-				// into X and 256 vertical values in Y.
+				// into X and 128 vertical values in Y.
 				// The zone Y axis maps to world Z in the opposite direction.
 				int sourceColumnZ = 15 - local.y;
 
 				// The two upper layers store terrain metadata:
-				// layer 256 = surface height (R), layer 257 = biome index (G).
-				if (local.z >= 256)
+				// layer 128 = surface height (R), layer 129 = biome index (G).
+				if (local.z >= 128)
 				{
 					uint4 terrainData = _TerrainTexture.Load(int3(local.x, sourceColumnZ, 0));
-					uint terrainHeight = (terrainData.r & 127u) + 40u;
+					uint terrainHeight = (terrainData.r & 127u);
 					uint biomeId = terrainData.g & 31u;
-					uint metadata = local.z == 256 ? terrainHeight : biomeId;
+					uint metadata = local.z == 128 ? terrainHeight : biomeId;
 					return metadata;
 				}
 

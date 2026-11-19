@@ -2,13 +2,16 @@ Shader "VRC_MINE/WorldOptimizator"
 {
     Properties
     {
-        _WorldTex ("World Texture", 2D) = "black" {}
+        _WorldTex ("World Texture", 3D) = "black" {}
         _CtrlTex ("Ctrl Texture", 2D) = "black" {}
     }
 
     SubShader
     {
         Tags { "RenderType"="Opaque" }
+        Cull Off
+        ZWrite Off
+        ZTest Always
 
         Pass
         {
@@ -16,9 +19,11 @@ Shader "VRC_MINE/WorldOptimizator"
 
             #pragma vertex vert
             #pragma fragment frag
+            #pragma target 4.5
 
             #include "UnityCG.cginc"
             #include "UnityCustomRenderTexture.cginc"
+            #include "SurfaceVisibility.cginc"
 
             struct appdata
             {
@@ -32,13 +37,14 @@ Shader "VRC_MINE/WorldOptimizator"
                 noperspective float2 uv : TEXCOORD0;
             };
             
-            texture2D<fixed> _WorldTex;
+            Texture3D<uint> _WorldTex;
             texture2D<fixed> _CtrlTex;
-            v2f vert(appdata v)
+            v2f vert(appdata_customrendertexture v)
             {
+                v2f_customrendertexture base = CustomRenderTextureVertexShader(v);
                 v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                o.uv = v.uv * float2(512,384);
+                o.pos = base.vertex;
+                o.uv = base.globalTexcoord.xy * float2(512,384);
 
                 return o;
             }
@@ -46,17 +52,14 @@ Shader "VRC_MINE/WorldOptimizator"
             
             int block(int3 pos)
             {
-                if(pos.y>127) return 0;
-                int2 ch = ((pos.xz>>4)&31)*int2(256,128);
-                pos.xz&=15;
-                pos.x+=pos.z*16;
-                return round(_WorldTex.Load(int3(pos.xy+ch,0))*255);
+                if (pos.y < 0 || pos.y >= 128) return 0;
+                return _WorldTex.Load(int4(pos.x & 511, 511 - (pos.z & 511), pos.y, 0));
             }
 
             bool show(int3 pos1,int3 pos2)
             {
                 int2 b = int2(block(pos1),block(pos2));
-                return b.y==0 && b.x!=b.y;
+                return ShouldDrawFaceOneWay(b.y, b.x);
             }
 
             uint4 frag(v2f i) : SV_Target
@@ -64,8 +67,8 @@ Shader "VRC_MINE/WorldOptimizator"
                 uint2 uv = floor(i.uv);
                 fixed ctrl = _CtrlTex.Load(int3(uv.x,uv.y%192,0));
 
-                //if(ctrl==0) return 0;
-                if(ctrl==1) discard;
+                if (ctrl == 0) return 0;
+                if (ctrl == 1) discard;
                 
                 uint sourceY = uv.y;
                 uint4 mm = uint4(32,0,32,0);

@@ -14,8 +14,8 @@ CustomRenderTexture:
   m_DownscaleFallback: 0
   m_IsAlphaChannelOptional: 0
   serializedVersion: 5
-  m_Width: 1024
-  m_Height: 1024
+  m_Width: 512
+  m_Height: 512
   m_AntiAliasing: 1
   m_MipCount: -1
   m_DepthStencilFormat: 0
@@ -36,7 +36,7 @@ CustomRenderTexture:
     m_WrapV: 0
     m_WrapW: 0
   m_Dimension: 3
-  m_VolumeDepth: 258
+  m_VolumeDepth: 130
   m_ShadowSamplingMode: 2
   m_Material: {fileID: 2100000, guid: 694052af905b6444fbf8681d270b2c1f, type: 2}
   m_InitSource: 1

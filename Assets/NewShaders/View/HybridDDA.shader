@@ -24,14 +24,10 @@ Shader "VRC_MINE/HybridDDA"
             #pragma multi_compile_instancing
             #include "UnityCG.cginc"
 
-            Texture3D<uint4> _LodTex;
+            Texture3D<uint> _LodTex;
             Texture3D<uint> _VoxelWorld;
-            #define LOD_MINIMUM(d) int3((d).r & 15u | ((d).a >> 1 & 1) << 4, \
-                                        (d).b & 15u | ((d).a >> 5 & 1) << 4, \
-                                        (d).g & 15u | ((d).a >> 4 & 1) << 4)
-            #define LOD_MAXIMUM(d) int3((d).r >> 4 | ((d).a >> 2 & 1) << 4, \
-                                        (d).b >> 4 | ((d).a >> 6 & 1) << 4, \
-                                        (d).g >> 4 | ((d).a >> 3 & 1) << 4)
+            #define LOD_MINIMUM(d) int3((d) >> 1 & 31u, (d) >> 11 & 31u, (d) >> 21 & 31u)
+            #define LOD_MAXIMUM(d) int3((d) >> 6 & 31u, (d) >> 16 & 31u, (d) >> 26 & 31u)
             uint ReadWorldVoxel(int3 worldPosition)
             {
                 if (worldPosition.y < 0 || worldPosition.y >= 256) return 0u;
@@ -50,6 +46,7 @@ Shader "VRC_MINE/HybridDDA"
                 float3 worldPosition : TEXCOORD0;
                 nointerpolation fixed faceData : TEXCOORD1;
                 float surfaceDepth : TEXCOORD2;
+                nointerpolation uint lodData : TEXCOORD3;
             };
 
             v2f vert(appdata v)
@@ -61,20 +58,20 @@ Shader "VRC_MINE/HybridDDA"
 
                 int3 sectionIndex = vertexPosition >> 4;
 
-                uint4 lodData = _LodTex.Load(int4(sectionIndex.x&63, 63 - (sectionIndex.z&63), sectionIndex.y, 0));
-                if (lodData.a == 0u)
+                uint lodData = _LodTex.Load(int4(sectionIndex.x&63, 63 - (sectionIndex.z&63), sectionIndex.y, 0));
+                if (!(lodData & 1u))
                 {
                     o.vertex = float4(2.0, 2.0, 0.0, 1.0);
                     return o;
                 }
+                o.lodData = lodData;
                 int3 cameraPosition = (int3)floor(_WorldSpaceCameraPos);
                 int3 cameraPosition1024delta = cameraPosition;
                 cameraPosition1024delta.xz&=1023;
                 cameraPosition1024delta.xz-=cameraPosition.xz;
                 cameraPosition.xz&=1023;
                 vertexPosition.xz+=cameraPosition1024delta.xz;
-                sectionIndex = vertexPosition >> 4;
-                sectionIndex<<=4;
+                sectionIndex = vertexPosition >> 4 << 4;
                 int3 minimum = LOD_MINIMUM(lodData) + sectionIndex;
                 int3 maximum = LOD_MAXIMUM(lodData) + sectionIndex;
                 float3 worldPosition;
@@ -232,30 +229,19 @@ Shader "VRC_MINE/HybridDDA"
                         block = ReadWorldVoxel((int3)voxel);
                         if (block > 0u) return FinishHit(float3(0.1, 0.1, 0.4), input.surfaceDepth, 1.0, data & 1u);
                         #if defined(USING_STEREO_MATRICES)
-                        float4x4 projection = unity_StereoMatrixP[data & 1u];
-                        float3x3 viewRotation = (float3x3)unity_StereoMatrixV[data & 1u];
+                        float3 cameraWorldPosition = unity_StereoWorldSpaceCameraPos[data & 1u];
                         #else
-                        float4x4 projection = UNITY_MATRIX_P;
-                        float3x3 viewRotation = (float3x3)UNITY_MATRIX_V;
+                        float3 cameraWorldPosition = _WorldSpaceCameraPos;
                         #endif
-                        float2 screenUV = input.vertex.xy / _ScreenParams.xy;
-                        #if defined(UNITY_SINGLE_PASS_STEREO)
-                        float4 eyeViewport = unity_StereoScaleOffset[data & 1u];
-                        screenUV = (screenUV - eyeViewport.zw) / eyeViewport.xy;
-                        #endif
-                        float2 ndc = screenUV * 2.0 - 1.0;
-                        #if UNITY_UV_STARTS_AT_TOP
-                        ndc.y = -ndc.y;
-                        #endif
-                        float3 viewRay = float3((ndc.x + projection._m02) / projection._m00,
-                                               (ndc.y + projection._m12) / projection._m11, -1.0);
-                        ray = mul(viewRay, viewRotation) * (input.surfaceDepth + _ProjectionParams.y);
+                        int2 cameraIntegerPosition = (int2)floor(cameraWorldPosition.xz);
+                        cameraWorldPosition.xz += (cameraIntegerPosition & 1023) - cameraIntegerPosition;
+                        ray = input.worldPosition - cameraWorldPosition;
                         stepRay = 1.0 / max(abs(ray), 1e-20);
                         float3 surfaceFraction = frac(input.worldPosition);
                         distance = -(ray > 0 ? surfaceFraction : 1.0 - surfaceFraction) * stepRay;
                         distance.z = 0;
                         int3 sectionPosition = (int3)voxel >> 4;
-                        uint4 lodData = _LodTex.Load(int4(sectionPosition.x & 63, 63 - (sectionPosition.z & 63), sectionPosition.y, 0));
+                        uint lodData = input.lodData;
                         sectionPosition <<= 4;
                         int3 minimum = LOD_MINIMUM(lodData) + sectionPosition;
                         int3 maximum = LOD_MAXIMUM(lodData) + sectionPosition;
@@ -295,7 +281,7 @@ Shader "VRC_MINE/HybridDDA"
                         distance = -(ray > 0 ? surfaceFraction : 1.0 - surfaceFraction) * stepRay;
                         distance.x = 0;
                         int3 sectionPosition = (int3)voxel >> 4;
-                        uint4 lodData = _LodTex.Load(int4(sectionPosition.x & 63, 63 - (sectionPosition.z & 63), sectionPosition.y, 0));
+                        uint lodData = input.lodData;
                         sectionPosition <<= 4;
                         int3 minimum = LOD_MINIMUM(lodData) + sectionPosition;
                         int3 maximum = LOD_MAXIMUM(lodData) + sectionPosition;
@@ -316,30 +302,19 @@ Shader "VRC_MINE/HybridDDA"
                         block = ReadWorldVoxel((int3)voxel);
                         if (block > 0u) return FinishHit(float3(0.1, 0.4, 0.1), input.surfaceDepth, 1.0, data & 1u);
                         #if defined(USING_STEREO_MATRICES)
-                        float4x4 projection = unity_StereoMatrixP[data & 1u];
-                        float3x3 viewRotation = (float3x3)unity_StereoMatrixV[data & 1u];
+                        float3 cameraWorldPosition = unity_StereoWorldSpaceCameraPos[data & 1u];
                         #else
-                        float4x4 projection = UNITY_MATRIX_P;
-                        float3x3 viewRotation = (float3x3)UNITY_MATRIX_V;
+                        float3 cameraWorldPosition = _WorldSpaceCameraPos;
                         #endif
-                        float2 screenUV = input.vertex.xy / _ScreenParams.xy;
-                        #if defined(UNITY_SINGLE_PASS_STEREO)
-                        float4 eyeViewport = unity_StereoScaleOffset[data & 1u];
-                        screenUV = (screenUV - eyeViewport.zw) / eyeViewport.xy;
-                        #endif
-                        float2 ndc = screenUV * 2.0 - 1.0;
-                        #if UNITY_UV_STARTS_AT_TOP
-                        ndc.y = -ndc.y;
-                        #endif
-                        float3 viewRay = float3((ndc.x + projection._m02) / projection._m00,
-                                               (ndc.y + projection._m12) / projection._m11, -1.0);
-                        ray = mul(viewRay, viewRotation) * (input.surfaceDepth + _ProjectionParams.y);
+                        int2 cameraIntegerPosition = (int2)floor(cameraWorldPosition.xz);
+                        cameraWorldPosition.xz += (cameraIntegerPosition & 1023) - cameraIntegerPosition;
+                        ray = input.worldPosition - cameraWorldPosition;
                         stepRay = 1.0 / max(abs(ray), 1e-20);
                         float3 surfaceFraction = frac(input.worldPosition);
                         distance = -(ray > 0 ? surfaceFraction : 1.0 - surfaceFraction) * stepRay;
                         distance.y = 0;
                         int3 sectionPosition = (int3)voxel >> 4;
-                        uint4 lodData = _LodTex.Load(int4(sectionPosition.x & 63, 63 - (sectionPosition.z & 63), sectionPosition.y, 0));
+                        uint lodData = input.lodData;
                         sectionPosition <<= 4;
                         int3 minimum = LOD_MINIMUM(lodData) + sectionPosition;
                         int3 maximum = LOD_MAXIMUM(lodData) + sectionPosition;
@@ -364,7 +339,7 @@ Shader "VRC_MINE/HybridDDA"
                         float3 cameraFraction = frac(cameraWorldPosition);
                         distance = -(ray > 0 ? cameraFraction : 1.0 - cameraFraction) * stepRay;
                         int3 sectionPosition = (int3)floor(cameraWorldPosition) >> 4;
-                        uint4 lodData = _LodTex.Load(int4(sectionPosition.x & 63, 63 - (sectionPosition.z & 63), sectionPosition.y, 0));
+                        uint lodData = input.lodData;
                         sectionPosition <<= 4;
                         int3 minimum = LOD_MINIMUM(lodData) + sectionPosition;
                         int3 maximum = LOD_MAXIMUM(lodData) + sectionPosition;
@@ -373,6 +348,8 @@ Shader "VRC_MINE/HybridDDA"
                     }
                 }
                 int3 step = ray > 0 ? 1 : -1;
+                int3 textureVoxel = int3(voxel.x & 1023u, 1023u - (voxel.z & 1023u), voxel.y);
+                int3 textureStep = int3(step.x, -step.z, step.y);
                 [loop] for (int iteration = 0; iteration < 49; iteration++)
                 {
                     float3 next = distance + stepRay;
@@ -397,7 +374,10 @@ Shader "VRC_MINE/HybridDDA"
                     }
 
                     if ((int)voxel[axis] == sectionOutsideBlock[axis]) break;
-                    uint nextBlock = ReadWorldVoxel((int3)voxel);
+                    if (axis == 0u) textureVoxel.x += textureStep.x;
+                    else if (axis == 1u) textureVoxel.z += textureStep.z;
+                    else textureVoxel.y += textureStep.y;
+                    uint nextBlock = _VoxelWorld.Load(int4(textureVoxel, 0));
                     if (nextBlock > 0u)
                     {
                         float3 color = axis == 0u ? float3(0.1, 0.3, 0.3) : axis == 1u ? float3(0.3, 0.1, 0.3) : float3(0.3, 0.3, 0.1);

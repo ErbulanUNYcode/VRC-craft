@@ -22,7 +22,7 @@ Shader "VRC_MINE/Gen/LodMap"
 
             int _OffsetX;
             int _OffsetY;
-            Texture3D<uint4> _LodGen;
+            Texture3D<uint> _LodGen;
             static const int2 ZoneOffsets[5] = {
                 int2(0, 0), int2(0, -1), int2(1, 0), int2(0, 1), int2(-1, 0)
             };
@@ -55,7 +55,7 @@ Shader "VRC_MINE/Gen/LodMap"
                 return o;
             }
 
-            uint4 frag(V2F input) : SV_Target
+            uint frag(V2F input) : SV_Target
             {
                 uint3 minimum = 16u; 
                 uint3 maximum = 0u;
@@ -63,27 +63,17 @@ Shader "VRC_MINE/Gen/LodMap"
                 [loop] for (int i = 0; i < 16; i++)
                 [loop] for (int j = 0; j < 16; j++)
                 {
-                    uint4 data = _LodGen.Load(int4(source + int2(i, j), input.layer, 0));
-                    if ((data.a & 1u) == 0u) continue;
-                    uint3 low = uint3(
-                        (data.r & 15u) | (((data.a >> 1) & 1u) << 4),
-                        (data.b & 15u) | (((data.a >> 5) & 1u) << 4),
-                        (data.g & 15u) | (((data.a >> 4) & 1u) << 4));
-                    uint3 high = uint3(
-                        (data.r >> 4) | (((data.a >> 2) & 1u) << 4),
-                        (data.b >> 4) | (((data.a >> 6) & 1u) << 4),
-                        (data.g >> 4) | (((data.a >> 3) & 1u) << 4));
+                    uint data = _LodGen.Load(int4(source + int2(i, j), input.layer, 0));
+                    if (!(data & 1u)) continue;
+                    uint3 low = uint3(data >> 1 & 31u, data >> 11 & 31u, data >> 21 & 31u);
+                    uint3 high = uint3(data >> 6 & 31u, data >> 16 & 31u, data >> 26 & 31u);
                     minimum = min(minimum, low);
                     maximum = max(maximum, high);
                 }
-                if (minimum.x > maximum.x) return uint4(0u, 0u, 0u, 0u);
-                uint red = (minimum.x & 15u) | ((maximum.x & 15u) << 4);
-                uint green = (minimum.z & 15u) | ((maximum.z & 15u) << 4);
-                uint blue = (minimum.y & 15u) | ((maximum.y & 15u) << 4);
-                uint alpha = 1u | ((minimum.x >> 4) << 1) | ((maximum.x >> 4) << 2) |
-                             ((maximum.z >> 4) << 3) | ((minimum.z >> 4) << 4) |
-                             ((minimum.y >> 4) << 5) | ((maximum.y >> 4) << 6);
-                return uint4(red, green, blue, alpha);
+                if (minimum.x > maximum.x) return 0u;
+                return 1u | minimum.x << 1 | maximum.x << 6 |
+                       minimum.y << 11 | maximum.y << 16 |
+                       minimum.z << 21 | maximum.z << 26;
             }
             ENDHLSL
         }

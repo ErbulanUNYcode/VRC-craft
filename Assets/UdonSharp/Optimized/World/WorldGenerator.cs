@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using UdonSharp;
-using UnityEditor;
 using UnityEngine;
 using VRC.SDK3.Rendering;
 using VRC.SDKBase;
-using VRC_MINE.World;
 
 
 
@@ -63,6 +60,8 @@ namespace VRC_MINE.World
 		[SerializeField] private CustomRenderTexture chunkGenerator;
 		[SerializeField] private CustomRenderTexture chunkTerrainGenerator;
 		[SerializeField] private CustomRenderTexture voxelWorld;
+		// Flat GPU readback surface for the physics/SmartChunk pipeline.
+		[SerializeField] private CustomRenderTexture readbackTexture;
 		[SerializeField] private ChunkMeshGenerator chunkMeshGenerator;
 		#endregion
 
@@ -72,6 +71,46 @@ namespace VRC_MINE.World
 		private int gpuCurrentIndex;
 		private int cpuCurrentIndex;
 		private bool gpuRealtimeShutdownPending;
+		private Texture2D optimizerCtrl;
+		private int polygonClearFrame;
+		private Color32[] optimizerControlClear = new Color32[512 * 192];
+		private Color[] optimizerUpdateColors = new Color[128];
+		private bool polygonChunkPending;
+		private Vector2Int polygonPendingChunk;
+
+		private void MarkPolygonArea(int blockX, int blockZ)
+		{
+			Vector2Int updated = new Vector2Int(blockX >> 4 & 31, blockZ >> 4 & 31);
+			optimizerCtrl.SetPixels(updated.x >> 1 << 5, (updated.y >> 1) * 12 + 8, 32, 4, optimizerUpdateColors);
+			if ((updated.x & 1) == 0)
+				optimizerCtrl.SetPixels(updated.x >> 1 << 5, (updated.y >> 1) * 12, 17, 4, optimizerUpdateColors);
+			else
+			{
+				optimizerCtrl.SetPixels((updated.x >> 1 << 5) + 16, (updated.y >> 1) * 12, 16, 4, optimizerUpdateColors);
+				optimizerCtrl.SetPixels(((updated.x >> 1 << 5) + 32) & 511, (updated.y >> 1) * 12, 1, 4, optimizerUpdateColors);
+			}
+			if ((updated.y & 1) == 0)
+				optimizerCtrl.SetPixels(updated.x >> 1 << 5, (updated.y >> 1) * 12 + 4, 17, 4, optimizerUpdateColors);
+			else
+			{
+				optimizerCtrl.SetPixels((updated.x >> 1 << 5) + 16, (updated.y >> 1) * 12 + 4, 16, 4, optimizerUpdateColors);
+				optimizerCtrl.SetPixels(updated.x >> 1 << 5, (((updated.y >> 1) * 12 + 12) % 192) + 4, 1, 4, optimizerUpdateColors);
+			}
+		}
+
+		private void UpdatePolygonControl()
+		{
+			if (optimizerCtrl == null) return;
+			optimizerCtrl.SetPixels32(optimizerControlClear);
+			if (polygonChunkPending)
+			{
+				MarkPolygonArea(polygonPendingChunk.x * 16, polygonPendingChunk.y * 16);
+				polygonChunkPending = false;
+			}
+			for (int i = 0; i < setBlocksCount; i++) MarkPolygonArea(setBlockPositions[i].x, setBlockPositions[i].z);
+			setBlocksCount = 0;
+			optimizerCtrl.Apply(false, false);
+		}
 
 		// Udon serialization/API probe. Intentionally unused by the generation pipeline.
 		[SerializeField] private CustomRenderTexture serializedZoneTarget;
@@ -114,7 +153,7 @@ namespace VRC_MINE.World
 
 		private void Start()
 		{
-			InitWorld();
+			InitGenerator();
 		}
 
 		public void OnPlayerTeleport()
@@ -215,11 +254,11 @@ namespace VRC_MINE.World
 
 			#region materials
 			foreach (var optimizatorMaterial in optimizerMaterials)
-			if (optimizatorMaterial != null)
-			{
-				for (int page = 0; page < worldTextures.Length; page++)
-					optimizatorMaterial.SetTexture("_WorldTex" + page, worldTextures[page]);
-			}
+				if (optimizatorMaterial != null)
+				{
+					for (int page = 0; page < worldTextures.Length; page++)
+						optimizatorMaterial.SetTexture("_WorldTex" + page, worldTextures[page]);
+				}
 			for (int page = 0; page < worldTextures.Length; page++)
 				worldMaterial.SetTexture("_WorldTex" + page, worldTextures[page]);
 			#endregion
@@ -228,27 +267,45 @@ namespace VRC_MINE.World
 		}
 
 		// New visual GPU-generation pipeline initialization entry point.
-		private void InitWorld()
+		public void ConfigurePolygonRendering(Material surface, CustomRenderTexture optimizer)
+		{
+			worldMaterial = surface;
+			optimizators = new CustomRenderTexture[] { optimizer };
+			optimizerMaterials = new Material[] { optimizer.material };
+		}
+
+		private void InitGenerator()
 		{
 			localPlayer = Networking.LocalPlayer;
 
 			// The DDA ray travels up to 500 blocks; keep the screen camera beyond it.
+			optimizerCtrl = new Texture2D(512, 192, TextureFormat.R8, false, true);
+			optimizerCtrl.filterMode = FilterMode.Point;
+
+			optimizerUpdateColors[0] = new Color(0.5f, 0, 0, 0);
+			for (int i = 1; i < optimizerUpdateColors.Length; i <<= 1) Array.Copy(optimizerUpdateColors, 0, optimizerUpdateColors, i, i);
+			optimizerControlClear[0] = new Color32(255, 0, 0, 0);
+			optimizerControlClear[1] = new Color32(255, 0, 0, 0);
+			optimizerControlClear[2] = new Color32(255, 0, 0, 0);
+			for (int i = 3; i < optimizerControlClear.Length; i <<= 1) Array.Copy(optimizerControlClear, 0, optimizerControlClear, i, i);
+			optimizerCtrl.LoadRawTextureData(new byte[512 * 192]);
+			optimizerCtrl.Apply(false, false);
+			polygonClearFrame = Time.frameCount;
+			foreach (var optimizerMaterial in optimizerMaterials)
+				if (optimizerMaterial != null) optimizerMaterial.SetTexture("_CtrlTex", optimizerCtrl);
 			VRCCameraSettings.ScreenCamera.FarClipPlane = 600;
 
 			// Bind the runtime-generated textures, not stale asset references.
 			foreach (var material in optimizerMaterials)
-				if (material != null && material.HasProperty("_VoxelWorld")) material.SetTexture("_VoxelWorld", voxelWorld);
+				if (material != null)
+				{
+					if (material.HasProperty("_WorldTex")) material.SetTexture("_WorldTex", voxelWorld);
+				}
 
 			// Visible and shadow DDA passes share the same runtime world.
 			if (worldMaterial != null && voxelWorld != null)
 			{
-				worldMaterial.SetTexture("_VoxelWorld", voxelWorld);
-				if (optimizators != null && optimizators.Length >= 3)
-				{
-					worldMaterial.SetTexture("_LodTex1", optimizators[0]);
-					worldMaterial.SetTexture("_LodTex2", optimizators[1]);
-					worldMaterial.SetTexture("_LodTex3", optimizators[2]);
-				}
+				if (worldMaterial.HasProperty("_MainTex")) worldMaterial.SetTexture("_MainTex", voxelWorld);
 			}
 			if (replacementShader != null)
 			{
@@ -261,7 +318,10 @@ namespace VRC_MINE.World
 			// The serialized optimizators array contains Lod1, Lod2 and Lod3.
 			for (int i = 0; i < optimizators.Length; i++)
 				if (optimizators[i] != null)
+				{
+					optimizators[i].Update();
 					optimizators[i].updateMode = CustomRenderTextureUpdateMode.Realtime;
+				}
 
 			if (chunkTerrainGenerator != null)
 				chunkTerrainGenerator.updateMode = CustomRenderTextureUpdateMode.Realtime;
@@ -729,8 +789,11 @@ namespace VRC_MINE.World
 			shadowPositionReady = true;
 		}
 
+
 		private void Update()
 		{
+			if (Time.frameCount == polygonClearFrame) return;
+			UpdatePolygonControl();
 			UpdateShadowRendering();
 
 			if (chunksQueueData == null || chunksQueueData.Length == 0)
@@ -748,6 +811,7 @@ namespace VRC_MINE.World
 					if (optimizators[i] != null)
 						optimizators[i].updateMode = CustomRenderTextureUpdateMode.OnDemand;
 				gpuRealtimeShutdownPending = false;
+				FinishPolygonOptimization();
 				return;
 			}
 
@@ -775,24 +839,36 @@ namespace VRC_MINE.World
 				Material voxelMaterial = voxelWorld.material;
 				if (voxelMaterial != null)
 				{
-					voxelMaterial.SetInt("_OffsetX", worldChunk.x & 63);
-					voxelMaterial.SetInt("_OffsetY", worldChunk.y & 63);
+					voxelMaterial.SetInt("_OffsetX", worldChunk.x & 31);
+					voxelMaterial.SetInt("_OffsetY", worldChunk.y & 31);
 				}
 			}
 			foreach (var optimizatorMaterial in optimizerMaterials)
-			if (optimizatorMaterial != null)
-			{
-				optimizatorMaterial.SetInt("_OffsetX", worldChunk.x & 63);
-				optimizatorMaterial.SetInt("_OffsetY", worldChunk.y & 63);
-			}
+				if (optimizatorMaterial != null)
+				{
+					optimizatorMaterial.SetInt("_OffsetX", worldChunk.x & 63);
+					optimizatorMaterial.SetInt("_OffsetY", worldChunk.y & 63);
+				}
 
 			gpuCurrentIndex++;
+			polygonPendingChunk = worldChunk;
+			polygonChunkPending = true;
 			if (gpuCurrentIndex >= chunksQueueData.Length)
 				gpuRealtimeShutdownPending = true;
 		}
 
+		public void FinishPolygonOptimization()
+		{
+			foreach (var optimizer in optimizators)
+				if (optimizer != null)
+				{
+					optimizer.Update();
+				}
+		}
+
 		private void OnDestroy()
 		{
+			Destroy(optimizerCtrl);
 			//destroy textures
 			foreach (var texture in worldTextures) Destroy(texture);
 			//Destroy(lightTexture);
@@ -817,7 +893,7 @@ namespace VRC_MINE.World
 				[ContextMenu("Generate queue")]
 				public void GenerateQueue()
 				{
-					const int size = 64;
+					const int size = 32;
 					const int halfSize = size >> 1;
 					var v = new Vector3[size * size];
 					for (int i = 0; i < size; i++)
@@ -843,32 +919,9 @@ namespace VRC_MINE.World
 #region editor
 //show chunkMeshTypes grid 16x16
 #if UNITY_EDITOR
-[CustomEditor(typeof(WorldGenerator))]
+/*[CustomEditor(typeof(WorldGenerator))]
 public class ChunkMeshGeneratorEditor : Editor
 {
-	[DrawGizmo(GizmoType.Selected | GizmoType.NonSelected)]
-	private static void DrawSectionGrid(WorldGenerator generator, GizmoType gizmoType)
-	{
-		Matrix4x4 oldMatrix = Gizmos.matrix;
-		Color oldColor = Gizmos.color;
-		Gizmos.matrix = generator.transform.localToWorldMatrix;
-		Gizmos.color = new Color(0f, 0f, 0f, 0.125f);
-
-		// Shared grid edges: 16-block sections over 1024 x 256 x 1024.
-		for (int y = 0; y <= 256; y += 16)
-		{
-			for (int x = -512; x <= 512; x += 16)
-				Gizmos.DrawLine(new Vector3(x, y, -512), new Vector3(x, y, 512));
-			for (int z = -512; z <= 512; z += 16)
-				Gizmos.DrawLine(new Vector3(-512, y, z), new Vector3(512, y, z));
-		}
-		for (int x = -512; x <= 512; x += 16)
-			for (int z = -512; z <= 512; z += 16)
-				Gizmos.DrawLine(new Vector3(x, 0, z), new Vector3(x, 256, z));
-
-		Gizmos.matrix = oldMatrix;
-		Gizmos.color = oldColor;
-	}
 
 	Color GetColor(ChunkMeshType type)
 	{
@@ -922,6 +975,7 @@ public class ChunkMeshGeneratorEditor : Editor
 		group.properties.Add(serializedObject.FindProperty("chunkGenerator"));
 		group.properties.Add(serializedObject.FindProperty("chunkTerrainGenerator"));
 		group.properties.Add(serializedObject.FindProperty("voxelWorld"));
+		group.properties.Add(serializedObject.FindProperty("readbackTexture"));
 		group.properties.Add(serializedObject.FindProperty("chunkMeshGenerator"));
 		folderGrups.Add(group);
 
@@ -933,7 +987,7 @@ public class ChunkMeshGeneratorEditor : Editor
 	{
 		//base.OnInspectorGUI();
 
-		serializedObject.Update();
+		//serializedObject.Update();
 		for (int i = 0; i < folderGrups.Count; i++)
 		{
 			var group = folderGrups[i];
@@ -951,7 +1005,10 @@ public class ChunkMeshGeneratorEditor : Editor
 			}
 		}
 
-		serializedObject.ApplyModifiedProperties();
+		// Applying an untouched snapshot is harmless, but avoid even calling the
+		// serialization path while merely opening/repainting the inspector.
+		if (serializedObject.hasModifiedProperties) Debug.Log("hasModifiedProperties");
+		//serializedObject.ApplyModifiedProperties();
 	}
 
 	private struct FolderGrup
@@ -959,6 +1016,6 @@ public class ChunkMeshGeneratorEditor : Editor
 		public string name;
 		public List<SerializedProperty> properties;
 	}
-}
+}*/
 #endif
 #endregion

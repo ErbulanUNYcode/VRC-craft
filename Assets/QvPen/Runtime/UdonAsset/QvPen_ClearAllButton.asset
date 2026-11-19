@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: QvPen_ClearAllButton
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: e6e7ecdb65591ec4187b4c1cdb11d7aa,
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 34b1b84513f737b4b9a10ff597063627,
     type: 2}
   udonAssembly: 
   assemblyError: 

@@ -24,11 +24,11 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _Atlas:
-        m_Texture: {fileID: 2800000, guid: dadd3bbd54a883048bea204a3d843ea8, type: 2}
+        m_Texture: {fileID: 18700000, guid: 43916061f3f030647b245cdfd622292e, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _AtlasFlipMap:
-        m_Texture: {fileID: 2800000, guid: 8bf9db11a556a7c4084cfeed22114f07, type: 2}
+        m_Texture: {fileID: 18700000, guid: fa679e24ac9819241bbfa9dc0e4d7ae9, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
@@ -60,7 +60,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 8600000, guid: 8be6e812bbf7afc4885eb10c6e7646ad, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex2:

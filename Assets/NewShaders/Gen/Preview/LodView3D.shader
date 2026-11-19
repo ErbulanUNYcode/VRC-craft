@@ -14,7 +14,7 @@ Shader "VRC_MINE/Editor/LodView3D"
             #pragma fragment frag
             #include "UnityCG.cginc"
 
-            Texture3D<uint4> _MainTex;
+            Texture3D<uint> _MainTex;
 
             struct appdata { float4 vertex:POSITION; float2 uv:TEXCOORD0; };
             struct v2f { float4 pos:SV_POSITION; float2 uv:TEXCOORD0; };
@@ -31,15 +31,15 @@ Shader "VRC_MINE/Editor/LodView3D"
                 float2 sectionUV = frac(gridUV) * 64.0;
                 int2 pixel = min((int2)floor(sectionUV), 63);
                 int slice = tile.x + tile.y * 4;
-                uint4 data = _MainTex.Load(int4(pixel, slice, 0));
-                clip((float)(data.a & 1u) - 0.5);
+                uint data = _MainTex.Load(int4(pixel, slice, 0));
+                clip((float)(data & 1u) - 0.5);
 
-                uint lowX = (data.r & 15u) | (((data.a >> 1) & 1u) << 4);
-                uint highX = (data.r >> 4) | (((data.a >> 2) & 1u) << 4);
-                uint lowZ = (data.g & 15u) | (((data.a >> 4) & 1u) << 4);
-                uint highZ = (data.g >> 4) | (((data.a >> 3) & 1u) << 4);
+                uint lowX = data >> 1 & 31u;
+                uint highX = data >> 6 & 31u;
+                uint lowZ = data >> 21 & 31u;
+                uint highZ = data >> 26 & 31u;
 
-                // R is world X. G is world Z.
+                // Preview world X/Z bounds.
                 // Narrow the preview pixel to the same X/Z bounds used by
                 // the world geometry.
                 float2 lower = float2(lowX / 16.0, 1.0 - highZ / 16.0);
@@ -53,7 +53,7 @@ Shader "VRC_MINE/Editor/LodView3D"
                 upper = center + halfWidth;
                 float2 withinPixel = frac(sectionUV);
                 clip(float4(withinPixel - lower, upper - withinPixel));
-                return float4((float3)data.rgb / 255.0, 1.0);
+                return float4(float3(lowX, data >> 11 & 31u, lowZ) / 16.0, 1.0);
             }
             ENDHLSL
         }

@@ -383,11 +383,11 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
 
                 bool m = h.x>>7;
                 h.x&=127;
-                h.x+=40;
+                
                 int b = h.y&31;
                 if(!surfaceOnly && h.x<pos.y)
                 {
-                    if(pos.y==79&&b>0&&b<5) return 13;//ice
+                    if(pos.y==39&&b>0&&b<5) return 13;//ice
                     return 0;//air
                 }
 
@@ -400,7 +400,7 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
 
                 uint delay = h.x-pos.y;
 
-                if(cave&&(h.x>82||(h.x<83&&delay>5))) return 0;
+                if(cave&&(h.x>42||(h.x<43&&delay>5))) return 0;
 
                 int per = fbm2D(pos.xz*0.07,3)*3;
                 int result=0;
@@ -415,19 +415,19 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                 {
                     if(b>15 && delay<7) result = (hash1D(pos.y)%7)+31;
                 }
-                else if(h.y>>7&&h.x<79)
+                else if(h.y>>7&&h.x<39)
                 {
                     result = delay<5?_ClayGeology[per][delay]:17;
                 }
                 else if(h.y>>5&1)
                 {
                     int Btype = b;
-                    Btype = h.x<79?0:Btype<5?1:2;
+                    Btype = h.x<39?0:Btype<5?1:2;
                     result = delay<5?_ShoreGeology[Btype][h.y>>6&1][per][delay]:17;
                 }
                 else
                 {
-                    if(h.x<79&&delay==0)delay++;
+                    if(h.x<39&&delay==0)delay++;
                     result = delay<7?_BiomeGeology[per][min(h.y,16)][delay]:17;
                 }
 
@@ -476,7 +476,7 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                 float2 size = localRect.zw;
                 float2 center = float2(
                     localRect.x + size.x * 0.5,
-                    TEXTURE_SIZE - localRect.y - size.y * 0.5
+                    128 - localRect.y - size.y * 0.5
                 );
                 return float4(center, size);
             }
@@ -489,8 +489,8 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                 float4 zone = LocalRectToZone(localRect);
                 float2 originalCenter = CustomRenderTextureCenters[batchZoneIndex].xy;
                 float2 originalSize = CustomRenderTextureSizesAndRotations[batchZoneIndex].xy;
-                float2 originalCenterClip = originalCenter * (2.0 / TEXTURE_SIZE) - 1.0;
-                float2 targetCenterClip = zone.xy * (2.0 / TEXTURE_SIZE) - 1.0;
+                float2 originalCenterClip = originalCenter * (2.0 / float2(256, 128)) - 1.0;
+                float2 targetCenterClip = zone.xy * (2.0 / float2(256, 128)) - 1.0;
                 // CustomRenderTextureVertexShader reverses the clip-space Y axis
                 // for OpenGL-style render targets. Match its orientation here.
                 #if !UNITY_UV_STARTS_AT_TOP
@@ -563,9 +563,9 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                         o.vertex.xy = float2(1000.0, 1000.0);
                         return o;
                     }
-                    rootHeight += 40;
+                    
 
-                    int minimumTreeHeight = o.biomeID == 7u ? 78 : 79;
+                    int minimumTreeHeight = o.biomeID == 7u ? 38 : 39;
                     if (rootHeight < minimumTreeHeight)
                     {
                         o.vertex.xy = float2(1000.0, 1000.0);
@@ -601,7 +601,7 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                     int clippedLeft = max(structureLeft, 0);
                     int clippedRight = min(structureLeft + structureSize.x, 16);
                     int clippedBottom = max(rootHeight, 0);
-                    int clippedTop = min(rootHeight + renderedHeight, TEXTURE_SIZE);
+                    int clippedTop = min(rootHeight + renderedHeight, 128);
                     if (clippedLeft >= clippedRight || clippedBottom >= clippedTop)
                     {
                         o.vertex.xy = float2(1000.0, 1000.0);
@@ -648,8 +648,8 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                 if (i.primitiveID != 409)
                 {
                     int2 outputPixel = min(
-                        (int2)(i.globalTexcoord.xy * TEXTURE_SIZE),
-                        TEXTURE_SIZE - 1
+                        (int2)(i.globalTexcoord.xy * float2(256, 128)),
+                        int2(255, 127)
                     );
                     int localX = i.structureRaster.z + outputPixel.x - i.structureRaster.x;
                     int grownY = i.structureRaster.w + outputPixel.y - i.structureRaster.y;
@@ -704,7 +704,7 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                     return block;
                 }
 
-                int2 uv = (int2)(i.globalTexcoord.xy * TEXTURE_SIZE);
+                int2 uv = (int2)(i.globalTexcoord.xy * float2(256, 128));
                 int3 pos = int3((uv.x&15)+(_ChunkPosX), uv.y, (uv.x>>4)+(_ChunkPosY));
                 if(pos.y<3&&pos.y<hash21(pos.xz)*3) return 16;//bedrock
 

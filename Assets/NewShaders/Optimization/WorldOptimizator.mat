@@ -80,7 +80,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _WorldTex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 8600000, guid: 8be6e812bbf7afc4885eb10c6e7646ad, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -91,12 +91,15 @@ Material:
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
+    - _FullUpdate: 1
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
+    - _OffsetX: 15
+    - _OffsetY: 15
     - _Parallax: 0.02
     - _Scale: 16
     - _SmoothnessTextureChannel: 0

@@ -99,7 +99,7 @@ namespace VRC_MINE.Tools
 				}
 			}
 
-			// Keep Unity's standard mip generation for the first test pass.
+			// Build semantic mipmaps: alpha 128 is foliage data, not opacity.
 			// Point filtering prevents interpolation inside each mip level.
 			var atlas = new Texture2DArray(atlasSize, atlasSize, sideCount, TextureFormat.RGBA32, true, false)
 			{
@@ -217,20 +217,42 @@ namespace VRC_MINE.Tools
 			int red = 0;
 			int green = 0;
 			int blue = 0;
+			int foliageCount = (a.a == 128 ? 1 : 0) + (b.a == 128 ? 1 : 0) +
+			                   (c.a == 128 ? 1 : 0) + (d.a == 128 ? 1 : 0);
+			int ordinaryCount = (a.a != 0 && a.a != 128 ? 1 : 0) + (b.a != 0 && b.a != 128 ? 1 : 0) +
+			                    (c.a != 0 && c.a != 128 ? 1 : 0) + (d.a != 0 && d.a != 128 ? 1 : 0);
+			if (foliageCount + ordinaryCount < 2) return new Color32(0, 0, 0, 0);
+			bool foliage = foliageCount > ordinaryCount;
+			// Packed foliage and ordinary RGB use different decoders. Never average
+			// their encoded channels together; retain the dominant representation.
+			if (a.a != 0 && (a.a == 128) != foliage) a.a = 0;
+			if (b.a != 0 && (b.a == 128) != foliage) b.a = 0;
+			if (c.a != 0 && (c.a == 128) != foliage) c.a = 0;
+			if (d.a != 0 && (d.a == 128) != foliage) d.a = 0;
 
 			if (a.a != 0) { red += a.r; green += a.g; blue += a.b; count++; }
 			if (b.a != 0) { red += b.r; green += b.g; blue += b.b; count++; }
 			if (c.a != 0) { red += c.r; green += c.g; blue += c.b; count++; }
 			if (d.a != 0) { red += d.r; green += d.g; blue += d.b; count++; }
 
-			if (count < 2)
+			if (count == 0)
 				return new Color32(0, 0, 0, 0);
+
+			if (foliage)
+			{
+				int maxRed = 0, maxBlue = 0;
+				if (a.a != 0) { maxRed = Mathf.Max(maxRed, a.r); maxBlue = Mathf.Max(maxBlue, a.b); }
+				if (b.a != 0) { maxRed = Mathf.Max(maxRed, b.r); maxBlue = Mathf.Max(maxBlue, b.b); }
+				if (c.a != 0) { maxRed = Mathf.Max(maxRed, c.r); maxBlue = Mathf.Max(maxBlue, c.b); }
+				if (d.a != 0) { maxRed = Mathf.Max(maxRed, d.r); maxBlue = Mathf.Max(maxBlue, d.b); }
+				return new Color32((byte)maxRed, (byte)(green / count), (byte)maxBlue, 128);
+			}
 
 			return new Color32(
 				(byte)(red / count),
 				(byte)(green / count),
 				(byte)(blue / count),
-				255);
+				(byte)(foliage ? 128 : 255));
 		}
 
 		private static void SaveOrUpdate(Texture2DArray generated, string path, string label)

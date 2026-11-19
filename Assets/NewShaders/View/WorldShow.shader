@@ -2,11 +2,12 @@ Shader "VRC_MINE/WorldShow"
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
+        _MainTex ("Texture", 3D) = "white" {}
         _InitChunks ("InitChunks", 2D) = "white" {}
         _Optimizer ("Optimizer", 2D) = "white" {}
-        _Atlas ("Atlas", 2D) = "white" {}
-        _AtlasFlipMap ("AtlasFlipMap", 2D) = "white" {}
+        _Atlas ("Atlas", 2DArray) = "" {}
+        _AtlasFlipMap ("AtlasFlipMap", 2DArray) = "" {}
+        _BiomeLeafColor ("Foliage tint", Color) = (0.45,0.7,0.3,1)
         _FogColor ("FogColor", Color) = (1,1,1,1)
         _UpLightColor ("UpLightColor", Color) = (1,1,1,1)
         _DownLightColor ("DownLightColor", Color) = (1,1,1,1)
@@ -30,13 +31,17 @@ Shader "VRC_MINE/WorldShow"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma target 4.5
+            #include "UnityCG.cginc"
+            #include "../Optimization/SurfaceVisibility.cginc"
             
-            Texture2D<fixed> _MainTex;
+            Texture3D<uint> _MainTex;
             Texture2D<fixed2> _LightTex;
             Texture2D<fixed4> _InitChunks;
             Texture2D<uint4> _Optimizer;
-            sampler2D _Atlas;
-            Texture2D<fixed4> _AtlasFlipMap;
+            UNITY_DECLARE_TEX2DARRAY(_Atlas);
+            Texture2DArray<float4> _AtlasFlipMap;
+            float4 _BiomeLeafColor;
             fixed4 _FogColor;
             fixed4 _UpLightColor;
             fixed4 _DownLightColor;
@@ -62,15 +67,14 @@ Shader "VRC_MINE/WorldShow"
                 float3 inter : TEXCOORD0;
                 float3 shadow : TEXCOORD1;
                 fixed fog : TEXCOORD2;
-                nointerpolation int placeCoord : TEXCOORD3;
-                nointerpolation bool3 offset : TEXCOORD4;
-                nointerpolation bool face : TEXCOORD5;
+                nointerpolation fixed faceData : TEXCOORD3;
                 nointerpolation fixed4 light : TEXCOORD6;
             };
 
             v2f vert(appdata v)
             {
-                v2f o;
+                v2f o = (v2f)0;
+                bool face;
 
                 if(v.color.y!=1||v.vertex.y>0)
                 {
@@ -80,52 +84,52 @@ Shader "VRC_MINE/WorldShow"
                     ch*=int2(32,12);
                     if(v.color.x)
                     {
-                        o.face =_WorldSpaceCameraPos.x<unity_ObjectToWorld._m03+v.vertex.x;
-                        ch.y+=o.face?192:0;
+                        face =_WorldSpaceCameraPos.x<unity_ObjectToWorld._m03+v.vertex.x;
+                        ch.y+=face?192:0;
                         uint4 t = _Optimizer.Load(int3(v.uv+ch,0));
                         if(t.y==0)
                         {
                             o.vertex = float4(0,0,-1,0);
                             return o;
                         }
-                        o.light=o.face?_LeftLightColor:_RightLightColor;
+                        o.light=face?_LeftLightColor:_RightLightColor;
                         v.vertex.y-=(v.color.a%1)==0?0:32;
                         v.vertex.y+=v.color.a%1==0?t.x:t.y;
                         v.vertex.z=v.color.a>0.5?t.z:t.w;
                     }
                     else if(v.color.z)
                     {
-                        o.face =_WorldSpaceCameraPos.z<unity_ObjectToWorld._m23+v.vertex.z;
-                        ch.y+=o.face?192:0;
+                        face =_WorldSpaceCameraPos.z<unity_ObjectToWorld._m23+v.vertex.z;
+                        ch.y+=face?192:0;
                         uint4 t = _Optimizer.Load(int3(v.uv+ch,0));
                         if(t.y==0)
                         {
                             o.vertex = float4(0,0,-1,0);
                             return o;
                         }
-                        o.light=o.face?_BackLightColor:_FrontLightColor;
+                        o.light=face?_BackLightColor:_FrontLightColor;
                         v.vertex.y-=v.color.a%1==0?0:32;
                         v.vertex.y+=v.color.a%1==0?t.x:t.y;
                         v.vertex.x=v.color.a>0.5?t.z:t.w;
                     }
                     else if(v.color.y)
                     {
-                        o.face =_WorldSpaceCameraPos.y<unity_ObjectToWorld._m13+v.vertex.y;
-                        ch.y+=o.face?192:0;
+                        face =_WorldSpaceCameraPos.y<unity_ObjectToWorld._m13+v.vertex.y;
+                        ch.y+=face?192:0;
                         uint4 t = _Optimizer.Load(int3(v.uv+ch,0));
                         if(t.y==0)
                         {
                             o.vertex = float4(0,0,-1,0);
                             return o;
                         }
-                        o.light=o.face?_DownLightColor:_UpLightColor;
+                        o.light=face?_DownLightColor:_UpLightColor;
                         v.vertex.z=v.color.a%1==0?t.x:t.y;
                         v.vertex.x=v.color.a>0.5?t.z:t.w;
                     }
                 }
                 else
                 {
-                    o.face =_WorldSpaceCameraPos.y<unity_ObjectToWorld._m13+v.vertex.y;
+                    face =_WorldSpaceCameraPos.y<unity_ObjectToWorld._m13+v.vertex.y;
                     o.light=_DownLightColor;
                 }
                 o.inter.xz = v.vertex.xz + unity_ObjectToWorld._m03_m23;
@@ -144,20 +148,16 @@ Shader "VRC_MINE/WorldShow"
                 o.vertex = mul(UNITY_MATRIX_P, float4(viewPos, 1.0));
                 
                 o.inter.xz = v.vertex.xz + (int2(unity_ObjectToWorld._m03_m23)&511);
-                int3 p = o.inter*v.color.xyz;
-                o.placeCoord = p.x+p.y+p.z;
-                o.offset = v.color.xyz;
+                uint axis = v.color.x ? 0u : v.color.y ? 1u : 2u;
+                o.faceData = (axis | (face ? 4u : 0u)) * 0.125;
 
                 return o;
             }
 
             uint block(int3 pos)
             {
-                if(pos.y>127||pos.y<0) return 0;
-                int2 ch = ((pos.xz>>4)&31)*int2(256,128);
-                pos&=int3(15,127,15);
-                pos.x+=pos.z*16;
-                return _MainTex.Load(int3(pos.xy+ch,0))*255;
+                if (pos.y < 0 || pos.y >= 128) return 0;
+                return _MainTex.Load(int4(pos.x & 511, 511 - (pos.z & 511), pos.y, 0));
             }
 
             int Hash3(int x, int y, int z, int v)
@@ -174,28 +174,62 @@ Shader "VRC_MINE/WorldShow"
                 return h & 7;
             }
 
+            fixed4 SampleSurface(uint id, int3 voxel, float2 uv, uint atlasFace, float mipLevel)
+            {
+                uint2 tile = uint2(id & 15u, id >> 4);
+                if (id > 9u)
+                {
+                    fixed4 flip = _AtlasFlipMap.Load(int4(tile, atlasFace, 0));
+                    int bits = Hash3(voxel.x, voxel.y, voxel.z, round(flip.w * 255));
+                    if (flip.x && (bits & 1)) uv = uv.yx;
+                    if (flip.y && (bits & 2)) uv.x = 1 - uv.x;
+                    if (flip.z && (bits & 4)) uv.y = 1 - uv.y;
+                }
+                return UNITY_SAMPLE_TEX2DARRAY_LOD(_Atlas, float3((uv + tile) / 16.0, atlasFace), mipLevel);
+            }
+
             fixed4 frag(v2f i) : SV_Target
             {
-                float3 p = i.offset?i.placeCoord:i.inter;
-                int3 pos =floor(p);
-                uint b1 = block(pos);
-                uint b2 = block(pos-i.offset);
-                if ((b1>0&&b2>0) || (i.face?b1:b2)==0)
+                uint data = (uint)round(i.faceData * 8.0);
+                uint axis = data & 3u;
+                bool face = (data & 4u) != 0u;
+                int3 offset = axis == 0u ? int3(1,0,0) : axis == 1u ? int3(0,1,0) : int3(0,0,1);
+                float3 p = i.inter;
+                float2 faceUV = offset.x ? p.zy : offset.y ? p.xz : p.xy;
+                float2 faceDx = ddx(faceUV);
+                float2 faceDy = ddy(faceUV);
+                int3 pos = (int3)floor(p);
+                if (axis == 0u) pos.x = (int)round(p.x);
+                else if (axis == 1u) pos.y = (int)round(p.y);
+                else pos.z = (int)round(p.z);
+                int3 outsideVoxel = face ? pos - offset : pos;
+                int3 insideVoxel = face ? pos : pos - offset;
+                uint outsideBlock = block(outsideVoxel);
+                if (outsideBlock > 8u) discard;
+                float2 uv = frac(faceUV);
+                uint atlasFace = axis == 0u ? (face ? 0u : 1u) : axis == 1u ? (face ? 2u : 3u) : (face ? 4u : 5u);
+                float footprint = max(length(faceDx), length(faceDy)) * 32.0;
+                float mipLevel = clamp(log2(max(footprint, 1.0)), 0.0, 5.0);
+                uint insideBlock = 0u;
+                fixed4 c = 0;
+                if (outsideBlock == 1u)
                 {
-                    /*if(i.offset.x && (abs(p.y%1-0.5)>0.494||abs(p.z%1-0.5)>0.494)) return fixed4(1,0,0,1);
-                    if(i.offset.y && (abs(p.x%1-0.5)>0.494||abs(p.z%1-0.5)>0.494)) return fixed4(0,1,0,1);
-                    if(i.offset.z && (abs(p.x%1-0.5)>0.494||abs(p.y%1-0.5)>0.494)) return fixed4(0,0,1,1);*/
-                    /*if(i.offset.x && (abs(p.y%1-0.5)>0.494||abs(p.z%1-0.5)>0.494||abs(p.y%1-p.z%1)<0.01)) return fixed4(1,0,0,1);
-                    if(i.offset.y && (abs(p.x%1-0.5)>0.494||abs(p.z%1-0.5)>0.494||abs(p.x%1-p.z%1)<0.01)) return fixed4(0,1,0,1);
-                    if(i.offset.z && (abs(p.x%1-0.5)>0.494||abs(p.y%1-0.5)>0.494||abs(p.x%1-p.y%1)<0.01)) return fixed4(0,0,1,1);*/
-                    discard;
+                    insideBlock = block(insideVoxel);
+                    if (insideBlock == 1u) discard;
                 }
-                b1 = i.face?b1:b2;
-                float2 uv = i.offset.x?frac(p.zy):i.offset.y?frac(p.xz):frac(p.xy);
-                int3 os1 = (uv.y>0.5?1:-1)*(i.offset.x?int3(0,1,0):i.offset.y?int3(0,0,1):int3(0,1,0));
-                int3 os2 = (uv.x>0.5?1:-1)*(i.offset.x?int3(0,0,1):i.offset.y?int3(1,0,0):int3(1,0,0));
-                if(i.face)
-                pos-=i.offset;
+                if (outsideBlock != 0u)
+                    c = SampleSurface(outsideBlock, outsideVoxel, uv, atlasFace ^ 1u, mipLevel);
+                if (c.a < 0.25)
+                {
+                    if (outsideBlock != 1u) insideBlock = block(insideVoxel);
+                    if (insideBlock == 0u) discard;
+                    c = SampleSurface(insideBlock, insideVoxel, uv, atlasFace, mipLevel);
+                    clip(c.a - 0.25);
+                }
+                int3 os1 = (uv.y>0.5?1:-1)*(offset.x?int3(0,1,0):offset.y?int3(0,0,1):int3(0,1,0));
+                int3 os2 = (uv.x>0.5?1:-1)*(offset.x?int3(0,0,1):offset.y?int3(1,0,0):int3(1,0,0));
+                if(face)
+                pos-=offset;
                 bool d1=block(pos + os1)>13;
                 bool d2=block(pos + os2)>13;
                 float ao = 0;
@@ -223,17 +257,8 @@ Shader "VRC_MINE/WorldShow"
                         ao = (1-duv.y)*duv.x;
                 }
 
-                float2 uvOffset = i.offset.x?0:i.offset.y?int2(0,1):int2(0,2);
-                uvOffset.x+=i.face + (b1&15)*2;
-                uvOffset.y+=(b1>>4)*3;
-                fixed4 flip=_AtlasFlipMap.Load(int3(uvOffset,0));
-                int fliper = Hash3(pos.x,pos.y,pos.z,round(flip.w*255));
-                if(flip.x && fliper&1)uv=uv.yx;
-                if(flip.y && (fliper>>1)&1)uv.x=1-uv.x;
-                if(flip.z && (fliper>>2)&1)uv.y=1-uv.y;
-                uv+=uvOffset;
-                uv/=32;
-                fixed4 c = tex2D(_Atlas, uv)*i.light;
+                if (abs(c.a - 0.5) < 0.01) c.rgb = saturate(_BiomeLeafColor.rgb * c.g + float3(c.r, 0, c.b));
+                c *= i.light;
                 float shadow;
                 if(i.light.a==0) shadow = 0.2;
                 else
