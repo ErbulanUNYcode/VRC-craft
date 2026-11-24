@@ -304,7 +304,7 @@ Shader "VRC_MINE/WorldShow"
                         i.shadow.z-=0.0004;
                         i.shadow.xy=(i.shadow.xy-0.5)/10+0.5;
                         shadow = i.shadow.x<0||i.shadow.x>1||i.shadow.y<0||i.shadow.y>1||i.shadow.z<0.05||i.shadow.z>0.95;
-                        if(!shadow) shadow = 1-clamp(i.shadow.z-tex2D(_ShadowMap1, i.shadow.xy).r,0,0.002)*400;
+                        if(!shadow) shadow = 1-clamp(i.shadow.z-tex2Dlod(_ShadowMap1, float4(i.shadow.xy, 0, 0)).r,0,0.002)*400;
                     }
                 }
                 shadow = lerp(0.2,shadow,i.light.a);

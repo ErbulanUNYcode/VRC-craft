@@ -73,3 +73,7 @@ crashlytics-build.properties
 
 # Regenerated compiled Udon programs
 /Assets/**/SerializedUdonPrograms/
+
+# Generated Unity build reports
+*.buildreport
+*.buildreport.meta

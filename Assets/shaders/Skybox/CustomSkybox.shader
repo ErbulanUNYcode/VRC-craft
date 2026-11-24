@@ -145,6 +145,7 @@ Shader "Unlit/CustomSkybox"
                         float4 mo = tex2D(_Moon, (uv * float2(-2.5,2.5) + 0.5 + float2(day%4,floor(day/4)))/float2(4,2));
                         col *= mo.a;
                         col += mo.rgb;
+                        lightChanel = length(uv * 2.5) * 2.3;
                     }
                 }
 

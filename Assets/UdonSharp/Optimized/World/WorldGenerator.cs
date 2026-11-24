@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UdonSharp;
 using UnityEngine;
 using VRC.SDK3.Rendering;
@@ -34,6 +34,10 @@ namespace VRC_MINE.World
 		[SerializeField] private Transform shadowControl;
 		[SerializeField] private Camera shadowCam;
 		[SerializeField] private Camera shadowCam1;
+		[SerializeField] private Camera godRaysLeft;
+		[SerializeField] private Camera godRaysRight;
+		[SerializeField] private Camera godRaysPhoto;
+		[SerializeField] private Material godRaysMaterial;
 		[NonSerialized] public Material worldMaterial;
 		[SerializeField] private Shader replacementShader;
 		#endregion
@@ -109,6 +113,7 @@ namespace VRC_MINE.World
 		private void InitGenerator()
 		{
 			localPlayer = Networking.LocalPlayer;
+			godRaysRight.enabled = localPlayer.IsUserInVR();
 			oldPos = Vector3Int.FloorToInt(localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime + Vector3.up * 0.5f);
 			int colliderIndex = 0;
 			for (int y = -1; y <= 2; y++)
@@ -777,6 +782,47 @@ namespace VRC_MINE.World
 		private bool shadowPositionReady;
 		private Vector3Int shadowRenderPos;
 
+		public override void PostLateUpdate()
+		{
+			Quaternion moonRotation = shadowControl.rotation;
+			Quaternion sunRotation = moonRotation * Quaternion.Euler(0f, 180f, 0f);
+			Vector3 moonDirection = shadowControl.forward;
+			var leftEye = Camera.StereoscopicEye.Left;
+			var rightEye = Camera.StereoscopicEye.Right;
+			Vector3 headForward = localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).rotation * Vector3.forward;
+			bool headLooksAtMoon = Vector3.Dot(headForward, moonDirection) > 0f;
+			Quaternion headLightRotation = headLooksAtMoon ? moonRotation : sunRotation;
+
+			UpdateGodRaysCamera(godRaysLeft, "_LeftLightProjection",
+				VRCCameraSettings.GetEyePosition(leftEye), headLightRotation);
+			if (godRaysRight.enabled)
+				UpdateGodRaysCamera(godRaysRight, "_RightLightProjection",
+					VRCCameraSettings.GetEyePosition(rightEye), headLightRotation);
+
+			var photoCamera = VRCCameraSettings.PhotoCamera;
+			// ClientSim does not expose a handheld camera.
+			bool photoActive = photoCamera != null && photoCamera.Active;
+			bool photoLooksAtMoon = false;
+			if (photoActive)
+			{
+				photoLooksAtMoon = Vector3.Dot(photoCamera.Forward, moonDirection) > 0f;
+				UpdateGodRaysCamera(godRaysPhoto, "_PhotoLightProjection", photoCamera.Position,
+					photoLooksAtMoon ? moonRotation : sunRotation);
+			}
+			if (godRaysPhoto.enabled != photoActive)
+				godRaysPhoto.enabled = photoActive;
+			godRaysMaterial.SetFloat("_PhotoMaskReady", photoActive ? 1f : 0f);
+			godRaysMaterial.SetVector("_MoonMask",
+				new Vector4(headLooksAtMoon ? 1f : 0f, 0f, photoLooksAtMoon ? 1f : 0f, 0f));
+		}
+
+		private void UpdateGodRaysCamera(Camera maskCamera, string projectionName,
+			Vector3 eyePosition, Quaternion lightRotation)
+		{
+			maskCamera.transform.SetPositionAndRotation(eyePosition, lightRotation);
+			godRaysMaterial.SetMatrix(projectionName, maskCamera.projectionMatrix * maskCamera.worldToCameraMatrix);
+		}
+
 		private void UpdateShadowRendering(Vector3Int pos)
 		{
 			shadowCam1.enabled = false;
@@ -962,6 +1008,10 @@ public class ChunkMeshGeneratorEditor : Editor
 		group.properties.Add(serializedObject.FindProperty("shadowControl"));
 		group.properties.Add(serializedObject.FindProperty("shadowCam"));
 		group.properties.Add(serializedObject.FindProperty("shadowCam1"));
+		group.properties.Add(serializedObject.FindProperty("godRaysLeft"));
+		group.properties.Add(serializedObject.FindProperty("godRaysRight"));
+		group.properties.Add(serializedObject.FindProperty("godRaysPhoto"));
+		group.properties.Add(serializedObject.FindProperty("godRaysMaterial"));
 		group.properties.Add(serializedObject.FindProperty("replacementShader"));
 		folderGrups.Add(group);
 
