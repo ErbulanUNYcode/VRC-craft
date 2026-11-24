@@ -1,5 +1,6 @@
 ﻿using UdonSharp;
 using UnityEngine;
+using VRC_MINE.Data;
 using VRC.SDKBase;
 using VRC.Udon.Common;
 using VRC_MINE.Net;
@@ -9,11 +10,12 @@ namespace VRC_MINE.GamePlay
 	[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 	public class BlockSelector : UdonSharpBehaviour
 	{
+		[System.NonSerialized] public SmartChunk[] smartChunks;
+
 		[SerializeField] private Transform[] VRPlus;
 		[SerializeField] private GameObject PCPlus;
 		[SerializeField] private GameObject selectedCube;
 		[SerializeField] private NetManager netManager;
-		private Texture2D[] worldTextures;
 		private VRCPlayerApi localPlayer;
 		private Vector3Int selectedBlock;
 		private Vector3Int selectedAir;
@@ -28,16 +30,13 @@ namespace VRC_MINE.GamePlay
 			return false;
 		}
 
-		public void SetData(Texture2D[] world)
+		private void Start()
 		{
 			localPlayer = Networking.LocalPlayer;
-			worldTextures = world;
 		}
 
 		private void Update()
 		{
-			if (worldTextures == null || worldTextures.Length == 0 || worldTextures[0] == null) return;
-
 			var treckingData = localPlayer.GetTrackingData(localPlayer.IsUserInVR() ? VRCPlayerApi.TrackingDataType.RightHand : VRCPlayerApi.TrackingDataType.Head);
 
 			Vector3 origin = treckingData.position;
@@ -144,12 +143,12 @@ namespace VRC_MINE.GamePlay
 			if (pos.y > 127 || pos.y < 0) return false;
 			int chunkX = pos.x >> 4;
 			int chunkZ = pos.z >> 4;
-			int page = ((chunkX >> 4) & 3) | (((chunkZ >> 4) & 3) << 2);
-			int x = ((chunkX & 15) << 8) + (pos.x & 15) + ((pos.z & 15) << 4);
-			int y = ((chunkZ & 15) << 8) + pos.y;
-			var res = ((Color32)worldTextures[page].GetPixel(x, y)).r;
+			SmartChunk chunk = smartChunks[(chunkX & 31) + ((chunkZ & 31) << 5)];
+			if (!chunk.hasData || chunk.chunkPosition.x != chunkX || chunk.chunkPosition.y != chunkZ)
+				return false;
 
-			return res != 0;
+			int blockIndex = (pos.x & 15) + ((pos.z & 15) << 4) + (pos.y << 8);
+			return chunk.blockData[blockIndex] != 0;
 		}
 
 		public override void InputGrab(bool value, UdonInputEventArgs args)

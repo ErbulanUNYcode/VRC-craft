@@ -1,0 +1,26 @@
+{
+	"300230": [
+		
+	],
+	"300288": [
+		[
+			{
+				"spawnPosition": {
+					"T": "V3",
+					"x": 2.85,
+					"y": 62.015,
+					"z": -2
+				},
+				"spawnRotation": {
+					"T": "Q",
+					"x": 0,
+					"y": 0,
+					"z": 0,
+					"w": 1
+				},
+				"invIcons": null,
+				"invCounts": null
+			}
+		]
+	]
+}

@@ -29,9 +29,11 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
             
             #pragma vertex vert
             #pragma fragment frag
+            #pragma target 3.5
             
             #include "UnityCG.cginc"
             #include "UnityCustomRenderTexture.cginc"
+
 
             struct MineCustomRenderTextureV2F
             {
@@ -308,13 +310,13 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
             uint hash2D(int2 p)
             {
                 uint h = asuint(p.x);
-                h ^= asuint(p.y) * 0x9E3779B9u;
-                h ^= asuint(_Seed) * 0x85EBCA6Bu;
+                h ^= asuint(p.y) * 0x9E3779B1u;
+                h ^= asuint(_Seed) * 0x85EBCA77u;
 
                 h ^= h >> 16;
-                h *= 0x7FEB352Du;
+                h *= 0x7FEB355Bu;
                 h ^= h >> 15;
-                h *= 0x846CA68Bu;
+                h *= 0x846CA687u;
                 h ^= h >> 16;
 
                 return h;
@@ -531,9 +533,7 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                     );
                     o.biomeID = rootTerrainData.y & 31u;
                     uint structureTicket = (zoneHash >> 4) & 255u;
-                    uint4 structureMetadata = ReadStructureAtlas(
-                        int2((int)structureTicket, (int)o.biomeID)
-                    );
+                    uint4 structureMetadata = ReadStructureAtlas(int2(structureTicket, o.biomeID));
                     if (structureMetadata.g == 0u)
                     {
                         o.vertex.xy = float2(1000.0, 1000.0);

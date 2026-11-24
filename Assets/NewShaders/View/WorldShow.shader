@@ -9,6 +9,7 @@ Shader "VRC_MINE/WorldShow"
         _AtlasFlipMap ("AtlasFlipMap", 2DArray) = "" {}
         _BiomeLeafColor ("Foliage tint", Color) = (0.45,0.7,0.3,1)
         _FogColor ("FogColor", Color) = (1,1,1,1)
+        _WorldBrightness ("World Brightness", Range(1, 1.25)) = 1.08
         _UpLightColor ("UpLightColor", Color) = (1,1,1,1)
         _DownLightColor ("DownLightColor", Color) = (1,1,1,1)
         _RightLightColor ("RightLightColor", Color) = (1,1,1,1)
@@ -43,6 +44,7 @@ Shader "VRC_MINE/WorldShow"
             Texture2DArray<float4> _AtlasFlipMap;
             float4 _BiomeLeafColor;
             fixed4 _FogColor;
+            float _WorldBrightness;
             fixed4 _UpLightColor;
             fixed4 _DownLightColor;
             fixed4 _RightLightColor;
@@ -130,7 +132,7 @@ Shader "VRC_MINE/WorldShow"
                 else
                 {
                     face =_WorldSpaceCameraPos.y<unity_ObjectToWorld._m13+v.vertex.y;
-                    o.light=_DownLightColor;
+                    o.light=face?_DownLightColor:_UpLightColor;
                 }
                 o.inter.xz = v.vertex.xz + unity_ObjectToWorld._m03_m23;
                 o.inter.y = v.vertex.y;
@@ -188,7 +190,7 @@ Shader "VRC_MINE/WorldShow"
                 return UNITY_SAMPLE_TEX2DARRAY_LOD(_Atlas, float3((uv + tile) / 16.0, atlasFace), mipLevel);
             }
 
-            fixed4 frag(v2f i) : SV_Target
+            float4 frag(v2f i) : SV_Target
             {
                 uint data = (uint)round(i.faceData * 8.0);
                 uint axis = data & 3u;
@@ -276,9 +278,8 @@ Shader "VRC_MINE/WorldShow"
                 shadow = lerp(0.2,shadow,i.light.a);
                 shadow *= 1-pow(ao,0.5)*0.5;
 
-                c.rgb = c.rgb*(1-i.fog)*shadow+_FogColor*i.fog;
-                c.a = 1;
-                return c;
+                float3 litColor = c.rgb * (shadow * _WorldBrightness);
+                return float4(lerp(litColor, _FogColor.rgb, i.fog), 1.0);
             }
 
             ENDCG

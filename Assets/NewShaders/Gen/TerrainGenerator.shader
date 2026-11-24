@@ -21,17 +21,13 @@ Shader "VRC_MINE/TerrainGenerator"
             #pragma fragment frag
 
             #include "UnityCG.cginc"
+            #include "UnityCustomRenderTexture.cginc"
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct v2f
+            struct TerrainCustomRenderTextureV2F
             {
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                uint primitiveID : TEXCOORD1;
             };
 
             Texture2D<uint> _BiomesData;
@@ -41,13 +37,13 @@ Shader "VRC_MINE/TerrainGenerator"
             int _TestViewIndex;
             int _Seed;
 
-            v2f vert(appdata v)
+            TerrainCustomRenderTextureV2F vert(appdata_customrendertexture v)
             {
-                v2f o;
-                float terrainSize = 32-_TerrainPadding*2;
-                v.vertex.xy = v.vertex.xy*(terrainSize/32)+_TerrainPadding/32.0;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                o.uv = v.uv*terrainSize+_TerrainPadding;
+                v2f_customrendertexture base = CustomRenderTextureVertexShader(v);
+                TerrainCustomRenderTextureV2F o;
+                o.pos = base.vertex;
+                o.uv = base.localTexcoord.xy * 32.0;
+                o.primitiveID = base.primitiveID;
 
                 return o;
             }
@@ -295,7 +291,7 @@ Shader "VRC_MINE/TerrainGenerator"
                 float4(0,0,0,0)
             };
 
-            uint4 frag(v2f i) : SV_Target
+            uint4 frag(TerrainCustomRenderTextureV2F i) : SV_Target
             {
                 int2 uv = i.uv;
                 int2 pos = int2(uv.x, uv.y) + int2(_ChunkPosX, _ChunkPosY) - 8;

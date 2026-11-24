@@ -20,11 +20,7 @@ namespace VRC_MINE.Data
 		[SerializeField] private InvSystem InvSystem;
 		public override void OnPlayerRestored(VRCPlayerApi player)
 		{
-			if (!player.isLocal)
-			{
-				Destroy(gameObject);
-				return;
-			}
+			if (!player.isLocal) return;
 			if (spawnPosition == Vector3.zero)
 			{
 				spawnPosition = player.GetPosition();

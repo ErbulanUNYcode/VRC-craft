@@ -3,6 +3,7 @@ using UdonSharp;
 using UnityEngine;
 using VRC.SDK3.Rendering;
 using VRC.SDKBase;
+using VRC_MINE.Data;
 
 
 
@@ -11,6 +12,16 @@ namespace VRC_MINE.World
 	[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 	public class WorldGenerator : UdonSharpBehaviour
 	{
+		[NonSerialized] public SmartChunk[] smartChunks;
+
+		#region materials
+		[SerializeField] private Material voxelWorldMaterial;
+		[SerializeField] private Material readbackMaterial;
+		[SerializeField] private Material optimizerMaterial;
+		[SerializeField] private Material chunkGeneratorMaterial;
+		[SerializeField] private Material chunkTerrainGeneratorMaterial;
+		#endregion
+
 		#region prefabs
 		[SerializeField] private GameObject colliderPrefab;
 		#endregion
@@ -19,147 +30,396 @@ namespace VRC_MINE.World
 		[SerializeField] private Transform collidersParent;
 		#endregion
 
-		[HideInInspector]
-		[SerializeField] private Vector2Int[] chunksQueueData;
-
-		#region materials
-		[SerializeField] private Material worldMaterial;
-		[SerializeField] private Material[] optimizerMaterials = new Material[2];
-		[SerializeField] private Renderer[] worldTextureDebugRenderers;
-		[SerializeField] private Material chunkGeneratorMaterial;
-		[SerializeField] private Material chunkTerrainGeneratorMaterial;
-		#endregion
-
 		#region shadows
 		[SerializeField] private Transform shadowControl;
 		[SerializeField] private Camera shadowCam;
 		[SerializeField] private Camera shadowCam1;
+		[NonSerialized] public Material worldMaterial;
 		[SerializeField] private Shader replacementShader;
 		#endregion
 
 		#region systems
 		[SerializeField] private GamePlay.BlockSelector blockSelector;
-		#endregion
-
-		private VRCPlayerApi localPlayer;
-
-		#region textures
-		private Texture2D[] worldTextures = new Texture2D[16];
-		//private Texture2D lightTexture;
-		private Texture2D[] ctrlTextures = new Texture2D[2];
-		private Texture2D convertor;
-		private Texture2D initTextureLegacy;
-		private Texture2D initTextureGPU;
-		private Texture2D initTextureCPU;
-		#endregion
-
-		private Vector3Int oldPos = Vector3Int.down;
-
-		#region generators
-		[SerializeField] private CustomRenderTexture[] optimizators;
-		[SerializeField] private CustomRenderTexture chunkGenerator;
-		[SerializeField] private CustomRenderTexture chunkTerrainGenerator;
-		[SerializeField] private CustomRenderTexture voxelWorld;
-		// Flat GPU readback surface for the physics/SmartChunk pipeline.
-		[SerializeField] private CustomRenderTexture readbackTexture;
 		[SerializeField] private ChunkMeshGenerator chunkMeshGenerator;
 		#endregion
 
-		// Legacy CPU/readback queue index. The new GPU and future CPU pipelines
-		// keep their progress independently.
-		private int currentIndex;
-		private int gpuCurrentIndex;
-		private int cpuCurrentIndex;
-		private bool gpuRealtimeShutdownPending;
+
+		#region textures
+		private Texture2D convertor;
+		private Texture2D initTexture;
 		private Texture2D optimizerCtrl;
-		private int polygonClearFrame;
-		private Color32[] optimizerControlClear = new Color32[512 * 192];
-		private Color[] optimizerUpdateColors = new Color[128];
-		private bool polygonChunkPending;
-		private Vector2Int polygonPendingChunk;
+		#endregion
 
-		private void MarkPolygonArea(int blockX, int blockZ)
-		{
-			Vector2Int updated = new Vector2Int(blockX >> 4 & 31, blockZ >> 4 & 31);
-			optimizerCtrl.SetPixels(updated.x >> 1 << 5, (updated.y >> 1) * 12 + 8, 32, 4, optimizerUpdateColors);
-			if ((updated.x & 1) == 0)
-				optimizerCtrl.SetPixels(updated.x >> 1 << 5, (updated.y >> 1) * 12, 17, 4, optimizerUpdateColors);
-			else
-			{
-				optimizerCtrl.SetPixels((updated.x >> 1 << 5) + 16, (updated.y >> 1) * 12, 16, 4, optimizerUpdateColors);
-				optimizerCtrl.SetPixels(((updated.x >> 1 << 5) + 32) & 511, (updated.y >> 1) * 12, 1, 4, optimizerUpdateColors);
-			}
-			if ((updated.y & 1) == 0)
-				optimizerCtrl.SetPixels(updated.x >> 1 << 5, (updated.y >> 1) * 12 + 4, 17, 4, optimizerUpdateColors);
-			else
-			{
-				optimizerCtrl.SetPixels((updated.x >> 1 << 5) + 16, (updated.y >> 1) * 12 + 4, 16, 4, optimizerUpdateColors);
-				optimizerCtrl.SetPixels(updated.x >> 1 << 5, (((updated.y >> 1) * 12 + 12) % 192) + 4, 1, 4, optimizerUpdateColors);
-			}
-		}
+		#region GPU generators
+		[SerializeField] private CustomRenderTexture optimizer;
+		[SerializeField] private CustomRenderTexture voxelWorld;
+		[SerializeField] private CustomRenderTexture readbackTexture;
+		[SerializeField] private CustomRenderTexture chunkGenerator;
+		[SerializeField] private CustomRenderTexture chunkTerrainGenerator;
+		#endregion
 
-		private void UpdatePolygonControl()
-		{
-			if (optimizerCtrl == null) return;
-			optimizerCtrl.SetPixels32(optimizerControlClear);
-			if (polygonChunkPending)
-			{
-				MarkPolygonArea(polygonPendingChunk.x * 16, polygonPendingChunk.y * 16);
-				polygonChunkPending = false;
-			}
-			for (int i = 0; i < setBlocksCount; i++) MarkPolygonArea(setBlockPositions[i].x, setBlockPositions[i].z);
-			setBlocksCount = 0;
-			optimizerCtrl.Apply(false, false);
-		}
+		#region GPU gen
+		private int GPUQueue;
+		private Color[] updateColors;
+		private byte[] ignoreColors;
+		private bool genChunk;
+		[SerializeField] private CustomRenderTextureUpdateZone[] chunkZone;
+		#endregion
 
-		// Udon serialization/API probe. Intentionally unused by the generation pipeline.
-		[SerializeField] private CustomRenderTexture serializedZoneTarget;
-		/*[SerializeField] private CustomRenderTextureUpdateZone serializedStandaloneTestZone;
-		[SerializeField] private CustomRenderTextureUpdateZone[] serializedTestZones = new CustomRenderTextureUpdateZone[2];*/
-		[SerializeField] private CustomRenderTextureUpdateZone[] serializedSourceZones = new CustomRenderTextureUpdateZone[2];
-		[SerializeField] private CustomRenderTextureUpdateZone[] serializedDestinationZones = new CustomRenderTextureUpdateZone[2];
+		#region CPU gen
+		private bool readbackRead;
+		private bool readbackRender;
+		private int readbackQueue;
+		private Vector2Int readbackRenderPos;
+		private Vector2Int readbackReadPos;
+		#endregion
 
-		public void ApplySerializedZonesArrayTest()
-		{
-			Array.Copy(serializedSourceZones, 0, serializedDestinationZones, 0, 1);
-			serializedZoneTarget.SetUpdateZones(serializedDestinationZones);
-		}
+		#region cache
+		private int zonesCount;
+		private CustomRenderTextureUpdateZone[] zones = new CustomRenderTextureUpdateZone[64];
+		[HideInInspector, SerializeField] private CustomRenderTextureUpdateZone[] zoneLayers;
+		private bool optimizerUpdate;
+		private bool optimizerApply;
+		private VRCPlayerApi localPlayer;
+		[HideInInspector, SerializeField] private Vector2Int[] chunksQueueData;
+
+
+
+		private float[] blockX = new float[64];
+		private float[] blockZ = new float[64];
+		private float[] blockId = new float[64];
+		//
 		private int[] chunksQueueRadiusSq;
 		private int lastGeneratedIndex = -1;
 		private int renderingQueueIndex = -1;
-		private bool queueSearchPrepared;
-		int lastFrameCount = 0;
-		private Vector2Int readingChunk;
-		private Vector2Int renderingChunk;
-		private Vector2Int updateChunk = Vector2Int.left;
-		private bool chunkReading;
-		private bool chunkRendering;
+		private Vector2Int updatedChunk = Vector2Int.left;
 		private bool asyncWorking;
 		private Vector2Int worldPos;
-
-		private const string debugLogo = "<color=#00ff00><<<</color><color=#0000ff>MCGE</color><color=#00ff00>>>></color>  ";
-		private const string debugWarningLogo = "<color=#00ff00><<<</color><color=#ff0000>MCGE</color><color=#00ff00>>>></color>  ";
-
-		#region cache
 		private Collider[] colliders = new Collider[36];
-		private Color[] clearColor = new Color[4_096];//0
-		private Color[] updateColors = new Color[16];//0.5
-		private bool[] worldTextureEdited = new bool[16];
-		private bool worldTexturePendingApply;
-		private byte[] ignoreColors = new byte[65_536];//1
-		private byte[] px = new byte[65_536];
-		private Vector2Int p;
+		private Vector3Int oldPos = Vector3Int.down;
+		//
 		#endregion
 
 		private void Start()
 		{
 			InitGenerator();
+			VRCAsyncGPUReadback.Request(readbackTexture, 0, this);
 		}
+
+		private void InitGenerator()
+		{
+			localPlayer = Networking.LocalPlayer;
+			oldPos = Vector3Int.FloorToInt(localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime + Vector3.up * 0.5f);
+			int colliderIndex = 0;
+			for (int y = -1; y <= 2; y++)
+				for (int z = -1; z <= 1; z++)
+					for (int x = -1; x <= 1; x++)
+					{
+						GameObject instance = Instantiate(colliderPrefab, collidersParent);
+						instance.transform.localPosition = oldPos + new Vector3Int(x, y, z);
+						Collider collider = instance.GetComponent<Collider>();
+						collider.enabled = false;
+						colliders[colliderIndex++] = collider;
+					}
+			VRCCameraSettings.ScreenCamera.FarClipPlane = 600;
+
+			//arrays
+			updateColors = new Color[128];
+			updateColors[0] = new Color(0.5f, 0, 0, 0);
+			for (var i = 1; i < updateColors.Length; i <<= 1) Array.Copy(updateColors, 0, updateColors, i, i);
+			ignoreColors = new byte[98_304];
+			ignoreColors[0] = 255;
+			ignoreColors[1] = 255;
+			ignoreColors[2] = 255;
+			for (var i = 3; i < ignoreColors.Length; i <<= 1) Array.Copy(ignoreColors, 0, ignoreColors, i, i);
+
+			//textures
+			optimizerCtrl = new Texture2D(512, 192, TextureFormat.R8, false, true);
+			optimizerCtrl.filterMode = FilterMode.Point;
+			optimizerCtrl.LoadRawTextureData(new byte[512 * 192]);
+			optimizerCtrl.Apply(false, false);
+
+			initTexture = new Texture2D(64, 64, TextureFormat.RG16, false, true);
+			initTexture.filterMode = FilterMode.Point;
+			initTexture.LoadRawTextureData(new byte[64 * 64 * 2]);
+
+			//place tex
+			optimizerMaterial.SetTexture("_CtrlTex", optimizerCtrl);
+
+			//shadow
+			shadowCam.SetReplacementShader(replacementShader, "RenderType");
+			shadowCam1.SetReplacementShader(replacementShader, "RenderType");
+
+		}
+
+
+		private void Update()
+		{
+			Vector3Int pos = Vector3Int.FloorToInt(localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime + Vector3.up * 0.5f);
+			UpdateShadowRendering(pos);
+			if (oldPos != pos)
+			{
+				UpdateColliders(oldPos, pos);
+			}
+			zonesCount = 0;
+			genChunk = false;
+
+			if (optimizerUpdate)
+			{
+				optimizerCtrl.LoadRawTextureData(ignoreColors);
+				optimizerUpdate = false;
+			}
+
+			GPUGen();
+
+			if (zonesCount > 0)
+			{
+				voxelWorldMaterial.SetInt("_ZonesCount", zonesCount);
+				voxelWorldMaterial.SetInt("_GenChunk", genChunk ? 1 : 0);
+				voxelWorldMaterial.SetFloatArray("_BlockX", blockX);
+				voxelWorldMaterial.SetFloatArray("_BlockZ", blockZ);
+				voxelWorldMaterial.SetFloatArray("_BlockId", blockId);
+				voxelWorld.SetUpdateZones(zones);
+				voxelWorld.Update();
+			}
+
+			if (optimizerUpdate)
+			{
+				optimizerCtrl.Apply();
+				optimizer.Update();
+			}
+
+			oldPos = pos;
+			return;
+			/*
+			if (Time.frameCount == polygonClearFrame) return;
+			UpdatePolygonControl();
+			UpdateShadowRendering();
+
+			if (chunksQueueData == null || chunksQueueData.Length == 0)
+				return;
+
+			if (gpuRealtimeShutdownPending)
+			{
+				if (chunkTerrainGenerator != null)
+					chunkTerrainGenerator.updateMode = CustomRenderTextureUpdateMode.OnDemand;
+				if (chunkGenerator != null)
+					chunkGenerator.updateMode = CustomRenderTextureUpdateMode.OnDemand;
+				if (voxelWorld != null)
+					voxelWorld.updateMode = CustomRenderTextureUpdateMode.OnDemand;
+				for (int i = 0; i < optimizators.Length; i++)
+					if (optimizators[i] != null)
+						optimizators[i].updateMode = CustomRenderTextureUpdateMode.OnDemand;
+				gpuRealtimeShutdownPending = false;
+				FinishPolygonOptimization();
+				return;
+			}
+
+			if (gpuCurrentIndex >= chunksQueueData.Length)
+				return;
+
+			Vector2Int queueChunk = chunksQueueData[gpuCurrentIndex];
+			Vector2Int worldChunk = queueChunk + worldPos;
+
+			// Terrain and chunk generators receive block-space coordinates.
+			if (chunkTerrainGeneratorMaterial != null)
+			{
+				chunkTerrainGeneratorMaterial.SetInt("_ChunkPosX", worldChunk.x * 16);
+				chunkTerrainGeneratorMaterial.SetInt("_ChunkPosY", worldChunk.y * 16);
+			}
+			if (chunkGeneratorMaterial != null)
+			{
+				chunkGeneratorMaterial.SetInt("_ChunkPosX", worldChunk.x * 16);
+				chunkGeneratorMaterial.SetInt("_ChunkPosY", worldChunk.y * 16);
+			}
+
+			// VoxelWorld addresses its 64x64 chunk ring by the low six bits.
+			if (voxelWorld != null)
+			{
+				Material voxelMaterial = voxelWorld.material;
+				if (voxelMaterial != null)
+				{
+					voxelMaterial.SetInt("_OffsetX", worldChunk.x & 31);
+					voxelMaterial.SetInt("_OffsetY", worldChunk.y & 31);
+				}
+			}
+			foreach (var optimizatorMaterial in optimizerMaterials)
+				if (optimizatorMaterial != null)
+				{
+					optimizatorMaterial.SetInt("_OffsetX", worldChunk.x & 63);
+					optimizatorMaterial.SetInt("_OffsetY", worldChunk.y & 63);
+				}
+
+			gpuCurrentIndex++;
+			polygonPendingChunk = worldChunk;
+			polygonChunkPending = true;
+			if (gpuCurrentIndex >= chunksQueueData.Length)
+				gpuRealtimeShutdownPending = true;*/
+
+		}
+
+		private void UpdateColliders(Vector3Int previousPos, Vector3Int pos)
+		{
+			Vector3Int delta = pos - previousPos;
+			bool largeMove = Mathf.Abs(delta.x) > 2 || Mathf.Abs(delta.z) > 2 || Mathf.Abs(delta.y) > 3;
+			foreach (Collider collider in colliders)
+			{
+				Vector3Int cPos = Vector3Int.RoundToInt(collider.transform.localPosition);
+				if (largeMove)
+				{
+					cPos += delta;
+				}
+				else
+				{
+					if (cPos.x < pos.x - 1) cPos.x += 3;
+					else if (cPos.x > pos.x + 1) cPos.x -= 3;
+					if (cPos.z < pos.z - 1) cPos.z += 3;
+					else if (cPos.z > pos.z + 1) cPos.z -= 3;
+					if (cPos.y < pos.y - 1) cPos.y += 4;
+					else if (cPos.y > pos.y + 2) cPos.y -= 4;
+				}
+				collider.transform.localPosition = cPos;
+				UpdateColliderState(collider, cPos);
+			}
+		}
+
+		private void UpdateColliderState(Collider collider, Vector3Int pos)
+		{
+			int chunkX = (pos.x >> 4) & 31;
+			int chunkZ = (pos.z >> 4) & 31;
+			if (pos.y < 0 || pos.y >= 128 || initTexture.GetPixel(chunkX, chunkZ).g == 0)
+			{
+				collider.enabled = false;
+				return;
+			}
+
+			int blockIndex = (pos.x & 15) + ((pos.z & 15) << 4) + (pos.y << 8);
+			collider.enabled = smartChunks[chunkX + (chunkZ << 5)].blockData[blockIndex] != 0;
+		}
+
+		private void GPUGen()
+		{
+			Vector2Int pos = Vector2Int.zero;
+			while (GPUQueue < 1024)
+			{
+				pos = chunksQueueData[GPUQueue] + worldPos;
+				if (initTexture.GetPixel(pos.x & 31, pos.y & 31).r != 0)
+					GPUQueue++;
+				else
+					break;
+			}
+			if (GPUQueue == 1024) return;
+			chunkTerrainGeneratorMaterial.SetInt("_ChunkPosX", pos.x * 16);
+			chunkTerrainGeneratorMaterial.SetInt("_ChunkPosY", pos.y * 16);
+			chunkTerrainGenerator.Update();
+			chunkGeneratorMaterial.SetInt("_ChunkPosX", pos.x * 16);
+			chunkGeneratorMaterial.SetInt("_ChunkPosY", pos.y * 16);
+			chunkGenerator.Update();
+			voxelWorldMaterial.SetInt("_OffsetX", pos.x);
+			voxelWorldMaterial.SetInt("_OffsetY", pos.y);
+			genChunk = true;
+			AddZone(chunkZone, 0);
+			UpdateOptimizerChunk(pos);
+			int x = pos.x & 31;
+			int z = pos.y & 31;
+			initTexture.SetPixel(x, z, new Color(1, initTexture.GetPixel(x, z).g, 0, 0));
+		}
+
+		public override void OnAsyncGpuReadbackComplete(VRCAsyncGPUReadbackRequest request)
+		{
+			if (readbackRead)
+			{
+				readbackRead = false;
+				int x = readbackReadPos.x & 31;
+				int z = readbackReadPos.y & 31;
+				SmartChunk chunk = smartChunks[x + (z << 5)];
+				byte[] blockData = chunk.blockData;
+				if (blockData == null)
+				{
+					blockData = new byte[33_280];
+					chunk.blockData = blockData;
+				}
+
+				if (request.TryGetData(blockData))
+				{
+					chunk.chunkPosition = readbackReadPos;
+					chunk.hasData = true;
+					initTexture.SetPixel(x, z, new Color(initTexture.GetPixel(x, z).r, 1, 0, 0));
+				}
+				else
+				{
+					DebugErr("GPU readback failed for chunk " + readbackReadPos);
+				}
+			}
+
+			if (readbackRender)
+			{
+				readbackRead = true;
+				readbackReadPos = readbackRenderPos;
+				readbackRender = false;
+			}
+
+			Vector2Int pos = Vector2Int.zero;
+			while (readbackQueue < 1024)
+			{
+				pos = chunksQueueData[readbackQueue] + worldPos;
+				if (
+					(readbackRead && pos == readbackReadPos) ||
+					(readbackRender && pos == readbackRenderPos) ||
+					initTexture.GetPixel(pos.x & 31, pos.y & 31).g != 0)
+					readbackQueue++;
+				else
+					break;
+			}
+			if (readbackQueue < 1024)
+			{
+				readbackRenderPos = pos;
+				readbackMaterial.SetInt("_ChunkPosX", pos.x);
+				readbackMaterial.SetInt("_ChunkPosY", pos.y);
+				readbackTexture.Update();
+				readbackRender = true;
+			}
+
+			if (readbackRead || readbackRender) VRCAsyncGPUReadback.Request(readbackTexture, 0, this);
+		}
+
+		private void AddZone(CustomRenderTextureUpdateZone[] zonesArray, int index)
+		{
+			Array.Copy(zonesArray, index, zones, zonesCount, 1);
+			zonesCount++;
+		}
+
+		private void UpdateOptimizerChunk(Vector2Int pos)
+		{
+			pos.x &= 31;
+			pos.y &= 31;
+
+			optimizerCtrl.SetPixels(pos.x >> 1 << 5, (pos.y >> 1) * 12 + 8, 32, 4, updateColors);
+
+			if ((pos.x & 1) == 0)
+				optimizerCtrl.SetPixels(pos.x >> 1 << 5, (pos.y >> 1) * 12, 17, 4, updateColors);
+			else
+			{
+				optimizerCtrl.SetPixels((pos.x >> 1 << 5) + 16, (pos.y >> 1) * 12, 16, 4, updateColors);
+				optimizerCtrl.SetPixels(((pos.x >> 1 << 5) + 32) & 511, (pos.y >> 1) * 12, 1, 4, updateColors);
+			}
+
+			if ((pos.y & 1) == 0)
+				optimizerCtrl.SetPixels(pos.x >> 1 << 5, (pos.y >> 1) * 12 + 4, 17, 4, updateColors);
+			else
+			{
+				optimizerCtrl.SetPixels((pos.x >> 1 << 5) + 16, (pos.y >> 1) * 12 + 4, 16, 4, updateColors);
+				optimizerCtrl.SetPixels(pos.x >> 1 << 5, (((pos.y >> 1) * 12 + 12) % 192) + 4, 1, 4, updateColors);
+			}
+
+			optimizerUpdate = true;
+		}
+
 
 		public void OnPlayerTeleport()
 		{
 			return;
-			var pos = Vector3Int.FloorToInt(localPlayer.GetPosition()) / 16;
+			/*var pos = Vector3Int.FloorToInt(localPlayer.GetPosition()) / 16;
 			if (initTextureLegacy.GetPixel(pos.x & 63, pos.z & 63).r == 1)
 			{
 				localPlayer.SetGravityStrength(3);
@@ -173,199 +433,12 @@ namespace VRC_MINE.World
 			localPlayer.SetGravityStrength(0);
 			localPlayer.Immobilize(true);
 			localPlayer.SetVelocity(Vector3.zero);
-			SendCustomEventDelayedFrames(nameof(OnPlayerTeleport), 2);
+			SendCustomEventDelayedFrames(nameof(OnPlayerTeleport), 2);*/
 		}
 
 		public override void OnPlayerRespawn(VRCPlayerApi player)
 		{
 			if (player == localPlayer) OnPlayerTeleport();
-		}
-
-		private void InitWorldLegacy()
-		{
-			BuildQueueRadiusData();
-			#region base
-			localPlayer = Networking.LocalPlayer;
-			localPlayer.SetGravityStrength(3);
-			updateColors[0].r = 0.5f;
-			for (int i = 1; i < updateColors.Length; i <<= 1) Array.Copy(updateColors, 0, updateColors, i, Mathf.Min(i, updateColors.Length - i));
-			// The optimizers use the raw R8 value: 1 means "ignore/discard".
-			ignoreColors[0] = 255;
-			for (int i = 1; i < ignoreColors.Length; i <<= 1) Array.Copy(ignoreColors, 0, ignoreColors, i, Mathf.Min(i, ignoreColors.Length - i));
-			#endregion
-
-			#region cameras
-			shadowCam.SetReplacementShader(replacementShader, "RenderType");
-			shadowCam1.SetReplacementShader(replacementShader, "RenderType");
-			var cam = VRCCameraSettings.ScreenCamera;
-			cam.FarClipPlane = 400;
-			/*var masks = cam.CullingMask;
-			masks.value ^= 1 << 27;
-			cam.CullingMask = masks.value;*/
-			#endregion
-
-			#region colliders
-			for (int i = 0; i < 36; i++)
-			{
-				colliders[i] = Instantiate(colliderPrefab, collidersParent).GetComponent<Collider>();
-				colliders[i].transform.localPosition = new Vector3(i % 3 - 1, i / 9 - 1, (i / 3) % 3 - 1);
-			}
-			#endregion
-
-			#region textures
-			convertor = new Texture2D(256, 256, TextureFormat.R8, false, true);
-
-			/*lightTexture = new Texture2D(8192, 4096, TextureFormat.R8, false, true);
-			lightTexture.LoadRawTextureData(new byte[lightTexture.width * lightTexture.height]);
-			lightTexture.Apply();*/
-
-			for (int i = 0; i < worldTextures.Length; i++)
-			{
-				worldTextures[i] = new Texture2D(4_096, 4_096, TextureFormat.R8, false, true);
-				worldTextures[i].filterMode = FilterMode.Point;
-				worldTextures[i].wrapMode = TextureWrapMode.Clamp;
-				worldTextures[i].LoadRawTextureData(new byte[worldTextures[i].width * worldTextures[i].height]);
-				worldTextures[i].Apply();
-			}
-			if (worldTextureDebugRenderers != null)
-				for (int i = 0; i < worldTextureDebugRenderers.Length && i < worldTextures.Length; i++)
-					if (worldTextureDebugRenderers[i] != null)
-						worldTextureDebugRenderers[i].material.SetTexture("_MainTex", worldTextures[i]);
-			/*ctrlTexture = new Texture2D(512, 192, TextureFormat.R8, false, true);
-			ctrlTexture.filterMode = FilterMode.Point;
-			ctrlTexture.LoadRawTextureData(new byte[ctrlTexture.width * ctrlTexture.height]);
-			ctrlTexture.Apply();*/
-
-			ctrlTextures[0] = new Texture2D(256, 256, TextureFormat.R8, false, true);
-			ctrlTextures[0].filterMode = FilterMode.Point;
-			ctrlTextures[0].LoadRawTextureData(new byte[65_536]);
-			ctrlTextures[0].Apply();
-
-			ctrlTextures[1] = new Texture2D(64, 64, TextureFormat.R8, false, true);
-			ctrlTextures[1].filterMode = FilterMode.Point;
-			ctrlTextures[1].LoadRawTextureData(ignoreColors);
-			ctrlTextures[1].Apply();
-
-			initTextureLegacy = new Texture2D(64, 64, TextureFormat.R8, false, true);
-			initTextureLegacy.filterMode = FilterMode.Point;
-			initTextureLegacy.LoadRawTextureData(new byte[4096]);
-			initTextureLegacy.Apply();
-			#endregion
-
-			#region materials
-			foreach (var optimizatorMaterial in optimizerMaterials)
-				if (optimizatorMaterial != null)
-				{
-					for (int page = 0; page < worldTextures.Length; page++)
-						optimizatorMaterial.SetTexture("_WorldTex" + page, worldTextures[page]);
-				}
-			for (int page = 0; page < worldTextures.Length; page++)
-				worldMaterial.SetTexture("_WorldTex" + page, worldTextures[page]);
-			#endregion
-
-			blockSelector.SetData(worldTextures);
-		}
-
-		// New visual GPU-generation pipeline initialization entry point.
-		public void ConfigurePolygonRendering(Material surface, CustomRenderTexture optimizer)
-		{
-			worldMaterial = surface;
-			optimizators = new CustomRenderTexture[] { optimizer };
-			optimizerMaterials = new Material[] { optimizer.material };
-		}
-
-		private void InitGenerator()
-		{
-			localPlayer = Networking.LocalPlayer;
-
-			// The DDA ray travels up to 500 blocks; keep the screen camera beyond it.
-			optimizerCtrl = new Texture2D(512, 192, TextureFormat.R8, false, true);
-			optimizerCtrl.filterMode = FilterMode.Point;
-
-			optimizerUpdateColors[0] = new Color(0.5f, 0, 0, 0);
-			for (int i = 1; i < optimizerUpdateColors.Length; i <<= 1) Array.Copy(optimizerUpdateColors, 0, optimizerUpdateColors, i, i);
-			optimizerControlClear[0] = new Color32(255, 0, 0, 0);
-			optimizerControlClear[1] = new Color32(255, 0, 0, 0);
-			optimizerControlClear[2] = new Color32(255, 0, 0, 0);
-			for (int i = 3; i < optimizerControlClear.Length; i <<= 1) Array.Copy(optimizerControlClear, 0, optimizerControlClear, i, i);
-			optimizerCtrl.LoadRawTextureData(new byte[512 * 192]);
-			optimizerCtrl.Apply(false, false);
-			polygonClearFrame = Time.frameCount;
-			foreach (var optimizerMaterial in optimizerMaterials)
-				if (optimizerMaterial != null) optimizerMaterial.SetTexture("_CtrlTex", optimizerCtrl);
-			VRCCameraSettings.ScreenCamera.FarClipPlane = 600;
-
-			// Bind the runtime-generated textures, not stale asset references.
-			foreach (var material in optimizerMaterials)
-				if (material != null)
-				{
-					if (material.HasProperty("_WorldTex")) material.SetTexture("_WorldTex", voxelWorld);
-				}
-
-			// Visible and shadow DDA passes share the same runtime world.
-			if (worldMaterial != null && voxelWorld != null)
-			{
-				if (worldMaterial.HasProperty("_MainTex")) worldMaterial.SetTexture("_MainTex", voxelWorld);
-			}
-			if (replacementShader != null)
-			{
-				if (shadowCam != null)
-					shadowCam.SetReplacementShader(replacementShader, "RenderType");
-				if (shadowCam1 != null)
-					shadowCam1.SetReplacementShader(replacementShader, "RenderType");
-			}
-
-			// The serialized optimizators array contains Lod1, Lod2 and Lod3.
-			for (int i = 0; i < optimizators.Length; i++)
-				if (optimizators[i] != null)
-				{
-					optimizators[i].Update();
-					optimizators[i].updateMode = CustomRenderTextureUpdateMode.Realtime;
-				}
-
-			if (chunkTerrainGenerator != null)
-				chunkTerrainGenerator.updateMode = CustomRenderTextureUpdateMode.Realtime;
-			if (chunkGenerator != null)
-				chunkGenerator.updateMode = CustomRenderTextureUpdateMode.Realtime;
-			if (voxelWorld != null)
-			{
-				voxelWorld.updateMode = CustomRenderTextureUpdateMode.Realtime;
-				Material voxelMaterial = voxelWorld.material;
-				if (voxelMaterial != null)
-				{
-					if (chunkGenerator != null)
-						voxelMaterial.SetTexture("_WorldGeneratorTexture", chunkGenerator);
-					if (chunkTerrainGenerator != null)
-						voxelMaterial.SetTexture("_TerrainTexture", chunkTerrainGenerator);
-				}
-			}
-
-			initTextureGPU = new Texture2D(64, 64, TextureFormat.R8, false, true);
-			initTextureGPU.filterMode = FilterMode.Point;
-			initTextureGPU.wrapMode = TextureWrapMode.Clamp;
-			initTextureGPU.LoadRawTextureData(new byte[64 * 64]);
-
-			initTextureCPU = new Texture2D(64, 64, TextureFormat.R8, false, true);
-			initTextureCPU.filterMode = FilterMode.Point;
-			initTextureCPU.wrapMode = TextureWrapMode.Clamp;
-			initTextureCPU.LoadRawTextureData(new byte[64 * 64]);
-		}
-
-		private bool TryNext()
-		{
-			while (currentIndex < chunksQueueData.Length)
-			{
-				var pos = chunksQueueData[currentIndex] + worldPos;
-				if (initTextureLegacy.GetPixel(pos.x & 63, pos.y & 63).r != 0 || renderingChunk == pos || readingChunk == pos)
-				{
-					currentIndex++;
-				}
-				else
-				{
-					return true;
-				}
-			}
-			return false;
 		}
 
 		private void BuildQueueRadiusData()
@@ -434,25 +507,10 @@ namespace VRC_MINE.World
 			chunkTerrainGenerator.Initialize();
 			chunkGenerator.Initialize();
 			lastFrameCount = Time.frameCount;
-			chunkRendering = true;
+			readbackRender = true;
 		}
 
-		private int GetWorldPage(int chunkX, int chunkZ)
-		{
-			return ((chunkX >> 4) & 3) | (((chunkZ >> 4) & 3) << 2);
-		}
-
-		private int GetWorldTextureX(int chunkX, int localX, int localZ)
-		{
-			return ((chunkX & 15) << 8) + localX + (localZ << 4);
-		}
-
-		private int GetWorldTextureY(int chunkZ, int worldY)
-		{
-			return ((chunkZ & 15) << 8) + worldY;
-		}
-
-		public override void OnAsyncGpuReadbackComplete(VRCAsyncGPUReadbackRequest request)
+		public void OnAsyncGpuReadbackCompleteLegacy(VRCAsyncGPUReadbackRequest request)
 		{
 			/*if (request.hasError)
 			{
@@ -462,7 +520,7 @@ namespace VRC_MINE.World
 				return;
 			}*/
 
-			if (chunkReading)
+			/*if (chunkReading)
 			{
 				var offset = readingChunk - worldPos;
 				if (offset.x > -33 && offset.y > -33 && offset.x < 32 && offset.y < 32)
@@ -498,20 +556,17 @@ namespace VRC_MINE.World
 			{
 				asyncWorking = false;
 				Debug.Log(debugLogo + "World generation complete!");
-			}
+			}*/
 		}
 
-		private byte GetBlock(Vector3Int pos)
+		/*private byte GetBlock(Vector3Int pos)
 		{
 			if (pos.y > 255 || pos.y < 0) return 0;
 			int chunkX = pos.x >> 4;
 			int chunkZ = pos.z >> 4;
 			int page = GetWorldPage(chunkX, chunkZ);
 			return ((Color32)worldTextures[page].GetPixel(GetWorldTextureX(chunkX, pos.x & 15, pos.z & 15), GetWorldTextureY(chunkZ, pos.y))).r;
-		}
-
-		private bool ctrl0Update;
-		private bool ctrl1Update;
+		}*/
 
 		private void UpdateLegacy()
 		{
@@ -522,39 +577,8 @@ namespace VRC_MINE.World
 			bool lod3Update = false;
 			bool worldEdited = false;
 
-			if (ctrl0Update)
-			{
-				ctrl0Update = false;
-				ctrl0Edited = true;
-				ctrlTextures[0].LoadRawTextureData(ignoreColors);
-				optimizators[0].initializationMode = CustomRenderTextureUpdateMode.OnDemand;
-			}
 
-			if (ctrl1Update)
-			{
-				ctrl1Update = false;
-				ctrl1Edited = true;
-				ctrlTextures[1].LoadRawTextureData(ignoreColors);
-				optimizators[1].initializationMode = CustomRenderTextureUpdateMode.OnDemand;
-			}
-
-			if (updateChunk != Vector2Int.left)
-			{
-				ctrlTextures[0].SetPixels(updateChunk.x << 2, updateChunk.y << 2, 4, 4, updateColors);
-				ctrlTextures[1].SetPixel(updateChunk.x, updateChunk.y, Color.gray);
-				updateChunk = Vector2Int.left;
-				ctrl0Edited = true;
-				ctrl1Edited = true;
-				ctrl0Update = true;
-				ctrl1Update = true;
-				lod1Update = true;
-				lod2Update = true;
-				lod3Update = true;
-				worldEdited = true;
-			}
-
-
-			if (setBlocksCount > 0)
+			/*if (setBlocksCount > 0)
 			{
 				for (int i = 0; i < setBlocksCount; i++)
 				{
@@ -580,7 +604,7 @@ namespace VRC_MINE.World
 					collider.enabled = GetBlock(Vector3Int.RoundToInt(collider.transform.localPosition)) != 0;
 				}
 				setBlocksCount = 0;
-			}
+			}*/
 
 			shadowCam1.enabled = false;
 			if ((Time.frameCount & 20) == 0) shadowCam1.enabled = true;
@@ -601,8 +625,8 @@ namespace VRC_MINE.World
 				shadowCam1Offset.x /= 1000;
 				shadowCam1Offset.y /= 1000;
 				shadowCam1Offset.z /= 65536;
-				worldMaterial.SetVector("_ShadowLodOffset", shadowCam1Offset);
-				worldMaterial.SetMatrix("_ShadowMatrix", shadowCam.projectionMatrix * shadowCam.worldToCameraMatrix);
+				/*worldMaterial.SetVector("_ShadowLodOffset", shadowCam1Offset);
+				worldMaterial.SetMatrix("_ShadowMatrix", shadowCam.projectionMatrix * shadowCam.worldToCameraMatrix);*/
 				shadowCam1.enabled = true;
 				oldPos = pos - oldPos;
 
@@ -615,7 +639,7 @@ namespace VRC_MINE.World
 						var cPos = Vector3Int.RoundToInt(collider.transform.localPosition);
 						cPos += oldPos;
 						collider.transform.localPosition = cPos;
-						collider.enabled = GetBlock(cPos) != 0;
+						//collider.enabled = GetBlock(cPos) != 0;
 					}
 				}
 				else
@@ -630,7 +654,7 @@ namespace VRC_MINE.World
 						if (cPos.y < pos.y - 1) cPos.y += 4;
 						else if (cPos.y > pos.y + 2) cPos.y -= 4;
 						collider.transform.localPosition = cPos;
-						collider.enabled = GetBlock(cPos) != 0;
+						//collider.enabled = GetBlock(cPos) != 0;
 					}
 				}
 				oldPos = pos;
@@ -719,8 +743,8 @@ namespace VRC_MINE.World
 
 					if (!asyncWorking)
 					{
-						chunkReading = false;
-						chunkRendering = false;
+						readbackRead = false;
+						readbackRender = false;
 						if (TryNext())
 						{
 							SetMaterialPositions();
@@ -748,35 +772,33 @@ namespace VRC_MINE.World
 			if (lod3Update) optimizators[2].initializationMode = CustomRenderTextureUpdateMode.Realtime;
 		}
 
+
 		// New visual GPU-generation pipeline entry point.
 		private bool shadowPositionReady;
 		private Vector3Int shadowRenderPos;
 
-		private void UpdateShadowRendering()
+		private void UpdateShadowRendering(Vector3Int pos)
 		{
-			if (localPlayer == null || shadowControl == null || shadowCam == null || shadowCam1 == null || worldMaterial == null)
-				return;
-
 			shadowCam1.enabled = false;
 			if ((Time.frameCount & 20) == 0)
 				shadowCam1.enabled = true;
 
-			Vector3Int pos = Vector3Int.FloorToInt(localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime + Vector3.up * 0.5f);
 			if (shadowPositionReady && shadowRenderPos == pos)
 				return;
 
 			Vector3 oldCamPos = shadowCam.transform.position;
 			Vector3 oldCamPos1 = shadowCam1.transform.position;
 			shadowControl.localPosition = pos;
+			Vector3 shadowTarget = shadowControl.TransformPoint(new Vector3(0, 0, -327.68f));
 
 			shadowCam.transform.position = oldCamPos;
 			shadowCam.transform.position = shadowCam.transform.TransformPoint(
 				Vector3Int.RoundToInt(shadowCam.transform.InverseTransformPoint(
-					shadowControl.TransformPoint(new Vector3(0, 0, -327.68f)))));
+					shadowTarget)));
 			shadowCam1.transform.position = oldCamPos1;
 			shadowCam1.transform.position = shadowCam1.transform.TransformPoint(
 				Vector3Int.RoundToInt(shadowCam1.transform.InverseTransformPoint(
-					shadowControl.TransformPoint(new Vector3(0, 0, -327.68f)))));
+					shadowTarget)));
 
 			Vector3 shadowCam1Offset = shadowCam.transform.InverseTransformPoint(shadowCam1.transform.position);
 			shadowCam1Offset.x /= 1000f;
@@ -790,72 +812,8 @@ namespace VRC_MINE.World
 		}
 
 
-		private void Update()
-		{
-			if (Time.frameCount == polygonClearFrame) return;
-			UpdatePolygonControl();
-			UpdateShadowRendering();
 
-			if (chunksQueueData == null || chunksQueueData.Length == 0)
-				return;
 
-			if (gpuRealtimeShutdownPending)
-			{
-				if (chunkTerrainGenerator != null)
-					chunkTerrainGenerator.updateMode = CustomRenderTextureUpdateMode.OnDemand;
-				if (chunkGenerator != null)
-					chunkGenerator.updateMode = CustomRenderTextureUpdateMode.OnDemand;
-				if (voxelWorld != null)
-					voxelWorld.updateMode = CustomRenderTextureUpdateMode.OnDemand;
-				for (int i = 0; i < optimizators.Length; i++)
-					if (optimizators[i] != null)
-						optimizators[i].updateMode = CustomRenderTextureUpdateMode.OnDemand;
-				gpuRealtimeShutdownPending = false;
-				FinishPolygonOptimization();
-				return;
-			}
-
-			if (gpuCurrentIndex >= chunksQueueData.Length)
-				return;
-
-			Vector2Int queueChunk = chunksQueueData[gpuCurrentIndex];
-			Vector2Int worldChunk = queueChunk + worldPos;
-
-			// Terrain and chunk generators receive block-space coordinates.
-			if (chunkTerrainGeneratorMaterial != null)
-			{
-				chunkTerrainGeneratorMaterial.SetInt("_ChunkPosX", worldChunk.x * 16);
-				chunkTerrainGeneratorMaterial.SetInt("_ChunkPosY", worldChunk.y * 16);
-			}
-			if (chunkGeneratorMaterial != null)
-			{
-				chunkGeneratorMaterial.SetInt("_ChunkPosX", worldChunk.x * 16);
-				chunkGeneratorMaterial.SetInt("_ChunkPosY", worldChunk.y * 16);
-			}
-
-			// VoxelWorld addresses its 64x64 chunk ring by the low six bits.
-			if (voxelWorld != null)
-			{
-				Material voxelMaterial = voxelWorld.material;
-				if (voxelMaterial != null)
-				{
-					voxelMaterial.SetInt("_OffsetX", worldChunk.x & 31);
-					voxelMaterial.SetInt("_OffsetY", worldChunk.y & 31);
-				}
-			}
-			foreach (var optimizatorMaterial in optimizerMaterials)
-				if (optimizatorMaterial != null)
-				{
-					optimizatorMaterial.SetInt("_OffsetX", worldChunk.x & 63);
-					optimizatorMaterial.SetInt("_OffsetY", worldChunk.y & 63);
-				}
-
-			gpuCurrentIndex++;
-			polygonPendingChunk = worldChunk;
-			polygonChunkPending = true;
-			if (gpuCurrentIndex >= chunksQueueData.Length)
-				gpuRealtimeShutdownPending = true;
-		}
 
 		public void FinishPolygonOptimization()
 		{
@@ -868,48 +826,85 @@ namespace VRC_MINE.World
 
 		private void OnDestroy()
 		{
-			Destroy(optimizerCtrl);
-			//destroy textures
-			foreach (var texture in worldTextures) Destroy(texture);
-			//Destroy(lightTexture);
 			Destroy(convertor);
-			Destroy(initTextureLegacy);
-			Destroy(initTextureGPU);
-			Destroy(initTextureCPU);
-			foreach (var tex in ctrlTextures) Destroy(tex);
+			Destroy(initTexture);
+			Destroy(optimizerCtrl);
 		}
 
 		private int setBlocksCount;
 		private Vector3Int[] setBlockPositions = new Vector3Int[128];
 		private byte[] setBlockValues = new byte[128];
 
+		#region Legacy properties
+		// Legacy geometry/readback state. Kept declared while the old algorithms are
+		// being copied into the compact GPU pipeline.
+		private Material[] optimizerMaterials = new Material[2];
+		private CustomRenderTexture[] optimizators;
+		private Texture2D[] worldTextures = new Texture2D[16];
+		private Texture2D[] ctrlTextures = new Texture2D[2];
+		private Texture2D initTextureLegacy;
+		private Color[] clearColor = new Color[4096];
+		private bool[] worldTextureEdited = new bool[16];
+		private bool worldTexturePendingApply;
+		private byte[] px = new byte[65536];
+		private Vector2Int p;
+		private bool queueSearchPrepared;
+		private int currentIndex;
+		private Vector2Int renderingChunk;
+		private int lastFrameCount;
+
+		private bool TryNext()
+		{
+			return false;
+		}
+		#endregion
+
 		public void SetBlock(Vector3Int selectedBlock, byte block, byte old)
 		{
+			return;
+			/*
 			setBlockValues[setBlocksCount] = block;
 			setBlockPositions[setBlocksCount] = selectedBlock;
 			setBlocksCount++;
+			*/
 		}
-		/*#if UNITY_EDITOR
-				[ContextMenu("Generate queue")]
-				public void GenerateQueue()
+#if UNITY_EDITOR && !COMPILER_UDONSHARP
+		[ContextMenu("Generate queue")]
+		public void GenerateQueue()
+		{
+			const int size = 32;
+			const int halfSize = size >> 1;
+			var v = new Vector3[size * size];
+			for (int i = 0; i < size; i++)
+			{
+				for (int j = 0; j < size; j++)
 				{
-					const int size = 32;
-					const int halfSize = size >> 1;
-					var v = new Vector3[size * size];
-					for (int i = 0; i < size; i++)
-					{
-						for (int j = 0; j < size; j++)
-						{
-							v[i * size + j] = new Vector3(i - halfSize, j - halfSize, new Vector2(i - (halfSize - 0.5f), j - (halfSize - 0.5f)).sqrMagnitude);
-						}
-					}
-
-					System.Array.Sort(v, (a, b) => a.z.CompareTo(b.z));
-
-					chunksQueueData = new Vector2Int[size * size];
-					for (int i = 0; i < chunksQueueData.Length; i++) chunksQueueData[i] = Vector2Int.RoundToInt((Vector2)v[i]);
+					v[i * size + j] = new Vector3(i - halfSize, j - halfSize, new Vector2(i - (halfSize - 0.5f), j - (halfSize - 0.5f)).sqrMagnitude);
 				}
-		#endif*/
+			}
+
+			System.Array.Sort(v, (a, b) => a.z.CompareTo(b.z));
+
+			UnityEditor.Undo.RecordObject(this, "Generate queue");
+			chunksQueueData = new Vector2Int[size * size];
+			for (int i = 0; i < chunksQueueData.Length; i++) chunksQueueData[i] = Vector2Int.RoundToInt((Vector2)v[i]);
+			UnityEditor.PrefabUtility.RecordPrefabInstancePropertyModifications(this);
+			UnityEditor.EditorUtility.SetDirty(this);
+		}
+#endif
+
+		private void DebugLog(string msg)
+		{
+			Debug.Log("<color=#0000ff><<<</color><color=#229911>MCGE</color><color=#0000ff>>>></color> " + msg);
+		}
+		private void DebugWar(string msg)
+		{
+			Debug.Log("<color=#00ff00><<<</color><color=#229911>MCGE</color><color=#00ff00>>>></color> " + msg);
+		}
+		private void DebugErr(string msg)
+		{
+			Debug.Log("<color=#ff0000><<<</color><color=#229911>MCGE</color><color=#ff0000>>>></color> " + msg);
+		}
 	}
 
 	public enum ChunkMeshType { PP, MP, PM, MM, EP, PE, EM, ME, EE, NN }

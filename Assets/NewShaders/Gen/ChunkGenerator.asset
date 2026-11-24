@@ -25,7 +25,7 @@ CustomRenderTexture:
   m_SRGB: 0
   m_UseDynamicScale: 0
   m_BindMS: 0
-  m_EnableCompatibleFormat: 0
+  m_EnableCompatibleFormat: 1
   m_EnableRandomWrite: 0
   m_TextureSettings:
     serializedVersion: 2
@@ -39,12 +39,12 @@ CustomRenderTexture:
   m_VolumeDepth: 1
   m_ShadowSamplingMode: 2
   m_Material: {fileID: 2100000, guid: 354eda0d8afbf9247ae923868e78da6d, type: 2}
-  m_InitSource: 1
-  m_InitMaterial: {fileID: 2100000, guid: 354eda0d8afbf9247ae923868e78da6d, type: 2}
-  m_InitColor: {r: 1, g: 1, b: 1, a: 1}
+  m_InitSource: 0
+  m_InitMaterial: {fileID: 2100000, guid: 77f6dc40b55a28b49a0b436f4b1cbc07, type: 2}
+  m_InitColor: {r: 0, g: 0, b: 0, a: 0}
   m_InitTexture: {fileID: 0}
   m_UpdateMode: 2
-  m_InitializationMode: 1
+  m_InitializationMode: 0
   m_UpdateZoneSpace: 1
   m_CurrentUpdateZoneSpace: 1
   m_UpdateZones:
