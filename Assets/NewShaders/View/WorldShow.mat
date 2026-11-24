@@ -115,10 +115,12 @@ Material:
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
+    - _WorldBrightness: 1.25
     - _ZWrite: 1
     - _Zoom: 1
     m_Colors:
     - _BackLightColor: {r: 0.8326551, g: 0.8251755, b: 0.80524194, a: 0}
+    - _BiomeLeafColor: {r: 0.45, g: 0.7, b: 0.29999998, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _DownLightColor: {r: 0.67950267, g: 0.6787013, b: 0.67923445, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}

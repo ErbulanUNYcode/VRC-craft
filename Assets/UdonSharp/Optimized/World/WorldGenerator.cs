@@ -783,22 +783,25 @@ namespace VRC_MINE.World
 			if ((Time.frameCount & 20) == 0)
 				shadowCam1.enabled = true;
 
-			if (shadowPositionReady && shadowRenderPos == pos)
-				return;
+			if (!shadowPositionReady || shadowRenderPos != pos)
+			{
+				Vector3 oldCamPos = shadowCam.transform.position;
+				Vector3 oldCamPos1 = shadowCam1.transform.position;
+				shadowControl.localPosition = pos;
+				Vector3 shadowTarget = shadowControl.TransformPoint(new Vector3(0, 0, -327.68f));
 
-			Vector3 oldCamPos = shadowCam.transform.position;
-			Vector3 oldCamPos1 = shadowCam1.transform.position;
-			shadowControl.localPosition = pos;
-			Vector3 shadowTarget = shadowControl.TransformPoint(new Vector3(0, 0, -327.68f));
-
-			shadowCam.transform.position = oldCamPos;
-			shadowCam.transform.position = shadowCam.transform.TransformPoint(
-				Vector3Int.RoundToInt(shadowCam.transform.InverseTransformPoint(
-					shadowTarget)));
-			shadowCam1.transform.position = oldCamPos1;
-			shadowCam1.transform.position = shadowCam1.transform.TransformPoint(
-				Vector3Int.RoundToInt(shadowCam1.transform.InverseTransformPoint(
-					shadowTarget)));
+				shadowCam.transform.position = oldCamPos;
+				shadowCam.transform.position = shadowCam.transform.TransformPoint(
+					Vector3Int.RoundToInt(shadowCam.transform.InverseTransformPoint(
+						shadowTarget)));
+				shadowCam1.transform.position = oldCamPos1;
+				shadowCam1.transform.position = shadowCam1.transform.TransformPoint(
+					Vector3Int.RoundToInt(shadowCam1.transform.InverseTransformPoint(
+						shadowTarget)));
+				shadowCam1.enabled = true;
+				shadowRenderPos = pos;
+				shadowPositionReady = true;
+			}
 
 			Vector3 shadowCam1Offset = shadowCam.transform.InverseTransformPoint(shadowCam1.transform.position);
 			shadowCam1Offset.x /= 1000f;
@@ -806,9 +809,6 @@ namespace VRC_MINE.World
 			shadowCam1Offset.z /= 65536f;
 			worldMaterial.SetVector("_ShadowLodOffset", shadowCam1Offset);
 			worldMaterial.SetMatrix("_ShadowMatrix", shadowCam.projectionMatrix * shadowCam.worldToCameraMatrix);
-			shadowCam1.enabled = true;
-			shadowRenderPos = pos;
-			shadowPositionReady = true;
 		}
 
 

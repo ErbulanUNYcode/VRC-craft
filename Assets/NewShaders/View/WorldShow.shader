@@ -53,7 +53,8 @@ Shader "VRC_MINE/WorldShow"
             fixed4 _BackLightColor;
             float4x4 _ShadowMatrix;
             float4 _ShadowLodOffset;
-            sampler2D _ShadowMap;
+            Texture2D<float4> _ShadowMap;
+            float4 _ShadowMap_TexelSize;
             sampler2D _ShadowMap1;
 
             struct appdata
@@ -140,7 +141,6 @@ Shader "VRC_MINE/WorldShow"
                 o.shadow= mul(_ShadowMatrix, float4(o.inter, 1)).xyz/2+0.5;
                 else
                 o.shadow.xy= mul(_ShadowMatrix, float4(o.inter, 1)).xy/2+0.5;
-                o.shadow.z-=0.0004;
                 float3 camOffset = (_WorldSpaceCameraPos - o.inter)/333;
                 o.fog = dot(camOffset.xz, camOffset.xz);
 
@@ -190,8 +190,39 @@ Shader "VRC_MINE/WorldShow"
                 return UNITY_SAMPLE_TEX2DARRAY_LOD(_Atlas, float3((uv + tile) / 16.0, atlasFace), mipLevel);
             }
 
+            float SampleNearShadow(float3 coord, float3 plane)
+            {
+                int2 size = (int2)_ShadowMap_TexelSize.zw;
+                float2 pixel = coord.xy * size - 0.5;
+                int2 basePixel = (int2)floor(pixel);
+                float2 weight = frac(pixel);
+                float2 slope = abs(plane.z) > 1e-12 ? -plane.xy / plane.z : 0.0;
+                slope = clamp(slope * _ShadowMap_TexelSize.xy, -0.002, 0.002);
+                float4 gaps;
+                [unroll] for (int tap = 0; tap < 4; tap++)
+                {
+                    int2 texel = clamp(basePixel + int2(tap & 1, tap >> 1), 0, size - 1);
+                    float expectedDepth = coord.z + dot(slope, float2(texel) - pixel);
+                    gaps[tap] = expectedDepth - _ShadowMap.Load(int3(texel, 0)).r;
+                }
+                float4 visibility = 1.0 - 0.8 * smoothstep(0.0, 0.0003, gaps);
+                int nearestTap = (weight.x >= 0.5 ? 1 : 0) + (weight.y >= 0.5 ? 2 : 0);
+                float4 tapWeights = float4((1.0 - weight.x) * (1.0 - weight.y),
+                                           weight.x * (1.0 - weight.y),
+                                           (1.0 - weight.x) * weight.y,
+                                           weight.x * weight.y);
+                float4 blockers = step(0.0004, gaps) * tapWeights;
+                float neighborGap = dot(gaps, blockers) / max(dot(blockers, float4(1, 1, 1, 1)), 0.0001);
+                float gap = gaps[nearestTap] > 0.0004 ? gaps[nearestTap] : neighborGap;
+                float width = lerp(0.12, 1.0, smoothstep(0.0004, 0.006, gap));
+                weight = smoothstep(0.5 - 0.5 * width, 0.5 + 0.5 * width, weight);
+                return lerp(lerp(visibility.x, visibility.y, weight.x),
+                            lerp(visibility.z, visibility.w, weight.x), weight.y);
+            }
+
             float4 frag(v2f i) : SV_Target
             {
+                float3 shadowPlane = cross(ddx(i.shadow), ddy(i.shadow));
                 uint data = (uint)round(i.faceData * 8.0);
                 uint axis = data & 3u;
                 bool face = (data & 4u) != 0u;
@@ -266,10 +297,11 @@ Shader "VRC_MINE/WorldShow"
                 else
                 {
                     shadow = i.shadow.x<0||i.shadow.x>1||i.shadow.y<0||i.shadow.y>1||i.shadow.z<0.05||i.shadow.z>0.95;
-                    if(!shadow) shadow = 1-clamp(i.shadow.z-tex2D(_ShadowMap, i.shadow.xy).r,0,0.002)*400;
+                    if(!shadow) shadow = SampleNearShadow(i.shadow, shadowPlane);
                     else
                     {
                         i.shadow-=_ShadowLodOffset.xyz;
+                        i.shadow.z-=0.0004;
                         i.shadow.xy=(i.shadow.xy-0.5)/10+0.5;
                         shadow = i.shadow.x<0||i.shadow.x>1||i.shadow.y<0||i.shadow.y>1||i.shadow.z<0.05||i.shadow.z>0.95;
                         if(!shadow) shadow = 1-clamp(i.shadow.z-tex2D(_ShadowMap1, i.shadow.xy).r,0,0.002)*400;
