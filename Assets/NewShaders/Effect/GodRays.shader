@@ -5,6 +5,9 @@ Shader "VRC_MINE/GodRays"
         _SunMask ("Left Sun Mask", 2D) = "black" {}
         _RightSunMask ("Right Sun Mask", 2D) = "black" {}
         _PhotoMask ("Handheld Camera Mask", 2D) = "black" {}
+        [HideInInspector] _EyeLightColor ("Eye Light Color", Color) = (1,1,1,1)
+        [HideInInspector] _PhotoLightColor ("Photo Light Color", Color) = (1,1,1,1)
+        [ToggleUI] _EditorFlarePreview ("Editor Flare Preview", Float) = 0
     }
 
     SubShader
@@ -26,14 +29,19 @@ Shader "VRC_MINE/GodRays"
             #include "UnityCG.cginc"
 
             sampler2D _SunMask;
+            float4 _SunMask_TexelSize;
             sampler2D _RightSunMask;
+            float4 _RightSunMask_TexelSize;
             sampler2D _PhotoMask;
             float4 _PhotoMask_TexelSize;
             float4x4 _LeftLightProjection;
             float4x4 _RightLightProjection;
             float4x4 _PhotoLightProjection;
-            float4 _MoonMask;
+            float4 _EyeLightColor;
+            float4 _PhotoLightColor;
+            float4 _MoonFlareCameras;
             float _PhotoMaskReady;
+            float _EditorFlarePreview;
             float _VRChatMirrorMode;
             float _VRChatCameraMode;
 
@@ -50,20 +58,26 @@ Shader "VRC_MINE/GodRays"
                 float3 sunRay : TEXCOORD0;
                 float4 screen : TEXCOORD1;
                 nointerpolation float4 lightScreen : TEXCOORD2;
-                nointerpolation float flareVisibility : TEXCOORD3;
-                nointerpolation float3 rayTint : TEXCOORD4;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
-            float ReadFlareVisibility()
+            static const float2 FlareMaskOffsets[7] =
             {
-                float2 halfTexel = 0.5 * _PhotoMask_TexelSize.xy;
-                float4 offsets = float4(halfTexel, -halfTexel);
-                float mask = tex2Dlod(_PhotoMask, float4(0.5 + offsets.xy, 0, 0)).a;
-                mask += tex2Dlod(_PhotoMask, float4(0.5 + offsets.xw, 0, 0)).a;
-                mask += tex2Dlod(_PhotoMask, float4(0.5 + offsets.zy, 0, 0)).a;
-                mask += tex2Dlod(_PhotoMask, float4(0.5 + offsets.zw, 0, 0)).a;
-                return saturate(1.0 - mask * 0.25);
+                float2(0, 0),
+                float2(3, 0), float2(1.5, 2.5980762), float2(-1.5, 2.5980762),
+                float2(-3, 0), float2(-1.5, -2.5980762), float2(1.5, -2.5980762)
+            };
+
+            float ReadFlareVisibility(sampler2D mask, float2 texelSize)
+            {
+                float occlusion = 0;
+                [unroll]
+                for (int tap = 0; tap < 7; tap++)
+                {
+                    float2 uv = 0.5 + FlareMaskOffsets[tap] * texelSize;
+                    occlusion += tex2Dlod(mask, float4(uv, 0, 0)).a;
+                }
+                return saturate(1.0 - occlusion / 7.0);
             }
 
             v2f vert(appdata v)
@@ -72,8 +86,6 @@ Shader "VRC_MINE/GodRays"
                 v2f o;
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
-                o.flareVisibility = 0;
-                o.rayTint = 1;
 
                 // VoxelCanvas also contains helper triangles marked with zero alpha.
                 if (v.color.a == 0 || _VRChatMirrorMode != 0 || _VRChatCameraMode == 3)
@@ -90,11 +102,9 @@ Shader "VRC_MINE/GodRays"
                 o.position.z = 0.5 * o.position.w;
                 bool photo = _VRChatCameraMode == 1 || _VRChatCameraMode == 2;
                 float4x4 lightProjection = _LeftLightProjection;
-                float moon = _MoonMask.x;
                 if (photo)
                 {
                     lightProjection = _PhotoLightProjection;
-                    moon = _MoonMask.z;
                 }
                 else if (unity_StereoEyeIndex != 0)
                 {
@@ -102,24 +112,21 @@ Shader "VRC_MINE/GodRays"
                 }
                 float4 lightClip = mul(lightProjection, float4(direction, 0));
                 o.sunRay = float3(lightClip.xy, lightClip.w);
-                o.rayTint = lerp(float3(1, 1, 1), float3(0.22, 0.28, 0.38), moon);
 
                 o.screen = 0;
                 o.lightScreen = 0;
                 [branch]
-                if (photo && _PhotoMaskReady != 0)
+                if (photo ? _PhotoMaskReady != 0 : _EditorFlarePreview != 0)
                 {
                     o.screen = ComputeNonStereoScreenPos(o.position);
                     float3 lightDirection = lightProjection[3].xyz;
                     float3 lightView = mul((float3x3)UNITY_MATRIX_V, lightDirection);
                     o.lightScreen = ComputeNonStereoScreenPos(mul(UNITY_MATRIX_P, float4(lightView, 0)));
-                    if (o.lightScreen.w > 0)
-                        o.flareVisibility = ReadFlareVisibility();
                 }
                 return o;
             }
 
-            float3 PhotoFlare(v2f i)
+            float3 PhotoFlare(v2f i, float isMoon)
             {
                 if (i.lightScreen.w <= 0) return 0;
                 float2 source = i.lightScreen.xy / i.lightScreen.w;
@@ -132,7 +139,7 @@ Shader "VRC_MINE/GodRays"
                 float2 axis = (source - 0.5) * aspect;
                 // Warm bloom centred on the source.
                 float core = 1.0 - smoothstep(0.0, 0.075, length(pixel - axis));
-                float3 flare = float3(0.25, 0.19, 0.12) * core * core;
+                float3 flare = float3(0.25, 0.19, 0.12) * (core * core * (1.0 - isMoon));
 
                 // Seven side normals, folded across the horizontal symmetry axis.
                 float2 heptPoint = pixel - axis * 0.36;
@@ -145,15 +152,25 @@ Shader "VRC_MINE/GodRays"
                 float heptFill = 1.0 - smoothstep(0.012, 0.053, heptagon);
                 flare += float3(0.018, 0.07, 0.085) * (0.45 * heptFill + 0.55 * heptRim);
 
-                // Small magenta diamond, brightest through its centre.
-                float2 diamondPoint = abs(pixel + axis * 0.22);
-                float diamond = 1.0 - smoothstep(0.003, 0.038, diamondPoint.x + diamondPoint.y);
-                flare += float3(0.10, 0.031, 0.069) * diamond;
-
-                // Thin ring with different radii for the three colour channels.
-                float ringRadius = length(pixel + axis * 1.04);
-                float3 ring = 1.0 - smoothstep(0.002, 0.012, abs(ringRadius - float3(0.084, 0.079, 0.074)));
-                flare += ring * float3(0.061, 0.037, 0.053);
+                // A larger circle softens the edge farthest from the screen center.
+                const float circleRadius = 0.079;
+                float2 circlePoint = pixel + axis * 1.04;
+                float circleDistanceSquared = dot(circlePoint, circlePoint);
+                [branch]
+                if (circleDistanceSquared <= circleRadius * circleRadius)
+                {
+                    float2 maskOffset = axis * (1.67 - 1.04);
+                    float2 maskPoint = circlePoint + maskOffset;
+                    // Internal tangency at the edge opposite the mask center.
+                    float maskRadius = circleRadius + length(maskOffset);
+                    float remaining = saturate(3.0 * length(maskPoint) / maskRadius - 2.0);
+                    float hue = (1.0 - remaining) * 0.78;
+                    float3 rainbow = saturate(abs(frac(hue + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0);
+                    float edgeFade = 1.0 - smoothstep(0.7, 1.0, sqrt(circleDistanceSquared) / circleRadius);
+                    float rainbowLuminance = dot(rainbow, float3(0.2126, 0.7152, 0.0722));
+                    rainbow = lerp(rainbow, rainbowLuminance.xxx, 0.5 * isMoon);
+                    flare += rainbow * (0.05 * remaining * edgeFade);
+                }
 
                 // Wide, defocused amber oval.
                 float ovalRadius = length((pixel + axis * 1.5) * float2(0.64, 1.25));
@@ -162,11 +179,11 @@ Shader "VRC_MINE/GodRays"
 
                 // Narrow horizontal blue streak across the source.
                 float2 streakPoint = abs(pixel - axis);
-                float streak = (1.0 - smoothstep(0.025, 0.24, streakPoint.x))
+                float streak = (1.0 - smoothstep(0.0375, 0.36, streakPoint.x))
                              * (1.0 - smoothstep(0.001, 0.012, streakPoint.y));
                 flare += float3(0.023, 0.065, 0.11) * streak;
 
-                return flare * (i.flareVisibility * edge);
+                return flare * edge;
             }
 
             float IntegrateRays(sampler2D mask, float3 ray)
@@ -195,18 +212,25 @@ Shader "VRC_MINE/GodRays"
             half4 frag(v2f i) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
-                float brightness;
                 [branch]
                 if (_VRChatCameraMode == 1 || _VRChatCameraMode == 2)
                 {
                     if (_PhotoMaskReady == 0) return 0;
-                    return half4((IntegrateRays(_PhotoMask, i.sunRay) + PhotoFlare(i)) * i.rayTint, 0);
+                    float3 flare = PhotoFlare(i, _MoonFlareCameras.y) * (_PhotoLightColor.a * ReadFlareVisibility(_PhotoMask, _PhotoMask_TexelSize.xy));
+                    return half4(IntegrateRays(_PhotoMask, i.sunRay) * _PhotoLightColor.rgb + flare, 0);
                 }
-                else if (unity_StereoEyeIndex == 0)
-                    brightness = IntegrateRays(_SunMask, i.sunRay);
-                else
-                    brightness = IntegrateRays(_RightSunMask, i.sunRay);
-                return half4(brightness * i.rayTint, 0);
+
+                bool leftEye = unity_StereoEyeIndex == 0;
+                float3 eyeFlare = 0;
+                [branch]
+                if (_EditorFlarePreview != 0)
+                {
+                    float visibility = leftEye ? ReadFlareVisibility(_SunMask, _SunMask_TexelSize.xy) : ReadFlareVisibility(_RightSunMask, _RightSunMask_TexelSize.xy);
+                    eyeFlare = PhotoFlare(i, _MoonFlareCameras.x) * (_EyeLightColor.a * visibility);
+                }
+
+                float brightness = leftEye ? IntegrateRays(_SunMask, i.sunRay) : IntegrateRays(_RightSunMask, i.sunRay);
+                return half4(brightness * _EyeLightColor.rgb + eyeFlare, 0);
             }
             ENDCG
         }

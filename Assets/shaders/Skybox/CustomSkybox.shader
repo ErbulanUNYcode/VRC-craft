@@ -3,14 +3,9 @@ Shader "Unlit/CustomSkybox"
     Properties
     {
         _Clouds ("Clouds Texture", 2D) = "white" {}
-        _StarsXP ("Stars X+ Texture", 2D) = "white" {}
-        _StarsXM ("Stars X- Texture", 2D) = "white" {}
-        _StarsYP ("Stars Y+ Texture", 2D) = "white" {}
-        _StarsYM ("Stars Y- Texture", 2D) = "white" {}
-        _StarsZP ("Stars Z+ Texture", 2D) = "white" {}
-        _StarsZM ("Stars Z- Texture", 2D) = "white" {}
+        _StarsCube ("Stars Cubemap", Cube) = "" {}
         _Sun ("Sun Texture", 2D) = "white" {}
-        _Moon ("Moon Texture", 2D) = "white" {}
+        _Moon ("Moon Phases", 2DArray) = "" {}
         _TopCol ("Top Color", Color) = (0.0, 0.5, 1.0, 1.0)
         _BottomCol ("Bottom Color", Color) = (0.0745, 0.306, 0.537, 1.0)
         _HorizonCol ("Horizon Color", Color) = (0.788, 0.992, 1.0, 1.0)
@@ -18,6 +13,8 @@ Shader "Unlit/CustomSkybox"
         _SunLightCol ("Sun Light Color", Color) = (1.0, 1.0, 0.0, 1.0)
         _Angle ("Angle", Range(-180, 180)) = 50
         _TimePower ("Time Power", Range(0, 8)) = 0
+        [IntRange] _MoonDay ("Moon Day", Range(0, 7)) = 0
+        [HideInInspector] _MoonRaysDirection ("Moon Rays Direction", Vector) = (0,0,0,0)
     }
     SubShader
     {
@@ -30,18 +27,14 @@ Shader "Unlit/CustomSkybox"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma require 2darray
 
             #include "UnityCG.cginc"
             
             sampler2D _Clouds;
-            sampler2D _StarsXP;
-            sampler2D _StarsXM;
-            sampler2D _StarsYP;
-            sampler2D _StarsYM;
-            sampler2D _StarsZP;
-            sampler2D _StarsZM;
+            samplerCUBE _StarsCube;
             sampler2D _Sun;
-            sampler2D _Moon;
+            UNITY_DECLARE_TEX2DARRAY(_Moon);
             fixed4 _TopCol;
             fixed4 _BottomCol;
             fixed4 _HorizonCol;
@@ -49,6 +42,8 @@ Shader "Unlit/CustomSkybox"
             fixed4 _SunLightCol;
             float _Angle;
             float _TimePower;
+            float _MoonDay;
+            float3 _MoonRaysDirection;
             float2 rotate(float2 p, float angle)
             {
                 float s;
@@ -96,39 +91,15 @@ Shader "Unlit/CustomSkybox"
                 float alphaGradient = smoothstep(1-smoothstep(-0.3,0.5,time)*5, 5, dir.z);
                 float3 col = _TopCol * alphaGradient * 1.2;
                 
-                float2 uv;
-                // + stars
-                if(time<0.3)
+                if (time < 0.3)
                 {
-                    float3 absDir = abs(dir);
-                    float maxAxis = max(max(absDir.x, absDir.y), absDir.z);
-                    
-                    if (maxAxis == absDir.x) {
-                        uv = dir.zy / absDir.x;
-                        if (dir.x > 0)
-                            col += tex2D(_StarsXP, uv * float2(-0.5,0.5) + 0.5)*max(0,1-alphaGradient*8);
-                        else
-                            col += tex2D(_StarsXM, uv * 0.5 + 0.5)*max(0,1-alphaGradient*8);
-                    }
-                    else if (maxAxis == absDir.y) {
-                        uv = dir.xz / absDir.y;
-                        if (dir.y > 0)
-                            col += tex2D(_StarsYP, uv.yx * 0.5 + 0.5)*max(0,1-alphaGradient*8);
-                        else
-                            col += tex2D(_StarsYM, uv.yx * float2(-0.5,0.5) + 0.5)*max(0,1-alphaGradient*8);
-                    }
-                    else {
-                        uv = dir.xy / absDir.z;
-                        if (dir.z > 0)
-                            col += tex2D(_StarsZP, uv * 0.5 + 0.5)*max(0,1-alphaGradient*8);
-                        else
-                            col += tex2D(_StarsZM, uv * float2(-0.5,0.5) + 0.5)*max(0,1-alphaGradient*8);
-                    }
+                    float3 stars = max(0.0, texCUBE(_StarsCube, dir).rgb - 0.008);
+                    col += stars * max(0, 1 - alphaGradient * 8);
                 }
-                
+
                 // + sun + moon
                 col = max(col, 0);
-                uv = dir.xy / abs(dir.z);
+                float2 uv = dir.xy / abs(dir.z);
                 
                 float lightChanel=1;
                 if (abs(uv.x)<0.2 && abs(uv.y)<0.2)
@@ -141,12 +112,22 @@ Shader "Unlit/CustomSkybox"
                     }
                     else
                     {
-                        float day = round(_TimePower+0.25);
-                        float4 mo = tex2D(_Moon, (uv * float2(-2.5,2.5) + 0.5 + float2(day%4,floor(day/4)))/float2(4,2));
+                        // Unity imports the top row first, but phase zero is on the bottom row.
+                        float layer = fmod(round(_MoonDay) + 4.0, 8.0);
+                        float2 moonUV = uv * float2(-2.5, 2.5) + 0.5;
+                        float4 mo = UNITY_SAMPLE_TEX2DARRAY(_Moon, float3(moonUV, layer));
                         col *= mo.a;
-                        col += mo.rgb;
+                        col += mo.rgb * (1.0 - mo.a);
                         lightChanel = length(uv * 2.5) * 2.3;
                     }
+                }
+
+                if (dir.z < 0 && dot(_MoonRaysDirection, _MoonRaysDirection) > 0.5)
+                {
+                    float3 viewDirection = normalize(i.viewDir);
+                    float forward = dot(viewDirection, _MoonRaysDirection);
+                    float distanceFromCenter = length(cross(viewDirection, _MoonRaysDirection));
+                    lightChanel = forward > 0 ? saturate(5.75 * distanceFromCenter / max(forward, 0.0001)) : 1.0;
                 }
 
                 // + sun

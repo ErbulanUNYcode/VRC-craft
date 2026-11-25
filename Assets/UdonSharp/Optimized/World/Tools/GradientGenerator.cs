@@ -3,184 +3,112 @@ using TMPro;
 using UdonSharp;
 using UnityEngine;
 using UnityEngine.UI;
+using VRC.SDK3.Rendering;
 using VRC.SDKBase;
 
-[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class GradientGenerator : UdonSharpBehaviour
 {
-	[UdonSynced] private float time;
-	[UdonSynced] private Color[] up;
-	[UdonSynced] private Color[] down;
-	[UdonSynced] private Color[] right;
-	[UdonSynced] private Color[] left;
-	[UdonSynced] private Color[] front;
-	[UdonSynced] private Color[] fogFront;
-	[UdonSynced] private Color[] fogBack;
-	[UdonSynced] private int[] upT;
-	[UdonSynced] private int[] downT;
-	[UdonSynced] private int[] rightT;
-	[UdonSynced] private int[] leftT;
-	[UdonSynced] private int[] frontT;
-	[UdonSynced] private int[] fogFrontT;
-	[UdonSynced] private int[] fogBackT;
+	private float time;
+	private Color[] up;
+	private Color[] down;
+	private Color[] right;
+	private Color[] left;
+	private Color[] front;
+	private Color[] fogFront;
+	private Color[] fogBack;
+	private int[] upT;
+	private int[] downT;
+	private int[] rightT;
+	private int[] leftT;
+	private int[] frontT;
+	private int[] fogFrontT;
+	private int[] fogBackT;
 
-	[SerializeField] private TMP_InputField output;
-	private void GradientToJson()
-	{
-		var gr = gradients[(int)selectedDirection];
 
-		var colors = gr.colorKeys;
-		var alphas = gr.alphaKeys;
-
-		string json = "UnityEditor.GradientWrapperJSON:{\"gradient\":{";
-		json += "\"serializedVersion\":\"2\",";
-
-		for (int i = 0; i < 8; i++)
-		{
-			float r = 0;
-			float g = 0;
-			float b = 0;
-			float a = 0;
-
-			if (i < colors.Length)
-			{
-				r = colors[i].color.r;
-				g = colors[i].color.g;
-				b = colors[i].color.b;
-				a = colors[i].color.a;
-			}
-
-			if (i < alphas.Length)
-				a = alphas[i].alpha;
-
-			json += "\"key" + i + "\":{";
-			json += "\"r\":" + Float(r) + ",";
-			json += "\"g\":" + Float(g) + ",";
-			json += "\"b\":" + Float(b) + ",";
-			json += "\"a\":" + Float(a);
-			json += "},";
-		}
-
-		for (int i = 0; i < 8; i++)
-		{
-			int t = i < colors.Length
-				? Mathf.RoundToInt(colors[i].time * 65535f)
-				: 0;
-
-			json += "\"ctime" + i + "\":" + t + ",";
-		}
-
-		for (int i = 0; i < 8; i++)
-		{
-			int t = i < alphas.Length
-				? Mathf.RoundToInt(alphas[i].time * 65535f)
-				: 0;
-
-			json += "\"atime" + i + "\":" + t + ",";
-		}
-
-		json += "\"m_Mode\":" + (int)gr.mode + ",";
-		json += "\"m_ColorSpace\":0,";
-		json += "\"m_NumColorKeys\":" + colors.Length + ",";
-		json += "\"m_NumAlphaKeys\":" + alphas.Length;
-		json += "}}";
-
-		output.text = json;
-	}
-
-	private string Float(float value)
-	{
-		string s = value.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
-
-		if (!s.Contains(".") && !s.Contains("E"))
-			s += ".0";
-
-		return s;
-	}
-
-	private void UpdateAllView()
-	{
-		for (int i = 0; i < lineRenderers.Length; i++)
-		{
-			UpdateView(i);
-		}
-	}
-
-	private void UpdateView(int id)
-	{
-		var l = lineRenderers[id];
-		var g = gradients[id];
-
-		l.colorGradient = g;
-		var c = g.colorKeys;
-		if (c[0].time == 0)
-		{
-			var positions = new Vector3[c.Length];
-
-			for (int i = 1; i < c.Length; i++)
-			{
-				positions[i] = Vector3.right * c[i].time * 600;
-			}
-
-			l.positionCount = positions.Length;
-			l.SetPositions(positions);
-		}
-		else
-		{
-			var positions = new Vector3[c.Length + 4];
-			positions[1] = Vector3.right * 149.99f;
-			positions[2] = Vector3.right * 150.01f;
-			positions[positions.Length - 1] = Vector3.right * 600;
-			positions[positions.Length - 2] = Vector3.right * 450.01f;
-			positions[positions.Length - 3] = Vector3.right * 449.99f;
-			for (int i = 1; i < c.Length - 1; i++)
-			{
-				positions[i + 2] = Vector3.right * c[i].time * 600;
-			}
-			l.positionCount = positions.Length;
-			l.SetPositions(positions);
-		}
-	}
+	private float runtimeTime = 0.07f;
+	private float cycleTime = 0.07f;
+	private const float DayDurationSeconds = 24f * 60f;
+	// Kept as empty compatibility hooks for old Unity event bindings. The
+	// gradient editor and LineRenderer preview are no longer implemented.
+	private void GradientToJson() { }
+	private void UpdateView(int id) { }
 
 	private void Start()
 	{
+		shadowCam.SetReplacementShader(replacementShader, "RenderType");
+		shadowCam1.SetReplacementShader(replacementShader, "RenderType");
+		godRaysRight.enabled = Networking.LocalPlayer.IsUserInVR();
 #if UNITY_EDITOR
-		if (true)
+		godRaysMaterial.SetFloat("_EditorFlarePreview", 1f);
 #else
-		if (Networking.LocalPlayer.displayName == "TonyEric")
+		godRaysMaterial.SetFloat("_EditorFlarePreview", 0f);
 #endif
+		timeChanged = true;
+		runtimeTime = 0.07f;
+		if (moonDaySlider != null)
 		{
-			Networking.SetOwner(Networking.LocalPlayer, gameObject);
-			editModeToggle.isOn = true;
-			timeSlider.value = 0.15f;
-		}
-		else
-		{
-			GetComponent<BoxCollider>().enabled = false;
-			GetComponent<Canvas>().enabled = false;
+			moonDaySlider.minValue = 0f;
+			moonDaySlider.maxValue = 7f;
+			moonDaySlider.wholeNumbers = true;
 		}
 
-		GradientToJson();
+
 	}
 
-	[SerializeField] private LineRenderer[] lineRenderers;
-	[SerializeField] private Slider timeSlider;
-	[SerializeField] private Slider secondTimeSlider;
-	[SerializeField] private Slider backTimeSlider;
+	[System.NonSerialized] private LineRenderer[] lineRenderers;
+	[System.NonSerialized] private Slider timeSlider;
+	[System.NonSerialized] private Slider moonDaySlider;
+	[System.NonSerialized] private Slider secondTimeSlider;
+	[System.NonSerialized] private Slider backTimeSlider;
 	[SerializeField] private Transform shadowCameraParent;
 	[SerializeField] private Material worldMaterial;
 	[SerializeField] private Material skyMaterial;
 	[SerializeField] private Camera shadowCam1;
 	[SerializeField] private Camera shadowCam;
+	[SerializeField] private Shader replacementShader;
+
+	[Header("God Rays")]
+	[SerializeField] private Camera godRaysLeft;
+	[SerializeField] private Camera godRaysRight;
+	[SerializeField] private Camera godRaysPhoto;
+	[SerializeField] private Material godRaysMaterial;
+	private int moonDay;
+	[Tooltip("One offset per moon phase, in pixels from the center of the 480 px frame. Positive Y is up.")]
+	[SerializeField] private Vector2[] moonLightOffsets =
+	{
+		Vector2.zero, new Vector2(-34f, 1f), new Vector2(-5.5f, -22f), new Vector2(19f / 3f, -19f / 3f),
+		new Vector2(19f / 3f, -19f / 3f), new Vector2(26.5f, -10f), new Vector2(26.5f, -10f), new Vector2(30f, 25f)
+	};
+	[Tooltip("Moon phases 0–7, then the sun. RGB colors the rays; alpha sets flare brightness.")]
+	[SerializeField] private Color[] godRaysColors =
+	{
+		new Color(0f, 0f, 0f, 0f),
+		new Color(0.22f / 3f, 0.28f / 3f, 0.38f / 3f, 1f / 3f),
+		new Color(0.22f * 2f / 3f, 0.28f * 2f / 3f, 0.38f * 2f / 3f, 2f / 3f),
+		new Color(0.22f, 0.28f, 0.38f, 1f),
+		new Color(0.22f, 0.28f, 0.38f, 1f),
+		new Color(0.22f * 2f / 3f, 0.28f * 2f / 3f, 0.38f * 2f / 3f, 2f / 3f),
+		new Color(0.22f * 2f / 3f, 0.28f * 2f / 3f, 0.38f * 2f / 3f, 2f / 3f),
+		new Color(0.22f / 3f, 0.28f / 3f, 0.38f / 3f, 1f / 3f),
+		Color.white
+	};
+	private Vector3 moonDirection;
+	private Quaternion moonCenterRotation;
+	private Quaternion moonRotation;
+	private int renderedMoonDay = -1;
 	private bool timeChanged;
-	[SerializeField] private Toggle editModeToggle;
-	[SerializeField] private Button prevKey;
-	[SerializeField] private Button nextKey;
-	[SerializeField] private Button addKey;
-	[SerializeField] private Button removeKey;
+	[System.NonSerialized] private Toggle editModeToggle;
+	[System.NonSerialized] private Button prevKey;
+	[System.NonSerialized] private Button nextKey;
+	[System.NonSerialized] private Button addKey;
+	[System.NonSerialized] private Button removeKey;
 	public void EditMode()
 	{
-		var editMode = editModeToggle.isOn;
+		// Keep the editor permanently disabled. This also protects against a
+		// Toggle event or a stale serialized value re-enabling key editing.
+		const bool editMode = false;
+		if (editModeToggle != null) editModeToggle.SetIsOnWithoutNotify(false);
 		red.interactable = editMode;
 		green.interactable = editMode;
 		blue.interactable = editMode;
@@ -190,6 +118,9 @@ public class GradientGenerator : UdonSharpBehaviour
 		addKey.interactable = editMode;
 		removeKey.interactable = editMode;
 		foreach (Toggle t in directionToggleGroup) t.interactable = editMode;
+		// The day selector is a runtime control.  It is intentionally available
+		// while scrubbing time, but locked while editing a gradient key.
+		if (moonDaySlider != null) moonDaySlider.interactable = !editMode;
 
 		if (editMode)
 		{
@@ -201,6 +132,7 @@ public class GradientGenerator : UdonSharpBehaviour
 		else
 		{
 			timeSlider.interactable = true;
+			if (moonDaySlider != null) moonDaySlider.interactable = true;
 
 			removeKey.interactable = false;
 		}
@@ -209,7 +141,7 @@ public class GradientGenerator : UdonSharpBehaviour
 	public void TimeChanged()
 	{
 		var old = timeSlider.value;
-		if (editModeToggle.isOn && currentKey != 0 && currentKey != gradients[(int)selectedDirection].colorKeys.Length - 1)
+		if (false && currentKey != 0 && currentKey != gradients[(int)selectedDirection].colorKeys.Length - 1)
 		{
 			var g = gradients[(int)selectedDirection];
 			var c = g.colorKeys;
@@ -229,16 +161,41 @@ public class GradientGenerator : UdonSharpBehaviour
 		if (timeChanged) RequestData();
 	}
 
+	private float appliedFaceLightStrength = -1f;
+
+	private bool UsesMoonShadows(float dayTime)
+	{
+		return dayTime >= 0.53f && dayTime <= 0.97f;
+	}
+
+	private float GetFaceLightStrength()
+	{
+		return UsesMoonShadows(runtimeTime) ? GetGodRaysColor(Mathf.Clamp(moonDay, 0, 7)).a : 1f;
+	}
+
+	private void UpdateFaceLighting(float strength)
+	{
+		float secondTime = Mathf.Abs(((runtimeTime + 0.25f) % 1f) * 2f - 1f) / 2f + 0.25f;
+		float backTime = 1f - (runtimeTime + 0.5f) % 1f;
+		SetFaceLight("_UpLightColor", gradients[0].Evaluate(secondTime), strength);
+		SetFaceLight("_DownLightColor", gradients[1].Evaluate(secondTime), strength);
+		SetFaceLight("_RightLightColor", gradients[2].Evaluate(secondTime), strength);
+		SetFaceLight("_LeftLightColor", gradients[3].Evaluate(secondTime), strength);
+		SetFaceLight("_FrontLightColor", gradients[4].Evaluate(runtimeTime), strength);
+		SetFaceLight("_BackLightColor", gradients[4].Evaluate(backTime), strength);
+		appliedFaceLightStrength = strength;
+	}
+
+	private void SetFaceLight(string property, Color color, float strength)
+	{
+		color.a *= strength;
+		worldMaterial.SetColor(property, color);
+	}
+
 	private void RequestData()
 	{
-		worldMaterial.SetColor("_UpLightColor", gradients[0].Evaluate(secondTimeSlider.value));
-		worldMaterial.SetColor("_DownLightColor", gradients[1].Evaluate(secondTimeSlider.value));
-		worldMaterial.SetColor("_RightLightColor", gradients[2].Evaluate(secondTimeSlider.value));
-		worldMaterial.SetColor("_LeftLightColor", gradients[3].Evaluate(secondTimeSlider.value));
-		worldMaterial.SetColor("_FrontLightColor", gradients[4].Evaluate(timeSlider.value));
-		worldMaterial.SetColor("_BackLightColor", gradients[4].Evaluate(backTimeSlider.value));
+		UpdateFaceLighting(GetFaceLightStrength());
 
-		if (!Networking.IsOwner(gameObject)) return;
 
 		time = timeSlider.value;
 
@@ -322,12 +279,15 @@ public class GradientGenerator : UdonSharpBehaviour
 			fogBackT[i] = Mathf.RoundToInt(keys[i].time * 65535f);
 		}
 
-		RequestSerialization();
+
 	}
 
 	public override void OnDeserialization()
 	{
-		timeSlider.value = time;
+		// Gradient editing/network reconstruction was removed. Keep the
+		// serialized gradient array authoritative; only the runtime clock and
+		// material update path are used now.
+		return;
 
 		GradientColorKey[] colorKeys;
 		GradientAlphaKey[] alphaKeys;
@@ -410,38 +370,174 @@ public class GradientGenerator : UdonSharpBehaviour
 		}
 		gradient.SetKeys(colorKeys, alphaKeys);
 
-		UpdateAllView();
 
+		UpdateFaceLighting(GetFaceLightStrength());
+	}
 
-		worldMaterial.SetColor("_UpLightColor", gradients[0].Evaluate(secondTimeSlider.value));
-		worldMaterial.SetColor("_DownLightColor", gradients[1].Evaluate(secondTimeSlider.value));
-		worldMaterial.SetColor("_RightLightColor", gradients[2].Evaluate(secondTimeSlider.value));
-		worldMaterial.SetColor("_LeftLightColor", gradients[3].Evaluate(secondTimeSlider.value));
-		worldMaterial.SetColor("_FrontLightColor", gradients[4].Evaluate(timeSlider.value));
-		worldMaterial.SetColor("_BackLightColor", gradients[4].Evaluate(backTimeSlider.value));
+	public void MoonDayChanged()
+	{
 	}
 
 	private void LateUpdate()
 	{
-		if (!timeChanged) return;
-		var a = timeSlider.value * Mathf.PI * 2;
+		// Temporary local clock: one in-game day lasts 24 real minutes.
+		cycleTime += Time.deltaTime / DayDurationSeconds;
+		runtimeTime = Mathf.Repeat(cycleTime, 1f);
+		moonDay = Mathf.FloorToInt(cycleTime) % 8;
+		timeChanged = true;
+
+
+		int day = Mathf.Clamp(moonDay, 0, 7);
+		if (!timeChanged)
+		{
+#if UNITY_EDITOR
+			UpdateMoonLighting(day);
+#else
+			if (day != renderedMoonDay) UpdateMoonLighting(day);
+#endif
+			return;
+		}
+		float dayTime = runtimeTime;
+		var a = dayTime * Mathf.PI * 2;
 		var pos = new Vector3(0, Mathf.Sin(a), Mathf.Cos(a));
-		a = 50f / 180 * Mathf.PI;
+		a = skyMaterial.GetFloat("_Angle") * Mathf.Deg2Rad;
 		pos.x = Mathf.Sin(a) * pos.y;
 		pos.y = Mathf.Cos(a) * pos.y;
 		a = Mathf.Atan2(pos.x, pos.z);
 		pos.z = new Vector2(pos.x, pos.z).magnitude;
 
-		shadowCameraParent.eulerAngles = new Vector3(Mathf.Atan2(pos.y, pos.z) / Mathf.PI * 180, a / Mathf.PI * 180 - 180, 0);
+		moonCenterRotation = Quaternion.Euler(Mathf.Atan2(pos.y, pos.z) / Mathf.PI * 180, a / Mathf.PI * 180 - 180, 0);
+		bool moonShadows = UsesMoonShadows(dayTime);
+		// Shadow cameras sit behind the target and look away from the selected light.
+		shadowCameraParent.rotation = moonShadows
+			? moonCenterRotation * Quaternion.Euler(0f, 180f, 0f)
+			: moonCenterRotation;
 
 
-		worldMaterial.SetMatrix("_ShadowMatrix", shadowCam.projectionMatrix * shadowCam.worldToCameraMatrix);
-		skyMaterial.SetFloat("_TimePower", timeSlider.value);
-		shadowCam1.enabled = true;
+		// Keep the time-of-day slider continuous inside one day, while the
+		// selected lunar day advances the absolute cycle by whole days.  The
+		// shader accepts 0..8, so this does not introduce a phase jump when the
+		// lunar-day selector changes.
+		skyMaterial.SetFloat("_TimePower", cycleTime);
+		UpdateMoonLighting(day);
+		// The old editor called RequestData whenever the time slider moved.
+		// With the automatic clock there is no slider event, so update all
+		// material gradient samples on every time step.
+		UpdateFaceLighting(GetFaceLightStrength());
+		shadowPositionReady = false;
 		timeChanged = false;
 	}
 
-	[SerializeField] private Toggle[] directionToggleGroup;
+	private void UpdateMoonLighting(int day)
+	{
+		Vector2 center = moonLightOffsets != null && day < moonLightOffsets.Length ? moonLightOffsets[day] : Vector2.zero;
+
+		// Invert the skybox's atlas projection and then its two sky rotations.
+		Vector3 atlasDirection = new Vector3(-center.x / 1200f, center.y / 1200f, -1f);
+		Quaternion toWorld = Quaternion.AngleAxis(-skyMaterial.GetFloat("_Angle"), Vector3.forward)
+			* Quaternion.AngleAxis(-360f * runtimeTime, Vector3.right);
+		moonDirection = (toWorld * atlasDirection).normalized;
+		moonRotation = Quaternion.LookRotation(moonDirection, moonCenterRotation * Vector3.up);
+		renderedMoonDay = day;
+		skyMaterial.SetFloat("_MoonDay", day);
+		// MoonDayChanged can arrive without a time-slider event, so update the
+		// absolute (day + fraction) time here as well.
+		skyMaterial.SetVector("_MoonRaysDirection", moonDirection);
+
+		float strength = GetFaceLightStrength();
+		if (strength != appliedFaceLightStrength) UpdateFaceLighting(strength);
+	}
+
+	private bool shadowPositionReady;
+	private Vector3Int shadowRenderPos;
+
+	public override void PostLateUpdate()
+	{
+		var localPlayer = Networking.LocalPlayer;
+		if (localPlayer == null) return;
+
+		Vector3 predictedPosition = localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime;
+		UpdateShadowRendering(Vector3Int.FloorToInt(predictedPosition + Vector3.up * 0.5f));
+
+		Quaternion sunRotation = moonCenterRotation * Quaternion.Euler(0f, 180f, 0f);
+		var leftEye = Camera.StereoscopicEye.Left;
+		var rightEye = Camera.StereoscopicEye.Right;
+		Vector3 headForward = localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).rotation * Vector3.forward;
+		bool headLooksAtMoon = Vector3.Dot(headForward, moonDirection) > 0f;
+		Quaternion headLightRotation = headLooksAtMoon ? moonRotation : sunRotation;
+
+		UpdateGodRaysCamera(godRaysLeft, "_LeftLightProjection",
+			VRCCameraSettings.GetEyePosition(leftEye), headLightRotation);
+		if (godRaysRight.enabled)
+			UpdateGodRaysCamera(godRaysRight, "_RightLightProjection",
+				VRCCameraSettings.GetEyePosition(rightEye), headLightRotation);
+
+		var photoCamera = VRCCameraSettings.PhotoCamera;
+		// ClientSim does not expose a handheld camera.
+		bool photoActive = photoCamera != null && photoCamera.Active;
+		bool photoLooksAtMoon = false;
+		if (photoActive)
+		{
+			photoLooksAtMoon = Vector3.Dot(photoCamera.Forward, moonDirection) > 0f;
+			UpdateGodRaysCamera(godRaysPhoto, "_PhotoLightProjection", photoCamera.Position,
+				photoLooksAtMoon ? moonRotation : sunRotation);
+		}
+		if (godRaysPhoto.enabled != photoActive)
+			godRaysPhoto.enabled = photoActive;
+		godRaysMaterial.SetFloat("_PhotoMaskReady", photoActive ? 1f : 0f);
+		godRaysMaterial.SetColor("_EyeLightColor", GetGodRaysColor(headLooksAtMoon ? renderedMoonDay : 8));
+		godRaysMaterial.SetColor("_PhotoLightColor", GetGodRaysColor(photoLooksAtMoon ? renderedMoonDay : 8));
+		godRaysMaterial.SetVector("_MoonFlareCameras", new Vector4(headLooksAtMoon ? 1f : 0f, photoLooksAtMoon ? 1f : 0f, 0f, 0f));
+	}
+
+	private Color GetGodRaysColor(int index)
+	{
+		if (godRaysColors != null && index >= 0 && index < godRaysColors.Length) return godRaysColors[index];
+		return index == 8 ? Color.white : Color.clear;
+	}
+
+	private void UpdateGodRaysCamera(Camera maskCamera, string projectionName,
+		Vector3 eyePosition, Quaternion lightRotation)
+	{
+		maskCamera.transform.SetPositionAndRotation(eyePosition, lightRotation);
+		godRaysMaterial.SetMatrix(projectionName, maskCamera.projectionMatrix * maskCamera.worldToCameraMatrix);
+	}
+
+	private void UpdateShadowRendering(Vector3Int pos)
+	{
+		shadowCam1.enabled = false;
+		if ((Time.frameCount & 20) == 0)
+			shadowCam1.enabled = true;
+
+		if (!shadowPositionReady || shadowRenderPos != pos)
+		{
+			Vector3 oldCamPos = shadowCam.transform.position;
+			Vector3 oldCamPos1 = shadowCam1.transform.position;
+			shadowCameraParent.localPosition = pos;
+			Vector3 shadowTarget = shadowCameraParent.TransformPoint(new Vector3(0, 0, -327.68f));
+
+			shadowCam.transform.position = oldCamPos;
+			shadowCam.transform.position = shadowCam.transform.TransformPoint(
+				Vector3Int.RoundToInt(shadowCam.transform.InverseTransformPoint(
+					shadowTarget)));
+			shadowCam1.transform.position = oldCamPos1;
+			shadowCam1.transform.position = shadowCam1.transform.TransformPoint(
+				Vector3Int.RoundToInt(shadowCam1.transform.InverseTransformPoint(
+					shadowTarget)));
+			shadowCam1.enabled = true;
+			shadowRenderPos = pos;
+			shadowPositionReady = true;
+		}
+
+		Vector3 shadowCam1Offset = shadowCam.transform.InverseTransformPoint(shadowCam1.transform.position);
+		shadowCam1Offset.x /= 1000f;
+		shadowCam1Offset.y /= 1000f;
+		shadowCam1Offset.z /= 65536f;
+		worldMaterial.SetVector("_ShadowLodOffset", shadowCam1Offset);
+		worldMaterial.SetMatrix("_ShadowMatrix", shadowCam.projectionMatrix * shadowCam.worldToCameraMatrix);
+	}
+
+	[System.NonSerialized] private Toggle[] directionToggleGroup;
 
 	private void ResetToggles()
 	{
@@ -560,10 +656,10 @@ public class GradientGenerator : UdonSharpBehaviour
 	}
 
 	private Direction selectedDirection;
-	[SerializeField] public Slider red;
-	[SerializeField] public Slider green;
-	[SerializeField] public Slider blue;
-	[SerializeField] public Slider alpha;
+	[System.NonSerialized] public Slider red;
+	[System.NonSerialized] public Slider green;
+	[System.NonSerialized] public Slider blue;
+	[System.NonSerialized] public Slider alpha;
 
 	[SerializeField]
 	private Gradient[] gradients;
@@ -613,8 +709,10 @@ public class GradientGenerator : UdonSharpBehaviour
 		int right = insertIndex;
 
 		float time = (colorKeys[left].time + colorKeys[right].time) * 0.5f;
-		Color color = Color.Lerp(colorKeys[left].color, colorKeys[right].color, 0.5f);
-		color.a = (alphaKeys[left].alpha + alphaKeys[right].alpha) * 0.5f;
+		// Evaluate the actual gradient instead of pairing color and alpha arrays
+		// by index. Their key times are independent, so index-based interpolation
+		// can select the wrong alpha (and therefore the wrong resulting color).
+		Color color = g.Evaluate(time);
 		var newColorKeys = new GradientColorKey[colorKeys.Length + 1];
 		var newAlphaKeys = new GradientAlphaKey[alphaKeys.Length + 1];
 

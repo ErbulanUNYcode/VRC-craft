@@ -74,7 +74,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Moon:
-        m_Texture: {fileID: 2800000, guid: 2c5e97430537b354f81920746740a802, type: 3}
+        m_Texture: {fileID: 18700000, guid: 2c5e97430537b354f81920746740a802, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -89,28 +89,8 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
-    - _StarsXM:
-        m_Texture: {fileID: 2800000, guid: cbbbf58a136f97845a33621d2c7c16cf, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _StarsXP:
-        m_Texture: {fileID: 2800000, guid: 5970c25a673e61e458c01e178ff36869, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _StarsYM:
-        m_Texture: {fileID: 2800000, guid: a1b181b5906700b40be89be908e1d41b, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _StarsYP:
-        m_Texture: {fileID: 2800000, guid: d7fcd5c0ff7375940b304225157dcc94, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _StarsZM:
-        m_Texture: {fileID: 2800000, guid: 9986228cfa3e9894f83571eb58802213, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _StarsZP:
-        m_Texture: {fileID: 2800000, guid: 5fae36d00e3f8754c99bb95a6a79690a, type: 3}
+    - _StarsCube:
+        m_Texture: {fileID: 8900000, guid: e52a776cad3a4101a98dd5270d2da131, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Sun:
@@ -145,6 +125,7 @@ Material:
     - _Metallic: 0
     - _MirrorOnBack: 0
     - _Mode: 0
+    - _MoonDay: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _Rotation: 0
@@ -156,7 +137,7 @@ Material:
     - _SunSizeConvergence: 5
     - _Test1: 0
     - _Test2: 1
-    - _TimePower: 0.15
+    - _TimePower: 0.2845655
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
@@ -165,6 +146,7 @@ Material:
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GroundColor: {r: 0.36899996, g: 0.34899998, b: 0.34099993, a: 1}
     - _HorizonCol: {r: 0.7877358, g: 0.99375695, b: 1, a: 1}
+    - _MoonRaysDirection: {r: -0.7480491, g: -0.6276876, b: 0.21547815, a: 0}
     - _ReleCol: {r: 1, g: 0, b: 0, a: 1}
     - _SkyColor: {r: 0.19999996, g: 0.39999998, b: 0.6, a: 1}
     - _SkyTint: {r: 0.5, g: 0.5, b: 0.5, a: 1}

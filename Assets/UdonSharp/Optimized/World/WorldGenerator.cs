@@ -30,16 +30,8 @@ namespace VRC_MINE.World
 		[SerializeField] private Transform collidersParent;
 		#endregion
 
-		#region shadows
-		[SerializeField] private Transform shadowControl;
-		[SerializeField] private Camera shadowCam;
-		[SerializeField] private Camera shadowCam1;
-		[SerializeField] private Camera godRaysLeft;
-		[SerializeField] private Camera godRaysRight;
-		[SerializeField] private Camera godRaysPhoto;
-		[SerializeField] private Material godRaysMaterial;
+		#region materials
 		[NonSerialized] public Material worldMaterial;
-		[SerializeField] private Shader replacementShader;
 		#endregion
 
 		#region systems
@@ -113,7 +105,6 @@ namespace VRC_MINE.World
 		private void InitGenerator()
 		{
 			localPlayer = Networking.LocalPlayer;
-			godRaysRight.enabled = localPlayer.IsUserInVR();
 			oldPos = Vector3Int.FloorToInt(localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime + Vector3.up * 0.5f);
 			int colliderIndex = 0;
 			for (int y = -1; y <= 2; y++)
@@ -151,17 +142,12 @@ namespace VRC_MINE.World
 			//place tex
 			optimizerMaterial.SetTexture("_CtrlTex", optimizerCtrl);
 
-			//shadow
-			shadowCam.SetReplacementShader(replacementShader, "RenderType");
-			shadowCam1.SetReplacementShader(replacementShader, "RenderType");
-
 		}
 
 
 		private void Update()
 		{
 			Vector3Int pos = Vector3Int.FloorToInt(localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime + Vector3.up * 0.5f);
-			UpdateShadowRendering(pos);
 			if (oldPos != pos)
 			{
 				UpdateColliders(oldPos, pos);
@@ -199,7 +185,6 @@ namespace VRC_MINE.World
 			/*
 			if (Time.frameCount == polygonClearFrame) return;
 			UpdatePolygonControl();
-			UpdateShadowRendering();
 
 			if (chunksQueueData == null || chunksQueueData.Length == 0)
 				return;
@@ -611,28 +596,9 @@ namespace VRC_MINE.World
 				setBlocksCount = 0;
 			}*/
 
-			shadowCam1.enabled = false;
-			if ((Time.frameCount & 20) == 0) shadowCam1.enabled = true;
 			var pos = Vector3Int.FloorToInt(localPlayer.GetPosition() + localPlayer.GetVelocity() * Time.deltaTime + Vector3.up * 0.5f);
 			if (oldPos != pos)
 			{
-
-				var oldCamPos = shadowCam.transform.position;
-				var oldCamPos1 = shadowCam1.transform.position;
-
-				shadowControl.transform.localPosition = pos;
-
-				shadowCam.transform.position = oldCamPos;
-				shadowCam.transform.position = shadowCam.transform.TransformPoint(Vector3Int.RoundToInt(shadowCam.transform.InverseTransformPoint(shadowControl.transform.TransformPoint(new Vector3(0, 0, -327.68f)))));
-				shadowCam1.transform.position = oldCamPos1;
-				shadowCam1.transform.position = shadowCam1.transform.TransformPoint(Vector3Int.RoundToInt(shadowCam1.transform.InverseTransformPoint(shadowControl.transform.TransformPoint(new Vector3(0, 0, -327.68f)))));
-				var shadowCam1Offset = shadowCam.transform.InverseTransformPoint(shadowCam1.transform.position);
-				shadowCam1Offset.x /= 1000;
-				shadowCam1Offset.y /= 1000;
-				shadowCam1Offset.z /= 65536;
-				/*worldMaterial.SetVector("_ShadowLodOffset", shadowCam1Offset);
-				worldMaterial.SetMatrix("_ShadowMatrix", shadowCam.projectionMatrix * shadowCam.worldToCameraMatrix);*/
-				shadowCam1.enabled = true;
 				oldPos = pos - oldPos;
 
 
@@ -778,89 +744,6 @@ namespace VRC_MINE.World
 		}
 
 
-		// New visual GPU-generation pipeline entry point.
-		private bool shadowPositionReady;
-		private Vector3Int shadowRenderPos;
-
-		public override void PostLateUpdate()
-		{
-			Quaternion moonRotation = shadowControl.rotation;
-			Quaternion sunRotation = moonRotation * Quaternion.Euler(0f, 180f, 0f);
-			Vector3 moonDirection = shadowControl.forward;
-			var leftEye = Camera.StereoscopicEye.Left;
-			var rightEye = Camera.StereoscopicEye.Right;
-			Vector3 headForward = localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).rotation * Vector3.forward;
-			bool headLooksAtMoon = Vector3.Dot(headForward, moonDirection) > 0f;
-			Quaternion headLightRotation = headLooksAtMoon ? moonRotation : sunRotation;
-
-			UpdateGodRaysCamera(godRaysLeft, "_LeftLightProjection",
-				VRCCameraSettings.GetEyePosition(leftEye), headLightRotation);
-			if (godRaysRight.enabled)
-				UpdateGodRaysCamera(godRaysRight, "_RightLightProjection",
-					VRCCameraSettings.GetEyePosition(rightEye), headLightRotation);
-
-			var photoCamera = VRCCameraSettings.PhotoCamera;
-			// ClientSim does not expose a handheld camera.
-			bool photoActive = photoCamera != null && photoCamera.Active;
-			bool photoLooksAtMoon = false;
-			if (photoActive)
-			{
-				photoLooksAtMoon = Vector3.Dot(photoCamera.Forward, moonDirection) > 0f;
-				UpdateGodRaysCamera(godRaysPhoto, "_PhotoLightProjection", photoCamera.Position,
-					photoLooksAtMoon ? moonRotation : sunRotation);
-			}
-			if (godRaysPhoto.enabled != photoActive)
-				godRaysPhoto.enabled = photoActive;
-			godRaysMaterial.SetFloat("_PhotoMaskReady", photoActive ? 1f : 0f);
-			godRaysMaterial.SetVector("_MoonMask",
-				new Vector4(headLooksAtMoon ? 1f : 0f, 0f, photoLooksAtMoon ? 1f : 0f, 0f));
-		}
-
-		private void UpdateGodRaysCamera(Camera maskCamera, string projectionName,
-			Vector3 eyePosition, Quaternion lightRotation)
-		{
-			maskCamera.transform.SetPositionAndRotation(eyePosition, lightRotation);
-			godRaysMaterial.SetMatrix(projectionName, maskCamera.projectionMatrix * maskCamera.worldToCameraMatrix);
-		}
-
-		private void UpdateShadowRendering(Vector3Int pos)
-		{
-			shadowCam1.enabled = false;
-			if ((Time.frameCount & 20) == 0)
-				shadowCam1.enabled = true;
-
-			if (!shadowPositionReady || shadowRenderPos != pos)
-			{
-				Vector3 oldCamPos = shadowCam.transform.position;
-				Vector3 oldCamPos1 = shadowCam1.transform.position;
-				shadowControl.localPosition = pos;
-				Vector3 shadowTarget = shadowControl.TransformPoint(new Vector3(0, 0, -327.68f));
-
-				shadowCam.transform.position = oldCamPos;
-				shadowCam.transform.position = shadowCam.transform.TransformPoint(
-					Vector3Int.RoundToInt(shadowCam.transform.InverseTransformPoint(
-						shadowTarget)));
-				shadowCam1.transform.position = oldCamPos1;
-				shadowCam1.transform.position = shadowCam1.transform.TransformPoint(
-					Vector3Int.RoundToInt(shadowCam1.transform.InverseTransformPoint(
-						shadowTarget)));
-				shadowCam1.enabled = true;
-				shadowRenderPos = pos;
-				shadowPositionReady = true;
-			}
-
-			Vector3 shadowCam1Offset = shadowCam.transform.InverseTransformPoint(shadowCam1.transform.position);
-			shadowCam1Offset.x /= 1000f;
-			shadowCam1Offset.y /= 1000f;
-			shadowCam1Offset.z /= 65536f;
-			worldMaterial.SetVector("_ShadowLodOffset", shadowCam1Offset);
-			worldMaterial.SetMatrix("_ShadowMatrix", shadowCam.projectionMatrix * shadowCam.worldToCameraMatrix);
-		}
-
-
-
-
-
 		public void FinishPolygonOptimization()
 		{
 			foreach (var optimizer in optimizators)
@@ -1002,17 +885,6 @@ public class ChunkMeshGeneratorEditor : Editor
 		group.properties.Add(serializedObject.FindProperty("optimizerMaterials"));
 		group.properties.Add(serializedObject.FindProperty("chunkGeneratorMaterial"));
 		group.properties.Add(serializedObject.FindProperty("chunkTerrainGeneratorMaterial"));
-		folderGrups.Add(group);
-
-		group = new FolderGrup() { name = "Shadows", properties = new List<SerializedProperty>() };
-		group.properties.Add(serializedObject.FindProperty("shadowControl"));
-		group.properties.Add(serializedObject.FindProperty("shadowCam"));
-		group.properties.Add(serializedObject.FindProperty("shadowCam1"));
-		group.properties.Add(serializedObject.FindProperty("godRaysLeft"));
-		group.properties.Add(serializedObject.FindProperty("godRaysRight"));
-		group.properties.Add(serializedObject.FindProperty("godRaysPhoto"));
-		group.properties.Add(serializedObject.FindProperty("godRaysMaterial"));
-		group.properties.Add(serializedObject.FindProperty("replacementShader"));
 		folderGrups.Add(group);
 
 		group = new FolderGrup() { name = "Generators", properties = new List<SerializedProperty>() };
