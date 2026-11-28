@@ -89,9 +89,9 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                     {25,25,18,17,17,17,17}, // Ocean
                     {25,25,18,17,17,17,17}, // Tundra
 
-                    {15,18,18,17,17,17,17}, // SnowForest
-                    {15,18,18,17,17,17,17}, // SnowTaiga
-                    {15,18,18,17,17,17,17}, // SnowPlain
+                    {19,18,18,17,17,17,17}, // SnowForest
+                    {19,18,18,17,17,17,17}, // SnowTaiga
+                    {19,18,18,17,17,17,17}, // SnowPlain
                     {19,18,18,17,17,17,17}, // Taiga
                     {19,18,18,17,17,17,17}, // DarkForest
                     {19,18,18,17,17,17,17}, // Swamp
@@ -113,9 +113,9 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                     {25,25,25,18,17,17,17}, // Ocean
                     {25,25,25,18,17,17,17}, // Tundra
 
-                    {15,18,18,18,17,17,17}, // SnowForest
-                    {15,18,18,18,17,17,17}, // SnowTaiga
-                    {15,18,18,18,17,17,17}, // SnowPlain
+                    {19,18,18,18,17,17,17}, // SnowForest
+                    {19,18,18,18,17,17,17}, // SnowTaiga
+                    {19,18,18,18,17,17,17}, // SnowPlain
                     {19,18,18,18,17,17,17}, // Taiga
                     {19,18,18,18,17,17,17}, // DarkForest
                     {19,18,18,18,17,17,17}, // Swamp
@@ -137,9 +137,9 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                     {25,25,25,25,17,17,17}, // Ocean
                     {25,25,25,25,17,17,17}, // Tundra
 
-                    {15,18,18,18,18,17,17}, // SnowForest
-                    {15,18,18,18,18,17,17}, // SnowTaiga
-                    {15,18,18,18,18,17,17}, // SnowPlain
+                    {19,18,18,18,18,17,17}, // SnowForest
+                    {19,18,18,18,18,17,17}, // SnowTaiga
+                    {19,18,18,18,18,17,17}, // SnowPlain
                     {19,18,18,18,18,17,17}, // Taiga
                     {19,18,18,18,18,17,17}, // DarkForest
                     {19,18,18,18,18,17,17}, // Swamp
@@ -185,14 +185,14 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                 },
                 {//Snow
                     {//type 1
-                        {15,18,18,17,17},
-                        {15,18,18,18,17},
-                        {15,18,18,18,18}
+                        {19,18,18,17,17},
+                        {19,18,18,18,17},
+                        {19,18,18,18,18}
                     },
                     {//type 2
-                        {15,27,27,28,17},
-                        {15,27,27,28,28},
-                        {15,27,27,27,28}
+                        {19,27,27,28,17},
+                        {19,27,27,28,28},
+                        {19,27,27,27,28}
                     }
                 },
                 {//Simple
@@ -307,11 +307,11 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                 return value / 0.75;
             }
             
-            uint hash2D(int2 p)
+            uint hash2DSeeded(int2 p, uint seed)
             {
                 uint h = asuint(p.x);
                 h ^= asuint(p.y) * 0x9E3779B1u;
-                h ^= asuint(_Seed) * 0x85EBCA77u;
+                h ^= seed * 0x85EBCA77u;
 
                 h ^= h >> 16;
                 h *= 0x7FEB355Bu;
@@ -320,6 +320,59 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                 h ^= h >> 16;
 
                 return h;
+            }
+
+            uint hash2D(int2 p)
+            {
+                return hash2DSeeded(p, asuint(_Seed));
+            }
+
+            float DistributionGradient(int2 cell, float2 offset, uint seed)
+            {
+                uint h = hash2DSeeded(cell, seed);
+                float2 gradient = float2((h & 1u) != 0u ? 1.0 : -1.0,
+                                         (h & 2u) != 0u ? 1.0 : -1.0);
+                return dot(gradient, offset);
+            }
+
+            float DistributionPerlin(float2 p, uint seed)
+            {
+                int2 cell = (int2)floor(p);
+                float2 f = frac(p);
+                float2 t = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+                float bottom = lerp(DistributionGradient(cell, f, seed),
+                    DistributionGradient(cell + int2(1, 0), f - float2(1, 0), seed), t.x);
+                float top = lerp(DistributionGradient(cell + int2(0, 1), f - float2(0, 1), seed),
+                    DistributionGradient(cell + int2(1, 1), f - 1.0, seed), t.x);
+                return lerp(bottom, top, t.y);
+            }
+
+            uint4 ReadStructureAtlas(int2 position);
+
+            bool PassesStructureDistribution(int2 worldPosition, uint ticket, uint biome, out bool allowMirroring)
+            {
+                allowMirroring = true;
+                uint width, height;
+                _StructureAtlas.GetDimensions(width, height);
+                if (height == 0u) return true;
+                uint4 footer = ReadStructureAtlas(int2(0, height - 1u));
+                if (any(footer.rg != uint2(77u, 83u)) || (footer.b != 1u && footer.b != 2u) ||
+                    biome >= footer.a || height <= footer.a)
+                    return true;
+
+                uint4 settings = ReadStructureAtlas(int2(ticket, height - 1u - footer.a + biome));
+                bool hasMirrorFlag = footer.b == 2u;
+                allowMirroring = !hasMirrorFlag || (settings.a & 128u) != 0u;
+                uint index = hasMirrorFlag ? (settings.a & 127u) : settings.a;
+                uint seed = asuint(_Seed) + index;
+                float2 p = worldPosition / lerp(16.0, 32.0, settings.b / 255.0);
+                float value = saturate(0.5 + (4.0 * DistributionPerlin(p, seed)
+                    + 2.0 * DistributionPerlin(p * 2.0, seed) + DistributionPerlin(p * 4.0, seed)) / 14.0);
+                float lower = settings.r / 255.0;
+                float upper = settings.g / 255.0;
+                float chance = lower < upper ? smoothstep(lower, upper, value) : step(lower, value);
+                uint roll = hash2DSeeded(worldPosition, seed ^ 0xA511E9B3u) & 0xFFFFFFu;
+                return roll / 16777216.0 < chance;
             }
 
             float hash21(int2 p)
@@ -458,7 +511,9 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                     else if(fbm3D(pp+_AndesiteOffset)) result=61;//andesite
                 }
 
-                if(delay==0 && result == 18 && b>1) result = b<5?15:19;//dirt on face to grass
+                if (delay == 0 && b > 1 &&
+                    (result == 18 || (m && result == 17 && hash21(pos.xz + int2(137, 293)) < 0.10)))
+                    result = 19;
 
                 return result;
             }
@@ -534,7 +589,10 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                     o.biomeID = rootTerrainData.y & 31u;
                     uint structureTicket = (zoneHash >> 4) & 255u;
                     uint4 structureMetadata = ReadStructureAtlas(int2(structureTicket, o.biomeID));
-                    if (structureMetadata.g == 0u)
+                    bool allowMirroring = true;
+                    if (structureMetadata.g == 0u ||
+                        !PassesStructureDistribution(int2(_ChunkPosX, _ChunkPosY) + zonePosition,
+                            structureTicket, o.biomeID, allowMirroring))
                     {
                         o.vertex.xy = float2(1000.0, 1000.0);
                         return o;
@@ -548,6 +606,10 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                         (packedSize >> 6) & 1u,
                         (packedSize >> 7) & 1u
                     );
+                    bool mirrorX = allowMirroring && (zoneHash & (1u << 24)) != 0u;
+                    bool mirrorZ = allowMirroring && (zoneHash & (1u << 25)) != 0u;
+                    if (mirrorX) structureRoot.x = structureSize.x - 1 - structureRoot.x;
+                    if (mirrorZ) structureRoot.y = structureSize.y - 1 - structureRoot.y;
 
                     int zoneLayer = GetZoneSize(batchZoneIndex).z;
                     int structureLayer = zoneLayer + structureRoot.y - 4;
@@ -617,8 +679,9 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                         clippedBottom - rootHeight
                     );
                     o.structureInfo = int3(
-                        structureLayer,
-                        structureSize.x,
+                        mirrorZ ? structureSize.y - 1 - structureLayer : structureLayer,
+                        // Negative width tells the fragment shader to read the layer right to left.
+                        mirrorX ? -structureSize.x : structureSize.x,
                         heightGrowth
                     );
                     o.vertex.xy = LocalRectToVertexPosition(
@@ -659,9 +722,9 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                             ? 1
                             : grownY - i.structureInfo.z;
 
-                    int atlasX = (int)i.structureMetadata.r
-                        + i.structureInfo.x * i.structureInfo.y
-                        + localX;
+                    int structureWidth = abs(i.structureInfo.y);
+                    int sourceX = i.structureInfo.y < 0 ? structureWidth - 1 - localX : localX;
+                    int atlasX = (int)i.structureMetadata.r + i.structureInfo.x * structureWidth + sourceX;
                     uint4 structurePixel = ReadStructureAtlas(int2(
                         atlasX,
                         (int)i.structureMetadata.g + atlasY
@@ -692,9 +755,10 @@ Shader "VRC_MINE/Gen/ChunkGenerator"
                     if ((appearanceHash & 3u) > (settings & 3u))
                         discard;
 
-                    uint variantHash = hash2D(worldPosition.xz + int2(atlasX * 269, atlasY * 353));
+                    uint variantSeed = asuint(_Seed);
                     if ((settings & 8u) != 0u)
-                        variantHash ^= asuint(worldPosition.y) * 0x85EBCA6Bu;
+                        variantSeed ^= asuint(worldPosition.y) * 0x85EBCA6Bu;
+                    uint variantHash = hash2DSeeded(worldPosition.xz + int2(atlasX * 269, 0), variantSeed);
                     uint variantCount = (settings & 64u) != 0u ? 3u : 2u;
                     uint variant = variantHash % variantCount;
                     uint block = variant == 0u ? structurePixel.r :

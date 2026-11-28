@@ -9,7 +9,7 @@ Shader "VRC_MINE/WorldShow"
         _AtlasFlipMap ("AtlasFlipMap", 2DArray) = "" {}
         _BiomeLeafColor ("Foliage tint", Color) = (0.45,0.7,0.3,1)
         _FogColor ("FogColor", Color) = (1,1,1,1)
-        _WorldBrightness ("World Brightness", Range(1, 1.25)) = 1.08
+        _WorldBrightness ("World Brightness", Range(1, 1.5)) = 1.08
         _UpLightColor ("UpLightColor", Color) = (1,1,1,1)
         _DownLightColor ("DownLightColor", Color) = (1,1,1,1)
         _RightLightColor ("RightLightColor", Color) = (1,1,1,1)
@@ -205,7 +205,7 @@ Shader "VRC_MINE/WorldShow"
                     float expectedDepth = coord.z + dot(slope, float2(texel) - pixel);
                     gaps[tap] = expectedDepth - _ShadowMap.Load(int3(texel, 0)).r;
                 }
-                float4 visibility = 1.0 - 0.8 * smoothstep(0.0, 0.0003, gaps);
+                float4 visibility = 1.0 - 0.9 * smoothstep(0.0, 0.0003, gaps);
                 int nearestTap = (weight.x >= 0.5 ? 1 : 0) + (weight.y >= 0.5 ? 2 : 0);
                 float4 tapWeights = float4((1.0 - weight.x) * (1.0 - weight.y),
                                            weight.x * (1.0 - weight.y),
@@ -293,7 +293,7 @@ Shader "VRC_MINE/WorldShow"
                 if (abs(c.a - 0.5) < 0.01) c.rgb = saturate(_BiomeLeafColor.rgb * c.g + float3(c.r, 0, c.b));
                 c *= i.light;
                 float shadow;
-                if(i.light.a==0) shadow = 0.2;
+                if(i.light.a==0) shadow = 0.1;
                 else
                 {
                     shadow = i.shadow.x<0||i.shadow.x>1||i.shadow.y<0||i.shadow.y>1||i.shadow.z<0.05||i.shadow.z>0.95;
@@ -304,10 +304,10 @@ Shader "VRC_MINE/WorldShow"
                         i.shadow.z-=0.0004;
                         i.shadow.xy=(i.shadow.xy-0.5)/10+0.5;
                         shadow = i.shadow.x<0||i.shadow.x>1||i.shadow.y<0||i.shadow.y>1||i.shadow.z<0.05||i.shadow.z>0.95;
-                        if(!shadow) shadow = 1-clamp(i.shadow.z-tex2Dlod(_ShadowMap1, float4(i.shadow.xy, 0, 0)).r,0,0.002)*400;
+                        if(!shadow) shadow = 1-clamp(i.shadow.z-tex2Dlod(_ShadowMap1, float4(i.shadow.xy, 0, 0)).r,0,0.002)*450;
                     }
                 }
-                shadow = lerp(0.2,shadow,i.light.a);
+                shadow = lerp(0.1,shadow,i.light.a);
                 shadow *= 1-pow(ao,0.5)*0.5;
 
                 float3 litColor = c.rgb * (shadow * _WorldBrightness);

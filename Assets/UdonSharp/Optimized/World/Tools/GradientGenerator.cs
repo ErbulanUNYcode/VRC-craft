@@ -6,7 +6,7 @@ using UnityEngine.UI;
 using VRC.SDK3.Rendering;
 using VRC.SDKBase;
 
-[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
+[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 public class GradientGenerator : UdonSharpBehaviour
 {
 	private float time;
@@ -27,8 +27,15 @@ public class GradientGenerator : UdonSharpBehaviour
 
 
 	private float runtimeTime = 0.07f;
-	private float cycleTime = 0.07f;
+	private const float StartCycleTime = 4.07f;
+	private float cycleTime = StartCycleTime;
 	private const float DayDurationSeconds = 24f * 60f;
+	[UdonSynced] private double clockStartServerTime;
+	[UdonSynced] private bool clockStarted;
+	private bool localClockAnchored;
+	private float localClockAnchor;
+	private double elapsedAtAnchor;
+	private int lastClockTick = -1;
 	// Kept as empty compatibility hooks for old Unity event bindings. The
 	// gradient editor and LineRenderer preview are no longer implemented.
 	private void GradientToJson() { }
@@ -38,6 +45,9 @@ public class GradientGenerator : UdonSharpBehaviour
 	{
 		shadowCam.SetReplacementShader(replacementShader, "RenderType");
 		shadowCam1.SetReplacementShader(replacementShader, "RenderType");
+		shadowCam.enabled = true;
+		shadowCam1.enabled = false;
+		StartClockIfOwner();
 		godRaysRight.enabled = Networking.LocalPlayer.IsUserInVR();
 #if UNITY_EDITOR
 		godRaysMaterial.SetFloat("_EditorFlarePreview", 1f);
@@ -161,7 +171,6 @@ public class GradientGenerator : UdonSharpBehaviour
 		if (timeChanged) RequestData();
 	}
 
-	private float appliedFaceLightStrength = -1f;
 
 	private bool UsesMoonShadows(float dayTime)
 	{
@@ -183,7 +192,8 @@ public class GradientGenerator : UdonSharpBehaviour
 		SetFaceLight("_LeftLightColor", gradients[3].Evaluate(secondTime), strength);
 		SetFaceLight("_FrontLightColor", gradients[4].Evaluate(runtimeTime), strength);
 		SetFaceLight("_BackLightColor", gradients[4].Evaluate(backTime), strength);
-		appliedFaceLightStrength = strength;
+		if (gradients.Length > 7)
+			worldMaterial.SetColor("_FogColor", gradients[gradients.Length - 1].Evaluate(runtimeTime));
 	}
 
 	private void SetFaceLight(string property, Color color, float strength)
@@ -378,25 +388,33 @@ public class GradientGenerator : UdonSharpBehaviour
 	{
 	}
 
+	private void StartClockIfOwner()
+	{
+		if (clockStarted || !Networking.IsOwner(gameObject)) return;
+		clockStartServerTime = Networking.GetServerTimeInSeconds();
+		clockStarted = true;
+		RequestSerialization();
+	}
+
 	private void LateUpdate()
 	{
-		// Temporary local clock: one in-game day lasts 24 real minutes.
-		cycleTime += Time.deltaTime / DayDurationSeconds;
+		if (!clockStarted && Networking.IsNetworkSettled)
+			StartClockIfOwner();
+
+		float localNow = Time.realtimeSinceStartup;
+		if (clockStarted && !localClockAnchored)
+		{
+			elapsedAtAnchor = Networking.GetServerTimeInSeconds() - clockStartServerTime;
+			if (elapsedAtAnchor < 0.0) elapsedAtAnchor = 0.0;
+			localClockAnchor = localNow;
+			localClockAnchored = true;
+		}
+
+		double elapsed = localClockAnchored ? elapsedAtAnchor + ((double)localNow - localClockAnchor) : 0.0;
+		float elapsedSeconds = Mathf.Max(0f, (float)elapsed);
+		cycleTime = StartCycleTime + elapsedSeconds / DayDurationSeconds;
 		runtimeTime = Mathf.Repeat(cycleTime, 1f);
 		moonDay = Mathf.FloorToInt(cycleTime) % 8;
-		timeChanged = true;
-
-
-		int day = Mathf.Clamp(moonDay, 0, 7);
-		if (!timeChanged)
-		{
-#if UNITY_EDITOR
-			UpdateMoonLighting(day);
-#else
-			if (day != renderedMoonDay) UpdateMoonLighting(day);
-#endif
-			return;
-		}
 		float dayTime = runtimeTime;
 		var a = dayTime * Mathf.PI * 2;
 		var pos = new Vector3(0, Mathf.Sin(a), Mathf.Cos(a));
@@ -407,6 +425,13 @@ public class GradientGenerator : UdonSharpBehaviour
 		pos.z = new Vector2(pos.x, pos.z).magnitude;
 
 		moonCenterRotation = Quaternion.Euler(Mathf.Atan2(pos.y, pos.z) / Mathf.PI * 180, a / Mathf.PI * 180 - 180, 0);
+		skyMaterial.SetFloat("_TimePower", cycleTime);
+		UpdateMoonLighting(moonDay);
+
+		int clockTick = Mathf.FloorToInt(elapsedSeconds * 4f);
+		if (clockTick == lastClockTick) return;
+		lastClockTick = clockTick;
+
 		bool moonShadows = UsesMoonShadows(dayTime);
 		// Shadow cameras sit behind the target and look away from the selected light.
 		shadowCameraParent.rotation = moonShadows
@@ -414,18 +439,8 @@ public class GradientGenerator : UdonSharpBehaviour
 			: moonCenterRotation;
 
 
-		// Keep the time-of-day slider continuous inside one day, while the
-		// selected lunar day advances the absolute cycle by whole days.  The
-		// shader accepts 0..8, so this does not introduce a phase jump when the
-		// lunar-day selector changes.
-		skyMaterial.SetFloat("_TimePower", cycleTime);
-		UpdateMoonLighting(day);
-		// The old editor called RequestData whenever the time slider moved.
-		// With the automatic clock there is no slider event, so update all
-		// material gradient samples on every time step.
 		UpdateFaceLighting(GetFaceLightStrength());
 		shadowPositionReady = false;
-		timeChanged = false;
 	}
 
 	private void UpdateMoonLighting(int day)
@@ -440,12 +455,7 @@ public class GradientGenerator : UdonSharpBehaviour
 		moonRotation = Quaternion.LookRotation(moonDirection, moonCenterRotation * Vector3.up);
 		renderedMoonDay = day;
 		skyMaterial.SetFloat("_MoonDay", day);
-		// MoonDayChanged can arrive without a time-slider event, so update the
-		// absolute (day + fraction) time here as well.
 		skyMaterial.SetVector("_MoonRaysDirection", moonDirection);
-
-		float strength = GetFaceLightStrength();
-		if (strength != appliedFaceLightStrength) UpdateFaceLighting(strength);
 	}
 
 	private bool shadowPositionReady;
@@ -505,11 +515,9 @@ public class GradientGenerator : UdonSharpBehaviour
 
 	private void UpdateShadowRendering(Vector3Int pos)
 	{
-		shadowCam1.enabled = false;
-		if ((Time.frameCount & 20) == 0)
-			shadowCam1.enabled = true;
-
-		if (!shadowPositionReady || shadowRenderPos != pos)
+		bool refreshFarShadow = !shadowPositionReady || shadowRenderPos != pos;
+		shadowCam1.enabled = refreshFarShadow;
+		if (refreshFarShadow)
 		{
 			Vector3 oldCamPos = shadowCam.transform.position;
 			Vector3 oldCamPos1 = shadowCam1.transform.position;
@@ -524,7 +532,6 @@ public class GradientGenerator : UdonSharpBehaviour
 			shadowCam1.transform.position = shadowCam1.transform.TransformPoint(
 				Vector3Int.RoundToInt(shadowCam1.transform.InverseTransformPoint(
 					shadowTarget)));
-			shadowCam1.enabled = true;
 			shadowRenderPos = pos;
 			shadowPositionReady = true;
 		}

@@ -150,6 +150,7 @@ public class TeleportTo : UdonSharpBehaviour
 		if (value && coursor.gameObject.activeSelf)
 		{
 			Networking.LocalPlayer.TeleportTo(new Vector3(coursor.localPosition.x, 0, coursor.localPosition.y) * 40940 + Vector3.up * 80, Networking.LocalPlayer.GetRotation());
+			world.OnPlayerTeleport();
 		}
 	}
 }

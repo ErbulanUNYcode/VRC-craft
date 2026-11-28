@@ -53,7 +53,8 @@ namespace VRC_MINE.UI
 
 			renderImage.position = head.position + head.rotation * Vector3.forward * 0.1f;
 
-			playerPosition.text = Mathf.Round(head.position.x) + "," + Mathf.Round(head.position.y) + "," + Mathf.Round(head.position.z);
+			var blockPosition = Vector3Int.FloorToInt(head.position);
+			playerPosition.text = blockPosition.x + "," + blockPosition.y + "," + blockPosition.z;
 
 			var offset = VRCCameraSettings.ScreenCamera.Right * eyeDist * localPlayer.GetAvatarEyeHeightAsMeters();
 			foreach (var UiMaterial in UiMaterials) UiMaterial.SetVector("_EyeOffset", offset);

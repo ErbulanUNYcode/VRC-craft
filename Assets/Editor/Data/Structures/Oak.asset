@@ -16,6 +16,10 @@ MonoBehaviour:
   root: {x: 2, y: 0, z: 2}
   rootOffsetMask: 0
   variableHeight: 3
+  noiseMin: 0.252
+  noiseMax: 0.77
+  noiseScale: 1
+  noiseIndex: 0
   positions:
   - {x: 1, y: 2}
   - {x: 0, y: 2}

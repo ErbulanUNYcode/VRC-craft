@@ -53,6 +53,14 @@ namespace VRC_MINE.Tools
 		private bool previewRotateStarted = false;
 		private Vector2Int zoneDrawStartPos;
 		private Texture2D preview;
+		private Texture2D distributionPreview;
+		private int previewMode;
+		private int distributionChunks = 12;
+		private int cachedDistributionChunks;
+		private int cachedDistributionSeed;
+		private Color32 cachedDistributionSettings;
+		private Vector3Int cachedDistributionSize;
+		private Vector3Int cachedDistributionRoot;
 		private readonly Texture2D[,] probabilityPatterns = new Texture2D[2, 4];
 		private bool hasStructureChanges;
 		#endregion
@@ -90,6 +98,7 @@ namespace VRC_MINE.Tools
 						DestroyImmediate(probabilityPatterns[dimensions, probability]);
 			if (mat != null) DestroyImmediate(mat);
 			if (preview != null) DestroyImmediate(preview);
+			if (distributionPreview != null) DestroyImmediate(distributionPreview);
 		}
 
 		private void ApplyModifiedProperties()
@@ -388,7 +397,7 @@ namespace VRC_MINE.Tools
 			GUI.Label(new Rect(viewport.x + 4, viewport.y + 1, viewport.width - 8, 17), library ? "Blocks" : "RGB"[panel - 1].ToString(), EditorStyles.miniBoldLabel);
 			Rect scrollRect = new Rect(viewport.x, viewport.y + 18, viewport.width, viewport.height - 18);
 			float cell = Mathf.Max(24, (scrollRect.width - 13) / 2);
-			int count = blockList.Count + (library ? 1 : 0);
+			int count = blockList.Count + 1;
 			Rect contentRect = new Rect(0, 0, scrollRect.width - 13, Mathf.Max(scrollRect.height + .1f, Mathf.Ceil(count / 2f) * cell));
 			blockListScroll[panel] = GUI.BeginScrollView(scrollRect, blockListScroll[panel], contentRect);
 			Rect button = new Rect(0, 0, cell - 2, cell - 2);
@@ -427,10 +436,10 @@ namespace VRC_MINE.Tools
 				i++;
 			}
 
+			button.x = (i % 2) * cell + 1;
+			button.y = (i / 2) * cell + 1;
 			if (library)
 			{
-				button.x = (i % 2) * cell + 1;
-				button.y = (i / 2) * cell + 1;
 				EditorGUI.BeginDisabledGroup(atlas == null);
 				if (GUI.Button(button, new GUIContent("+", atlas == null ? "Select a MineAtlas first." : "Add a block."), style))
 				{
@@ -442,6 +451,13 @@ namespace VRC_MINE.Tools
 					});
 				}
 				EditorGUI.EndDisabledGroup();
+			}
+			else
+			{
+				if (GUI.Button(button, new GUIContent("", "Air"), style) && Event.current.button == 0)
+					selectedBlocks[panel - 1] = 0;
+				if (selectedBlocks[panel - 1] == 0)
+					Handles.DrawSolidRectangleWithOutline(button, Color.clear, Color.white);
 			}
 			GUI.EndScrollView();
 			return delete;
@@ -484,6 +500,41 @@ namespace VRC_MINE.Tools
 		public override void OnInspectorGUI()
 		{
 			if (target == null) return;
+			int newMode = GUILayout.Toolbar(previewMode, new[] { "3D Structure", "Distribution" });
+			if (newMode != previewMode)
+			{
+				previewMode = newMode;
+				if (previewMode == 0) UpdatePreview();
+				Repaint();
+			}
+
+			if (previewMode == 1)
+			{
+				DrawDistributionSettings();
+				return;
+			}
+
+			DrawStructureInspector();
+		}
+
+		private void DrawDistributionSettings()
+		{
+			serializedComponent.Update();
+			EditorGUI.BeginChangeCheck();
+			EditorGUILayout.PropertyField(serializedComponent.FindProperty("noiseMin"), new GUIContent("Noise Lower Limit"));
+			EditorGUILayout.PropertyField(serializedComponent.FindProperty("noiseMax"), new GUIContent("Noise Upper Limit"));
+			EditorGUILayout.PropertyField(serializedComponent.FindProperty("noiseScale"), new GUIContent("Noise Scale"));
+			EditorGUILayout.PropertyField(serializedComponent.FindProperty("allowMirroring"), new GUIContent("Allow Mirroring"));
+			if (EditorGUI.EndChangeCheck())
+			{
+				serializedComponent.ApplyModifiedProperties();
+				MarkDirty();
+				Repaint();
+			}
+		}
+
+		private void DrawStructureInspector()
+		{
 			#region base
 			var newSize = EditorGUILayout.Vector3IntField("size", size);
 			newSize = new Vector3Int(
@@ -595,9 +646,9 @@ namespace VRC_MINE.Tools
 			}
 			Handles.EndGUI();
 
-			bool brushReady = blockList.ContainsKey(selectedBlocks[0]) &&
-				blockList.ContainsKey(selectedBlocks[1]) &&
-				(!useBlueVariant || blockList.ContainsKey(selectedBlocks[2]));
+			bool brushReady = (selectedBlocks[0] == 0 || blockList.ContainsKey(selectedBlocks[0])) &&
+				(selectedBlocks[1] == 0 || blockList.ContainsKey(selectedBlocks[1])) &&
+				(!useBlueVariant || selectedBlocks[2] == 0 || blockList.ContainsKey(selectedBlocks[2]));
 			if (brushReady && Event.current.type == EventType.MouseDown && Event.current.button == 0 && gridRect.Contains(Event.current.mousePosition))
 			{
 				zoneDrawStarted = true;
@@ -848,6 +899,15 @@ namespace VRC_MINE.Tools
 
 		public override void OnPreviewSettings()
 		{
+			if (previewMode == 1)
+			{
+				GUILayout.Label("Chunks Wide");
+				distributionChunks = EditorGUILayout.IntSlider(distributionChunks, 1, 48, GUILayout.Width(130f));
+				GUILayout.Label("Seed");
+				previewRandomSeed = EditorGUILayout.IntSlider(previewRandomSeed, 0, 31, GUILayout.Width(85f));
+				return;
+			}
+
 			string layerLabel = showCurrentLayer ? "Layer  [x]" : "Layer  [  ]";
 			if (GUILayout.Button(layerLabel, EditorStyles.toolbarButton, GUILayout.Width(90f)))
 			{
@@ -873,7 +933,116 @@ namespace VRC_MINE.Tools
 
 		public override void OnPreviewGUI(Rect rect, GUIStyle background)
 		{
+			if (previewMode == 1)
+			{
+				DrawDistributionPreview(rect);
+				return;
+			}
 			DrawStructurePreview(rect);
+		}
+
+		private void DrawDistributionPreview(Rect rect)
+		{
+			Color32 settings = targetComponent.PreviewDistribution;
+			if (distributionPreview == null || cachedDistributionChunks != distributionChunks ||
+				cachedDistributionSeed != previewRandomSeed || !cachedDistributionSettings.Equals(settings) ||
+				cachedDistributionSize != size || cachedDistributionRoot != root)
+			{
+				if (distributionPreview != null) DestroyImmediate(distributionPreview);
+				cachedDistributionChunks = distributionChunks;
+				cachedDistributionSeed = previewRandomSeed;
+				cachedDistributionSettings = settings;
+				cachedDistributionSize = size;
+				cachedDistributionRoot = root;
+				int width = distributionChunks * 16;
+				distributionPreview = new Texture2D(width, width, TextureFormat.RGBA32, false)
+				{
+					filterMode = FilterMode.Point,
+					hideFlags = HideFlags.HideAndDontSave
+				};
+				var pixels = new Color32[width * width];
+				int origin = -(distributionChunks / 2) * 16;
+				for (int i = 0; i < pixels.Length; i++)
+					pixels[i] = new Color32(24, 29, 28, 255);
+
+				uint worldSeed = (uint)previewRandomSeed;
+				uint structureSeed = worldSeed + (uint)(settings.a & 127);
+				float scale = Mathf.Lerp(16f, 32f, settings.b / 255f);
+				// Include nearby roots whose footprints extend into the view.
+				for (int z = -8; z < width + 8; z += 4)
+				for (int x = -8; x < width + 8; x += 4)
+				{
+					uint hash = DistributionHash(x + origin, z + origin, worldSeed);
+					int rootX = x + (int)(hash & 3u);
+					int rootZ = z + (int)((hash >> 2) & 3u);
+					float px = (rootX + origin) / scale;
+					float pz = (rootZ + origin) / scale;
+					float noise = Mathf.Clamp01(0.5f + (4f * DistributionNoise(px, pz, structureSeed)
+						+ 2f * DistributionNoise(px * 2f, pz * 2f, structureSeed)
+						+ DistributionNoise(px * 4f, pz * 4f, structureSeed)) / 14f);
+					float lower = settings.r / 255f;
+					float upper = settings.g / 255f;
+					float chance = lower < upper
+						? Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(lower, upper, noise))
+						: (noise >= lower ? 1f : 0f);
+					uint roll = DistributionHash(rootX + origin, rootZ + origin, structureSeed ^ 0xA511E9B3u) & 0xFFFFFFu;
+					if (roll / 16777216f >= chance) continue;
+					int left = rootX - root.x;
+					int bottom = rootZ - root.z;
+					int right = Mathf.Min(left + size.x, width);
+					int top = Mathf.Min(bottom + size.z, width);
+					for (int plotZ = Mathf.Max(bottom, 0); plotZ < top; plotZ++)
+					for (int plotX = Mathf.Max(left, 0); plotX < right; plotX++)
+						pixels[plotX + plotZ * width] = new Color32(112, 210, 132, 255);
+				}
+				distributionPreview.SetPixels32(pixels);
+				distributionPreview.Apply(false, false);
+			}
+			float side = Mathf.Min(rect.width, rect.height);
+			var map = new Rect(rect.center.x - side * 0.5f, rect.center.y - side * 0.5f, side, side);
+			GUI.DrawTexture(map, distributionPreview);
+			float lineWidth = 1f / EditorGUIUtility.pixelsPerPoint;
+			Color gridColor = new Color(1f, 1f, 1f, 0.22f);
+			for (int i = 1; i < distributionChunks; i++)
+			{
+				float offset = side * i / distributionChunks;
+				EditorGUI.DrawRect(new Rect(map.x + offset, map.y, lineWidth, side), gridColor);
+				EditorGUI.DrawRect(new Rect(map.x, map.y + offset, side, lineWidth), gridColor);
+			}
+		}
+
+		private static uint DistributionHash(int x, int z, uint seed)
+		{
+			unchecked
+			{
+				uint h = (uint)x ^ (uint)z * 0x9E3779B1u ^ seed * 0x85EBCA77u;
+				h ^= h >> 16;
+				h *= 0x7FEB355Bu;
+				h ^= h >> 15;
+				h *= 0x846CA687u;
+				return h ^ (h >> 16);
+			}
+		}
+
+		private static float DistributionGradient(int x, int z, float dx, float dz, uint seed)
+		{
+			uint h = DistributionHash(x, z, seed);
+			return ((h & 1u) != 0 ? dx : -dx) + ((h & 2u) != 0 ? dz : -dz);
+		}
+
+		private static float DistributionNoise(float x, float z, uint seed)
+		{
+			int ix = Mathf.FloorToInt(x);
+			int iz = Mathf.FloorToInt(z);
+			float fx = x - ix;
+			float fz = z - iz;
+			float tx = fx * fx * fx * (fx * (fx * 6f - 15f) + 10f);
+			float tz = fz * fz * fz * (fz * (fz * 6f - 15f) + 10f);
+			float bottom = Mathf.Lerp(DistributionGradient(ix, iz, fx, fz, seed),
+				DistributionGradient(ix + 1, iz, fx - 1f, fz, seed), tx);
+			float top = Mathf.Lerp(DistributionGradient(ix, iz + 1, fx, fz - 1f, seed),
+				DistributionGradient(ix + 1, iz + 1, fx - 1f, fz - 1f, seed), tx);
+			return Mathf.Lerp(bottom, top, tz);
 		}
 
 		private void DrawStructurePreview(Rect previewRect)

@@ -115,18 +115,18 @@ Material:
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
-    - _WorldBrightness: 1.25
+    - _WorldBrightness: 1.5
     - _ZWrite: 1
     - _Zoom: 1
     m_Colors:
-    - _BackLightColor: {r: 1, g: 0.9999011, b: 1, a: 0.1382752}
+    - _BackLightColor: {r: 0.8042467, g: 0.7954975, b: 0.77218, a: 0}
     - _BiomeLeafColor: {r: 0.45, g: 0.7, b: 0.29999998, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _DownLightColor: {r: 0.68642044, g: 0.6853965, b: 0.68583965, a: 0}
+    - _DownLightColor: {r: 0.677708, g: 0.6769644, b: 0.6775209, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _FogColor: {r: 0.1990477, g: 0.4364763, b: 0.6698113, a: 1}
-    - _FrontLightColor: {r: 0.9421606, g: 0.93957543, b: 0.9326858, a: 0}
-    - _LeftLightColor: {r: 0.94689715, g: 0.9455728, b: 0.9568596, a: 0}
-    - _RightLightColor: {r: 0.9926446, g: 0.99268836, b: 0.99283326, a: 0.8617554}
-    - _UpLightColor: {r: 1, g: 1, b: 1, a: 0.8617554}
+    - _FrontLightColor: {r: 1, g: 0.9996654, b: 1, a: 0.46790934}
+    - _LeftLightColor: {r: 0.82027733, g: 0.815795, b: 0.85399437, a: 0}
+    - _RightLightColor: {r: 0.9751062, g: 0.97525424, b: 0.97574466, a: 0.5321212}
+    - _UpLightColor: {r: 1, g: 1, b: 1, a: 0.5321212}
   m_BuildTextureStacks: []

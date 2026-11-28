@@ -586,7 +586,13 @@ namespace VRC_MINE.Tools
 		{
 			int metadataRows = biome.BiomeNames.Length;
 			int atlasWidth = biome.AtlasSize.x;
-			int atlasHeight = biome.AtlasSize.y + metadataRows;
+			if (biome.Structures.Length > 128)
+			{
+				Debug.LogError("Structure distribution supports up to 128 atlas entries.", biome);
+				return;
+			}
+			int distributionStart = biome.AtlasSize.y + metadataRows;
+			int atlasHeight = distributionStart + metadataRows + 1;
 			var path = atlasFolder + "/" + biome.name + ".asset";
 			var atlas = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
 			bool recreateAtlas = atlas == null ||
@@ -624,6 +630,7 @@ namespace VRC_MINE.Tools
 			atlas.wrapMode = TextureWrapMode.Clamp;
 
 			var atlasPixels = new Color32[atlasWidth * atlasHeight];
+			atlasPixels[(atlasHeight - 1) * atlasWidth] = new Color32(77, 83, 2, (byte)metadataRows);
 			var previewPixels = preview.GetPixels32();
 			for (int y = 0; y < biome.AtlasSize.y; y++)
 				Array.Copy(
@@ -650,6 +657,13 @@ namespace VRC_MINE.Tools
 					if (probability == 0) continue;
 
 					var structureData = new SerializedObject(structure);
+					var noiseIndex = structureData.FindProperty("noiseIndex");
+					if (noiseIndex.intValue != structureIndex)
+					{
+						noiseIndex.intValue = structureIndex;
+						structureData.ApplyModifiedPropertiesWithoutUndo();
+					}
+					Color32 distribution = structure.PackDistribution(structureIndex);
 					var structureSize = structureData.FindProperty("size").vector3IntValue;
 					int rootOffsetMask = structureData.FindProperty("rootOffsetMask").intValue & 3;
 					int variableHeight = structureData.FindProperty("variableHeight").intValue & 7;
@@ -670,8 +684,11 @@ namespace VRC_MINE.Tools
 						packedHeight);
 
 					int writeCount = Mathf.Min(probability, atlasWidth - metadataX);
-					for (int copy = 0; copy < writeCount; copy++)
-						atlasPixels[biomeIndex * atlasWidth + metadataX++] = metadata;
+					for (int copy = 0; copy < writeCount; copy++, metadataX++)
+					{
+						atlasPixels[biomeIndex * atlasWidth + metadataX] = metadata;
+						atlasPixels[(distributionStart + biomeIndex) * atlasWidth + metadataX] = distribution;
+					}
 				}
 			}
 

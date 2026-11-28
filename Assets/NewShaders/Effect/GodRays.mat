@@ -39,7 +39,7 @@ Material:
     m_Floats:
     - _EditorFlarePreview: 1
     m_Colors:
-    - _EyeLightColor: {r: 0.10980392, g: 0.11764706, b: 0.14117648, a: 0.03529412}
+    - _EyeLightColor: {r: 0.18071377, g: 0.22159392, b: 0.2924528, a: 0.72156864}
     - _MoonMask: {r: 0, g: 1, b: 0, a: 1}
     - _PhotoLightColor: {r: 1, g: 0.9454979, b: 0.7311321, a: 1}
   m_BuildTextureStacks: []

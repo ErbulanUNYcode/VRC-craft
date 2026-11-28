@@ -13,6 +13,7 @@ Material:
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords:
+  - _DEBUGFILLCHUNK_ON
   - _GENCHUNK_ON
   - _SHOWRED_ON
   m_LightmapFlags: 4
@@ -73,9 +74,10 @@ Material:
     m_Floats:
     - _BumpScale: 1
     - _Cutoff: 0.5
+    - _DebugFillChunk: 1
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
-    - _GenChunk: 1
+    - _GenChunk: 0
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1

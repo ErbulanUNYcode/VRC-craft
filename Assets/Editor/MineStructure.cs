@@ -10,6 +10,22 @@ namespace VRC_MINE.Tools
 		[SerializeField] private Vector3Int root = new Vector3Int(1, 0, 1);
 		[SerializeField] private int rootOffsetMask;
 		[SerializeField] private int variableHeight;
+		[SerializeField, Range(0f, 1f)] private float noiseMin;
+		[SerializeField, Range(0f, 1f)] private float noiseMax = 1f;
+		[SerializeField, Range(0f, 1f)] private float noiseScale;
+		[SerializeField] private bool allowMirroring = true;
+		[SerializeField, HideInInspector] private int noiseIndex;
+
+		internal Color32 PackDistribution(int index)
+		{
+			return new Color32(
+				(byte)Mathf.RoundToInt(Mathf.Min(noiseMin, noiseMax) * 255f),
+				(byte)Mathf.RoundToInt(Mathf.Max(noiseMin, noiseMax) * 255f),
+				(byte)Mathf.RoundToInt(noiseScale * 255f),
+				(byte)((index & 127) | (allowMirroring ? 128 : 0)));
+		}
+
+		internal Color32 PreviewDistribution => PackDistribution(noiseIndex);
 		#endregion
 
 		#region main

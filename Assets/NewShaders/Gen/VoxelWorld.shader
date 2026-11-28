@@ -35,6 +35,8 @@ Shader "VRC_MINE/Gen/VoxelWorld"
             int _OffsetY;
             int _GenChunk;
             int _ZonesCount;
+            float4 _ClearChunks[4];
+            int _ClearChunksCount;
             float _BlockX[64];
             float _BlockZ[64];
             float _BlockId[64];
@@ -55,8 +57,28 @@ Shader "VRC_MINE/Gen/VoxelWorld"
                 o.globalTexcoord = base.globalTexcoord;
                 o.primitiveID = base.primitiveID;
 
+                if (o.primitiveID >= (uint)_ZonesCount)
+                {
+                    o.vertex.xy = float2(0.0, 0.0);
+                    return o;
+                }
+
                 // The horizontal chunk plane is represented by texture X/Y.
-                if (o.primitiveID == 0 && _GenChunk != 0)
+                uint clearCount = (uint)_ClearChunksCount;
+                if (o.primitiveID < clearCount)
+                {
+                    float4 region = _ClearChunks[o.primitiveID];
+                    float2 chunkClipSize = 32.0 / float2(
+                        _CustomRenderTextureWidth, _CustomRenderTextureHeight);
+                    float2 origin = float2(-1.0, -1.0);
+                    #if !UNITY_UV_STARTS_AT_TOP
+                        origin.y = 1.0;
+                        chunkClipSize.y = -chunkClipSize.y;
+                    #endif
+                    o.vertex.xy = origin + (o.vertex.xy - origin) * region.zw
+                        + region.xy * chunkClipSize;
+                }
+                else if (o.primitiveID == clearCount && _GenChunk != 0)
                 {
                     float2 textureSize = float2(
                         _CustomRenderTextureWidth,
@@ -79,7 +101,7 @@ Shader "VRC_MINE/Gen/VoxelWorld"
                 }
 				else if (o.primitiveID < (uint)_ZonesCount)
 				{
-					uint blockIndex = o.primitiveID - (_GenChunk != 0 ? 1u : 0u);
+					uint blockIndex = o.primitiveID;
 					if (blockIndex < 64u)
 					{
 						int blockX = (int)round(_BlockX[blockIndex]);
@@ -104,9 +126,13 @@ Shader "VRC_MINE/Gen/VoxelWorld"
 				if (i.primitiveID >= (uint)_ZonesCount)
 					return 0u;
 
-				if (_GenChunk == 0 || i.primitiveID != 0)
+				uint clearCount = (uint)_ClearChunksCount;
+				if (i.primitiveID < clearCount)
+					return 0u;
+
+				if (_GenChunk == 0 || i.primitiveID != clearCount)
 				{
-					uint blockIndex = i.primitiveID - (_GenChunk != 0 ? 1u : 0u);
+					uint blockIndex = i.primitiveID;
 					return (uint)round(_BlockId[blockIndex]);
 				}
 
